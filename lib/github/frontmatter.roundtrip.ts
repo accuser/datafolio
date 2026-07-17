@@ -5,6 +5,8 @@
 //   npx tsx lib/github/frontmatter.roundtrip.ts
 
 import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
 import { genMd } from "../domain";
 import { KSB_BY_ID } from "../ksbs";
 import type { Evidence } from "../types";
@@ -107,8 +109,13 @@ const covered = new Set(
 
 // ---- 2) Real empty template file ------------------------------------------
 
-const templatePath =
-  "/Users/matthew/Projects/design_handoff_datafolio/template-repo/evidence/K1/index.md";
+// Self-contained fixture (a copy of the template repo's empty K1 index.md),
+// resolved relative to this file so the test runs on any machine / in CI.
+const templatePath = join(
+  dirname(fileURLToPath(import.meta.url)),
+  "__fixtures__",
+  "empty-K1-index.md",
+);
 const templateMd = readFileSync(templatePath, "utf8");
 const template = parseIndexMd(templateMd);
 
