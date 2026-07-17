@@ -12,6 +12,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Generated build output / tooling scratch (all gitignored) — never lint.
+    ".open-next/**",
+    ".wrangler/**",
+    ".claude/**",
   ]),
 ]);
 
