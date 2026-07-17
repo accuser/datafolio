@@ -25,6 +25,17 @@ export async function PATCH(
     return NextResponse.json({ error: valid.error }, { status: 400 });
   }
 
+  // A review verdict (Approve / Request changes) is a coach action. The repo
+  // owner is the learner, so reject self-review server-side — the client role
+  // toggle must not let a learner approve their own evidence.
+  const isOwner = ctx.login.toLowerCase() === ctx.owner.toLowerCase();
+  if (isOwner && (valid.patch.status === "Approved" || valid.patch.status === "Changes")) {
+    return NextResponse.json(
+      { error: "You can’t review your own evidence — only a coach can approve or request changes." },
+      { status: 403 },
+    );
+  }
+
   try {
     const store = createGitHubStore(ctx);
     const evidence = await store.updateEvidence(id, valid.patch);

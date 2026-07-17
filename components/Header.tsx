@@ -1,7 +1,7 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import { useApp } from "@/lib/state";
+import { BACKEND_MODE, useApp } from "@/lib/state";
 import { GithubMark, Lock } from "./icons";
 
 function navTab(active: boolean): CSSProperties {
@@ -104,23 +104,44 @@ export function Header() {
         {user.repo} · private
       </div>
 
-      <div
-        style={{
-          display: "flex",
-          background: "#f4f4f5",
-          borderRadius: 9,
-          padding: 3,
-          fontSize: 13,
-          fontWeight: 500,
-        }}
-      >
-        <button style={roleTab(role === "learner")} onClick={() => actions.setRole("learner")}>
-          Learner
-        </button>
-        <button style={roleTab(role === "coach")} onClick={() => actions.setRole("coach")}>
-          Coach
-        </button>
-      </div>
+      {/* The role toggle is a demo affordance for mock mode. In GitHub mode the
+          role is derived from real repo access (owner = learner, collaborator =
+          coach) and must not be user-switchable — a learner flipping to Coach
+          would otherwise see review controls (the server rejects the action, but
+          the UI shouldn't offer it). */}
+      {BACKEND_MODE === "github" ? (
+        <div
+          style={{
+            padding: "6px 14px",
+            borderRadius: 8,
+            background: "#f4f4f5",
+            fontSize: 13,
+            fontWeight: 600,
+            color: "#52525b",
+            textTransform: "capitalize",
+          }}
+        >
+          {role}
+        </div>
+      ) : (
+        <div
+          style={{
+            display: "flex",
+            background: "#f4f4f5",
+            borderRadius: 9,
+            padding: 3,
+            fontSize: 13,
+            fontWeight: 500,
+          }}
+        >
+          <button style={roleTab(role === "learner")} onClick={() => actions.setRole("learner")}>
+            Learner
+          </button>
+          <button style={roleTab(role === "coach")} onClick={() => actions.setRole("coach")}>
+            Coach
+          </button>
+        </div>
+      )}
 
       <div style={{ display: "flex", alignItems: "center", gap: 9, paddingLeft: 4 }}>
         <div
