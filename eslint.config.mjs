@@ -12,8 +12,6 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
-    // Vendored Catalyst UI kit — copied verbatim from catalyst-ui-kit, linted upstream.
-    "components/catalyst/**",
   ]),
 ]);
 

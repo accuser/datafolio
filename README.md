@@ -3,7 +3,7 @@
 A web app for **Level 6 Data Scientist (ST0585)** apprentices to capture
 portfolio evidence against every KSB (Knowledge, Skill, Behaviour) — down to
 sub-points — and commit it to their own **private GitHub repo**. A coach reviews
-and approves or requests changes. Built with **Next.js + Catalyst** on the
+and approves or requests changes. Built with **Next.js** on the
 apprenticeship's repository contract (`evidence/<KSB>/index.md`).
 
 ## Run it
@@ -45,7 +45,6 @@ app/
     evidence/[[id]]/                # read (GET) + write (POST/PATCH) proxy
 components/
   screens/                 # Sign in, Dashboard, KSB detail, Add evidence, Repository, Coverage
-  catalyst/                # vendored Catalyst UI kit
 lib/
   domain.ts                # status derivation, genMd/renderIndexMd, meta helpers
   ksbs.ts  types.ts        # the 19 KSBs + domain types
