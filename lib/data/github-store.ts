@@ -3,6 +3,7 @@ import type { Octokit } from "@octokit/core";
 import { KSB_BY_ID } from "../ksbs";
 import { renderIndexMd, rootOf } from "../domain";
 import { parseIndexMd } from "../github/frontmatter";
+import type { AddOptions } from "./store";
 import type { Evidence } from "../types";
 
 // Server-side evidence store backed by a learner's private GitHub repo. Reads
@@ -13,11 +14,6 @@ export interface GitHubStoreContext {
   octokit: Octokit;
   owner: string;
   repo: string;
-}
-
-/** Optional payload for file uploads (base64-encoded bytes of the file). */
-export interface AddOptions {
-  fileContentBase64?: string;
 }
 
 const INDEX_RE = /^evidence\/([^/]+)\/index\.md$/;

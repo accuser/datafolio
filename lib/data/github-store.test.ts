@@ -123,6 +123,26 @@ async function main() {
   assert(/id: a1[\s\S]*?status: approved/.test(updK4!.content!), "a1 written as approved (lowercase) in index.md");
   assert(updK4!.content!.includes("Great work."), "coach feedback written to index.md");
 
+  // --- add: upload item with file bytes → blob committed in the same commit ---
+  captured.trees = []; captured.commits = 0;
+  const blobsBefore = blobCounter;
+  const uploadItem: Evidence = {
+    id: "u1", ksbIds: ["S4"], type: "upload", title: "Insights deck",
+    fileName: "deck.pdf", note: "", status: "Submitted", date: "17 Jul 2026", feedback: "",
+  };
+  await store.addEvidence(uploadItem, { fileContentBase64: b64("%PDF-1.4 fake bytes") });
+  assert(blobCounter === blobsBefore + 1, "upload creates exactly one git blob");
+  assert(captured.commits === 1, "upload is one atomic commit");
+  const upTree = captured.trees[0];
+  assert(
+    upTree.tree.some((t) => t.path === "evidence/S4/deck.pdf" && t.sha),
+    "uploaded file committed as a blob in the primary folder",
+  );
+  assert(
+    upTree.tree.some((t) => t.path === "evidence/S4/index.md" && t.content?.includes("file: deck.pdf")),
+    "index.md records the upload filename",
+  );
+
   console.log("GITHUB-STORE OK — load/add/update produce correct atomic commits");
 }
 

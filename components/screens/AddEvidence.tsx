@@ -207,7 +207,7 @@ export function AddEvidence() {
               type="file"
               onChange={(e) => {
                 const f = e.target.files && e.target.files[0];
-                if (f) actions.setFileName(f.name);
+                if (f) actions.setFile(f);
               }}
               style={{ display: "none" }}
             />

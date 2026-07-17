@@ -15,11 +15,16 @@ import type { Evidence } from "../types";
  * The UI never talks to GitHub directly — only through this interface — so the
  * screens are identical in both modes.
  */
+/** Extra payload for adds — file bytes for upload-type evidence. */
+export interface AddOptions {
+  fileContentBase64?: string;
+}
+
 export interface EvidenceStore {
   /** Read all evidence for the signed-in learner's repo. */
   load(): Promise<Evidence[]>;
   /** Commit a new evidence item; resolves to the updated collection. */
-  addEvidence(item: Evidence): Promise<Evidence[]>;
+  addEvidence(item: Evidence, opts?: AddOptions): Promise<Evidence[]>;
   /** Patch an existing item (coach review / edits); resolves to the collection. */
   updateEvidence(id: string, patch: Partial<Evidence>): Promise<Evidence[]>;
 }
@@ -31,6 +36,7 @@ export function createMockStore(seed: Evidence[]): EvidenceStore {
       return items;
     },
     async addEvidence(item) {
+      // Mock mode has no repo; file bytes are ignored.
       items = [item, ...items];
       return items;
     },

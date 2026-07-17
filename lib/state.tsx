@@ -147,7 +147,7 @@ export interface AppActions {
   setFormField(key: keyof EvidenceForm, value: unknown): void;
   addTag(id: string): void;
   removeTag(id: string): void;
-  setFileName(name: string): void;
+  setFile(file: File): void;
   save(status: EvidenceStatus): void;
   approve(id: string): void;
   requestChanges(id: string): void;
@@ -228,8 +228,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
         dispatch({ type: "SET_FORM_FIELD", key, value }),
       addTag: (id) => dispatch({ type: "ADD_TAG", id }),
       removeTag: (id) => dispatch({ type: "REMOVE_TAG", id }),
-      setFileName: (name) =>
-        dispatch({ type: "SET_FORM_FIELD", key: "fileName", value: name }),
+      setFile: (file) => {
+        // Read the chosen file's bytes as base64 so an upload can be committed.
+        const reader = new FileReader();
+        reader.onload = () => {
+          const result = typeof reader.result === "string" ? reader.result : "";
+          const base64 = result.includes(",")
+            ? result.slice(result.indexOf(",") + 1)
+            : "";
+          dispatch({ type: "SET_FORM_FIELD", key: "fileName", value: file.name });
+          dispatch({ type: "SET_FORM_FIELD", key: "fileContentBase64", value: base64 });
+        };
+        reader.readAsDataURL(file);
+      },
 
       // Adding evidence is a single commit to the KSB folder. Submit → Submitted,
       // Save draft → Draft. Both prepend the item and return to the KSB detail.
@@ -248,7 +259,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
           date: todayLabel(),
           feedback: "",
         };
-        const next = await store.addEvidence(item);
+        const next = await store.addEvidence(item, {
+          fileContentBase64: f.type === "upload" ? f.fileContentBase64 : undefined,
+        });
         dispatch({ type: "SET_EVIDENCE", evidence: next });
         patch({ view: "ksb", form: null });
       },

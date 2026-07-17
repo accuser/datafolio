@@ -30,10 +30,10 @@ export function createHttpStore(): EvidenceStore {
       const { evidence } = await api<{ evidence: Evidence[] }>("/api/evidence");
       return evidence;
     },
-    async addEvidence(item) {
+    async addEvidence(item, opts) {
       const { evidence } = await api<{ evidence: Evidence[] }>("/api/evidence", {
         method: "POST",
-        body: JSON.stringify({ item }),
+        body: JSON.stringify({ item, fileContentBase64: opts?.fileContentBase64 }),
       });
       return evidence;
     },

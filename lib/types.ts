@@ -60,6 +60,8 @@ export interface EvidenceForm {
   url: string;
   note: string;
   fileName: string;
+  /** base64 bytes of the chosen upload file (upload type only). */
+  fileContentBase64?: string;
   ksbIds: string[];
 }
 
