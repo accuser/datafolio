@@ -1,0 +1,40 @@
+@import "tailwindcss";
+
+/* Catalyst uses class-based dark mode (opt-in via a `.dark` wrapper) rather than
+   the prefers-color-scheme default, so dark code/preview cards can be scoped. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  /* Inter + JetBrains Mono are loaded via next/font in app/layout.tsx and exposed
+     as CSS variables; map Tailwind's font tokens onto them. */
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, monospace;
+  --font-sans--font-feature-settings: "cv11";
+}
+
+/* Ensure every utility class used by the copied Catalyst components is emitted. */
+@source "../components/catalyst/**/*.tsx";
+
+html,
+body {
+  padding: 0;
+  margin: 0;
+}
+
+body {
+  font-family: var(--font-inter), system-ui, sans-serif;
+  color: #18181b;
+  background: #fafafa;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: #4f46e5;
+  text-decoration: none;
+}
+a:hover {
+  color: #4338ca;
+}
+::selection {
+  background: #e0e7ff;
+}
