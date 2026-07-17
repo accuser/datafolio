@@ -169,6 +169,7 @@ function EvidenceCard({ e }: { e: Evidence }) {
               <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
                 <button
                   onClick={() => actions.approve(e.id)}
+                  disabled={state.submitting}
                   style={{
                     display: "inline-flex",
                     alignItems: "center",
@@ -181,14 +182,16 @@ function EvidenceCard({ e }: { e: Evidence }) {
                     fontSize: 13.5,
                     fontWeight: 600,
                     fontFamily: "inherit",
-                    cursor: "pointer",
+                    cursor: state.submitting ? "default" : "pointer",
+                    opacity: state.submitting ? 0.6 : 1,
                   }}
                 >
                   <Check size={15} />
-                  Approve
+                  {state.submitting ? "Working…" : "Approve"}
                 </button>
                 <button
                   onClick={() => actions.requestChanges(e.id)}
+                  disabled={state.submitting}
                   style={{
                     background: "#fff",
                     color: "#b45309",
@@ -198,7 +201,8 @@ function EvidenceCard({ e }: { e: Evidence }) {
                     fontSize: 13.5,
                     fontWeight: 600,
                     fontFamily: "inherit",
-                    cursor: "pointer",
+                    cursor: state.submitting ? "default" : "pointer",
+                    opacity: state.submitting ? 0.6 : 1,
                   }}
                 >
                   Request changes

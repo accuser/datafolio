@@ -54,6 +54,8 @@ interface AppState {
   loading: boolean;
   /** Last user-facing error (failed commit, oversized upload, …); null if none. */
   error: string | null;
+  /** True while a mutation (add / review / edit / delete) is in flight. */
+  submitting: boolean;
   user: UserProfile;
   filter: StatusFilter;
   routeFilter: RouteFilter;
@@ -71,6 +73,7 @@ const initialState: AppState = {
   signedIn: false,
   loading: false,
   error: null,
+  submitting: false,
   user: SEED_USER,
   filter: "all",
   routeFilter: "all",
@@ -182,6 +185,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     stateRef.current = state;
   }, [state]);
 
+  // Synchronous in-flight guard: set/cleared inside the same tick so a rapid
+  // double-click can't fire a second commit before React re-renders. The
+  // `submitting` state flag mirrors it for the UI (disabled buttons/spinners).
+  const submittingRef = useRef(false);
+
   // The data-layer seam: GitHub-backed HTTP store, or the in-memory mock.
   const storeRef = useRef<EvidenceStore>(
     BACKEND_MODE === "github"
@@ -193,6 +201,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const store = storeRef.current;
     const patch = (p: Partial<AppState>) =>
       dispatch({ type: "PATCH", patch: p });
+
+    // Run a mutation with pending state + error handling and no double-submit.
+    // On failure the error is surfaced and the caller's view/form is left
+    // untouched so the user can retry.
+    const runExclusive = async (fn: () => Promise<void>) => {
+      if (submittingRef.current) return;
+      submittingRef.current = true;
+      patch({ submitting: true, error: null });
+      try {
+        await fn();
+      } catch (e) {
+        patch({
+          error:
+            (e as Error)?.message ||
+            "Something went wrong. Please try again.",
+        });
+      } finally {
+        submittingRef.current = false;
+        patch({ submitting: false });
+      }
+    };
 
     return {
       signIn: () => {
@@ -255,46 +284,49 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       // Adding evidence is a single commit to the KSB folder. Submit → Submitted,
       // Save draft → Draft. Both prepend the item and return to the KSB detail.
-      save: async (status) => {
-        const f = stateRef.current.form;
-        if (!f || !f.title.trim()) return;
-        const item: Evidence = {
-          id: "e" + Date.now(),
-          ksbIds: [...f.ksbIds],
-          type: f.type,
-          title: f.title.trim(),
-          url: f.url,
-          note: f.note,
-          fileName: f.fileName,
-          status,
-          date: todayLabel(),
-          feedback: "",
-        };
-        const next = await store.addEvidence(item, {
-          fileContentBase64: f.type === "upload" ? f.fileContentBase64 : undefined,
-        });
-        dispatch({ type: "SET_EVIDENCE", evidence: next });
-        patch({ view: "ksb", form: null });
-      },
+      save: (status) =>
+        runExclusive(async () => {
+          const f = stateRef.current.form;
+          if (!f || !f.title.trim()) return;
+          const item: Evidence = {
+            id: "e" + Date.now(),
+            ksbIds: [...f.ksbIds],
+            type: f.type,
+            title: f.title.trim(),
+            url: f.url,
+            note: f.note,
+            fileName: f.fileName,
+            status,
+            date: todayLabel(),
+            feedback: "",
+          };
+          const next = await store.addEvidence(item, {
+            fileContentBase64: f.type === "upload" ? f.fileContentBase64 : undefined,
+          });
+          dispatch({ type: "SET_EVIDENCE", evidence: next });
+          patch({ view: "ksb", form: null });
+        }),
 
       // Coach actions patch the matching evidence item's status + feedback.
-      approve: async (id) => {
-        const s = stateRef.current;
-        const existing = s.evidence.find((e) => e.id === id);
-        const next = await store.updateEvidence(id, {
-          status: "Approved",
-          feedback: s.reviewComments[id] || existing?.feedback || "",
-        });
-        dispatch({ type: "SET_EVIDENCE", evidence: next });
-      },
-      requestChanges: async (id) => {
-        const s = stateRef.current;
-        const next = await store.updateEvidence(id, {
-          status: "Changes",
-          feedback: s.reviewComments[id] || "Please revise and resubmit.",
-        });
-        dispatch({ type: "SET_EVIDENCE", evidence: next });
-      },
+      approve: (id) =>
+        runExclusive(async () => {
+          const s = stateRef.current;
+          const existing = s.evidence.find((e) => e.id === id);
+          const next = await store.updateEvidence(id, {
+            status: "Approved",
+            feedback: s.reviewComments[id] || existing?.feedback || "",
+          });
+          dispatch({ type: "SET_EVIDENCE", evidence: next });
+        }),
+      requestChanges: (id) =>
+        runExclusive(async () => {
+          const s = stateRef.current;
+          const next = await store.updateEvidence(id, {
+            status: "Changes",
+            feedback: s.reviewComments[id] || "Please revise and resubmit.",
+          });
+          dispatch({ type: "SET_EVIDENCE", evidence: next });
+        }),
       setReview: (id, value) => dispatch({ type: "SET_REVIEW", id, value }),
       setFilter: (filter) => patch({ filter }),
       setRouteFilter: (routeFilter) => patch({ routeFilter }),

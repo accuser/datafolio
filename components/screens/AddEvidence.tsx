@@ -37,7 +37,8 @@ export function AddEvidence() {
   const form = state.form;
   if (!form) return null;
 
-  const canSave = !!form.title.trim();
+  const busy = state.submitting;
+  const canSave = !!form.title.trim() && !busy;
   const primary = form.ksbIds.length
     ? rootOf(form.ksbIds[0])
     : state.selectedKsbId || "K1";
@@ -301,10 +302,11 @@ export function AddEvidence() {
             cursor: canSave ? "pointer" : "default",
           }}
         >
-          Submit for review
+          {busy ? "Submitting…" : "Submit for review"}
         </button>
         <button
           onClick={() => actions.save("Draft")}
+          disabled={busy}
           style={{
             background: "#fff",
             color: "#3f3f46",
@@ -314,7 +316,8 @@ export function AddEvidence() {
             fontSize: 14,
             fontWeight: 600,
             fontFamily: "inherit",
-            cursor: "pointer",
+            cursor: busy ? "default" : "pointer",
+            opacity: busy ? 0.6 : 1,
           }}
         >
           Save draft
@@ -322,13 +325,15 @@ export function AddEvidence() {
         <div style={{ flex: 1 }} />
         <button
           onClick={actions.backToKsb}
+          disabled={busy}
           style={{
             background: "none",
             border: "none",
             color: "#71717a",
             fontSize: 14,
             fontFamily: "inherit",
-            cursor: "pointer",
+            cursor: busy ? "default" : "pointer",
+            opacity: busy ? 0.6 : 1,
           }}
         >
           Cancel
