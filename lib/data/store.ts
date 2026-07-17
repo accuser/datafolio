@@ -27,6 +27,8 @@ export interface EvidenceStore {
   addEvidence(item: Evidence, opts?: AddOptions): Promise<Evidence[]>;
   /** Patch an existing item (coach review / edits); resolves to the collection. */
   updateEvidence(id: string, patch: Partial<Evidence>): Promise<Evidence[]>;
+  /** Delete an item (and its uploaded file); resolves to the collection. */
+  deleteEvidence(id: string): Promise<Evidence[]>;
 }
 
 export function createMockStore(seed: Evidence[]): EvidenceStore {
@@ -42,6 +44,10 @@ export function createMockStore(seed: Evidence[]): EvidenceStore {
     },
     async updateEvidence(id, patch) {
       items = items.map((e) => (e.id === id ? { ...e, ...patch } : e));
+      return items;
+    },
+    async deleteEvidence(id) {
+      items = items.filter((e) => e.id !== id);
       return items;
     },
   };

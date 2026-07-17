@@ -53,7 +53,7 @@ export interface Evidence {
   feedback: string;
 }
 
-/** The add-evidence draft form. */
+/** The add/edit-evidence draft form. */
 export interface EvidenceForm {
   type: EvidenceType;
   title: string;
@@ -63,6 +63,8 @@ export interface EvidenceForm {
   /** base64 bytes of the chosen upload file (upload type only). */
   fileContentBase64?: string;
   ksbIds: string[];
+  /** Set when editing an existing item; absent when adding a new one. */
+  editingId?: string;
 }
 
 export interface UserProfile {

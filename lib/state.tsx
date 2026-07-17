@@ -9,7 +9,7 @@ import {
   useRef,
   type ReactNode,
 } from "react";
-import { todayLabel } from "./domain";
+import { rootOf, todayLabel } from "./domain";
 import { createMockStore, type EvidenceStore } from "./data/store";
 import { createHttpStore, fetchSession } from "./data/http-store";
 import { MAX_UPLOAD_BYTES, MAX_UPLOAD_MB } from "./data/uploads";
@@ -156,6 +156,9 @@ export interface AppActions {
   removeTag(id: string): void;
   setFile(file: File): void;
   save(status: EvidenceStatus): void;
+  openEdit(id: string): void;
+  resubmit(id: string): void;
+  deleteEvidence(id: string): void;
   approve(id: string): void;
   requestChanges(id: string): void;
   setReview(id: string, value: string): void;
@@ -288,23 +291,71 @@ export function AppProvider({ children }: { children: ReactNode }) {
         runExclusive(async () => {
           const f = stateRef.current.form;
           if (!f || !f.title.trim()) return;
-          const item: Evidence = {
-            id: "e" + Date.now(),
-            ksbIds: [...f.ksbIds],
-            type: f.type,
-            title: f.title.trim(),
-            url: f.url,
-            note: f.note,
-            fileName: f.fileName,
-            status,
-            date: todayLabel(),
-            feedback: "",
-          };
-          const next = await store.addEvidence(item, {
-            fileContentBase64: f.type === "upload" ? f.fileContentBase64 : undefined,
-          });
+          let next: Evidence[];
+          if (f.editingId) {
+            // Editing / resubmitting an existing item: patch the editable fields
+            // (type and any uploaded file stay as they were).
+            const editPatch: Partial<Evidence> = {
+              title: f.title.trim(),
+              ksbIds: [...f.ksbIds],
+              status,
+            };
+            if (f.type === "github") editPatch.url = f.url;
+            if (f.type === "reflection") editPatch.note = f.note;
+            next = await store.updateEvidence(f.editingId, editPatch);
+          } else {
+            const item: Evidence = {
+              id: "e" + Date.now(),
+              ksbIds: [...f.ksbIds],
+              type: f.type,
+              title: f.title.trim(),
+              url: f.url,
+              note: f.note,
+              fileName: f.fileName,
+              status,
+              date: todayLabel(),
+              feedback: "",
+            };
+            next = await store.addEvidence(item, {
+              fileContentBase64: f.type === "upload" ? f.fileContentBase64 : undefined,
+            });
+          }
           dispatch({ type: "SET_EVIDENCE", evidence: next });
           patch({ view: "ksb", form: null });
+        }),
+
+      // Open the add screen pre-filled to edit an existing item.
+      openEdit: (id) => {
+        const item = stateRef.current.evidence.find((e) => e.id === id);
+        if (!item) return;
+        patch({
+          view: "add",
+          selectedKsbId:
+            stateRef.current.selectedKsbId ??
+            (item.ksbIds.length ? rootOf(item.ksbIds[0]) : "K1"),
+          form: {
+            type: item.type,
+            title: item.title,
+            url: item.url ?? "",
+            note: item.note ?? "",
+            fileName: item.fileName ?? "",
+            ksbIds: [...item.ksbIds],
+            editingId: item.id,
+          },
+        });
+      },
+
+      // One-click resubmit after a coach requested changes.
+      resubmit: (id) =>
+        runExclusive(async () => {
+          const next = await store.updateEvidence(id, { status: "Submitted" });
+          dispatch({ type: "SET_EVIDENCE", evidence: next });
+        }),
+
+      deleteEvidence: (id) =>
+        runExclusive(async () => {
+          const next = await store.deleteEvidence(id);
+          dispatch({ type: "SET_EVIDENCE", evidence: next });
         }),
 
       // Coach actions patch the matching evidence item's status + feedback.

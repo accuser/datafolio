@@ -1,6 +1,6 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import { useState, type CSSProperties } from "react";
 import { useApp } from "@/lib/state";
 import { KSB_BY_ID, KSBS } from "@/lib/ksbs";
 import {
@@ -25,6 +25,8 @@ const CARD: CSSProperties = {
 function EvidenceCard({ e }: { e: Evidence }) {
   const { state, actions } = useApp();
   const isCoach = state.role === "coach";
+  const isLearner = state.role === "learner";
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const em = evMeta(e.status);
   const ti = typeInfo(e.type);
   const showReview = isCoach && e.status === "Submitted";
@@ -229,10 +231,92 @@ function EvidenceCard({ e }: { e: Evidence }) {
               </span>
             ))}
           </div>
+
+          {isLearner && (
+            <div
+              style={{
+                display: "flex",
+                gap: 8,
+                flexWrap: "wrap",
+                marginTop: 14,
+                paddingTop: 12,
+                borderTop: "1px dashed #ececec",
+              }}
+            >
+              {e.status === "Changes" && (
+                <button
+                  onClick={() => actions.resubmit(e.id)}
+                  disabled={state.submitting}
+                  style={cardActionStyle("#4f46e5", "#fff", state.submitting)}
+                >
+                  Resubmit
+                </button>
+              )}
+              {!confirmDelete && (
+                <button
+                  onClick={() => actions.openEdit(e.id)}
+                  disabled={state.submitting}
+                  style={cardActionStyle("#fff", "#3f3f46", state.submitting, "#e4e4e7")}
+                >
+                  Edit
+                </button>
+              )}
+              {confirmDelete ? (
+                <>
+                  <span style={{ alignSelf: "center", fontSize: 13, color: "#71717a" }}>
+                    Delete this item?
+                  </span>
+                  <button
+                    onClick={() => actions.deleteEvidence(e.id)}
+                    disabled={state.submitting}
+                    style={cardActionStyle("#dc2626", "#fff", state.submitting)}
+                  >
+                    {state.submitting ? "Deleting…" : "Confirm delete"}
+                  </button>
+                  <button
+                    onClick={() => setConfirmDelete(false)}
+                    disabled={state.submitting}
+                    style={cardActionStyle("#fff", "#3f3f46", state.submitting, "#e4e4e7")}
+                  >
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => setConfirmDelete(true)}
+                  disabled={state.submitting}
+                  style={cardActionStyle("#fff", "#b91c1c", state.submitting, "#fecaca")}
+                >
+                  Delete
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
+}
+
+/** Small button used for the learner's per-item Edit / Resubmit / Delete row. */
+function cardActionStyle(
+  bg: string,
+  fg: string,
+  disabled: boolean,
+  border?: string,
+): CSSProperties {
+  return {
+    background: bg,
+    color: fg,
+    border: border ? `1px solid ${border}` : "none",
+    borderRadius: 8,
+    padding: "7px 13px",
+    fontSize: 13,
+    fontWeight: 600,
+    fontFamily: "inherit",
+    cursor: disabled ? "default" : "pointer",
+    opacity: disabled ? 0.6 : 1,
+  };
 }
 
 export function KsbDetail() {

@@ -81,6 +81,7 @@ export function createGitHubStore(ctx: GitHubStoreContext) {
     all: Evidence[],
     message: string,
     uploads: { path: string; contentBase64: string }[] = [],
+    deletions: string[] = [],
   ): Promise<void> {
     const { data: ref } = await octokit.request(
       "GET /repos/{owner}/{repo}/git/ref/{ref}",
@@ -97,7 +98,7 @@ export function createGitHubStore(ctx: GitHubStoreContext) {
       mode: "100644";
       type: "blob";
       content?: string;
-      sha?: string;
+      sha?: string | null;
     }[] = ksbIds
       .filter((id) => KSB_BY_ID[id])
       .map((id) => ({
@@ -113,6 +114,11 @@ export function createGitHubStore(ctx: GitHubStoreContext) {
         { owner, repo, content: up.contentBase64, encoding: "base64" },
       );
       treeEntries.push({ path: up.path, mode: "100644", type: "blob", sha: blob.sha });
+    }
+
+    // A tree entry with sha:null removes the path from the tree (deleted file).
+    for (const path of deletions) {
+      treeEntries.push({ path, mode: "100644", type: "blob", sha: null });
     }
 
     const { data: newTree } = await octokit.request(
@@ -168,6 +174,27 @@ export function createGitHubStore(ctx: GitHubStoreContext) {
         affectedFolders(updated),
         all,
         `Review evidence: ${updated.title} → ${updated.status}`,
+      );
+      return all;
+    },
+
+    async deleteEvidence(id: string): Promise<Evidence[]> {
+      const { evidence: current, branch } = await loadAll();
+      const target = current.find((e) => e.id === id);
+      if (!target) throw new Error(`Evidence ${id} not found`);
+      const all = current.filter((e) => e.id !== id);
+      // Remove the uploaded file blob too, so no orphan is left behind.
+      const deletions =
+        target.type === "upload" && target.fileName
+          ? [`evidence/${primaryRoot(target)}/${target.fileName}`]
+          : [];
+      await commit(
+        branch,
+        affectedFolders(target),
+        all,
+        `Delete evidence: ${target.title}`,
+        [],
+        deletions,
       );
       return all;
     },

@@ -38,6 +38,7 @@ export function AddEvidence() {
   if (!form) return null;
 
   const busy = state.submitting;
+  const editing = !!form.editingId;
   const canSave = !!form.title.trim() && !busy;
   const primary = form.ksbIds.length
     ? rootOf(form.ksbIds[0])
@@ -94,10 +95,12 @@ export function AddEvidence() {
       </button>
 
       <h1 style={{ fontSize: 22, fontWeight: 700, letterSpacing: "-0.01em", margin: "0 0 6px" }}>
-        Add evidence
+        {editing ? "Edit evidence" : "Add evidence"}
       </h1>
       <p style={{ fontSize: 14.5, color: "#71717a", margin: "0 0 28px" }}>
-        This will be committed to your private repo and mapped to the KSBs and sub-points you tag.
+        {editing
+          ? "Update this item and resubmit it for review, or save it as a draft."
+          : "This will be committed to your private repo and mapped to the KSBs and sub-points you tag."}
       </p>
 
       <label style={{ ...LABEL, marginBottom: 9 }}>Evidence type</label>
@@ -105,12 +108,16 @@ export function AddEvidence() {
         {TYPE_CARDS.map((t) => {
           const ti = typeInfo(t.key);
           const on = form.type === t.key;
+          // Type is fixed once created — locked while editing.
+          if (editing && !on) return null;
           return (
             <div
               key={t.key}
-              onClick={() => actions.setFormField("type", t.key)}
+              onClick={() => {
+                if (!editing) actions.setFormField("type", t.key);
+              }}
               style={{
-                cursor: "pointer",
+                cursor: editing ? "default" : "pointer",
                 flex: 1,
                 border: "1.5px solid " + (on ? "#4f46e5" : "#e4e4e7"),
                 background: on ? "#f5f3ff" : "#fff",
@@ -181,7 +188,32 @@ export function AddEvidence() {
         </div>
       )}
 
-      {form.type === "upload" && (
+      {form.type === "upload" && editing && (
+        <div style={{ marginBottom: 20 }}>
+          <label style={LABEL}>File</label>
+          <div
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              border: "1px solid #e4e4e7",
+              borderRadius: 10,
+              padding: "11px 13px",
+              fontSize: 13.5,
+              fontFamily: mono,
+              color: "#3f3f46",
+              background: "#f4f4f5",
+            }}
+          >
+            {form.fileName || "—"}
+          </div>
+          <div style={{ fontSize: 12.5, color: "#a1a1aa", marginTop: 6 }}>
+            The uploaded file can&apos;t be swapped here — delete this item and add a new one to replace it.
+          </div>
+        </div>
+      )}
+
+      {form.type === "upload" && !editing && (
         <div style={{ marginBottom: 20 }}>
           <label style={LABEL}>File</label>
           <label
@@ -302,7 +334,11 @@ export function AddEvidence() {
             cursor: canSave ? "pointer" : "default",
           }}
         >
-          {busy ? "Submitting…" : "Submit for review"}
+          {busy
+            ? "Submitting…"
+            : editing
+              ? "Save & resubmit"
+              : "Submit for review"}
         </button>
         <button
           onClick={() => actions.save("Draft")}
@@ -320,7 +356,7 @@ export function AddEvidence() {
             opacity: busy ? 0.6 : 1,
           }}
         >
-          Save draft
+          {editing ? "Save as draft" : "Save draft"}
         </button>
         <div style={{ flex: 1 }} />
         <button

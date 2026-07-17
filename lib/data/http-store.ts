@@ -44,6 +44,13 @@ export function createHttpStore(): EvidenceStore {
       );
       return evidence;
     },
+    async deleteEvidence(id) {
+      const { evidence } = await api<{ evidence: Evidence[] }>(
+        `/api/evidence/${encodeURIComponent(id)}`,
+        { method: "DELETE" },
+      );
+      return evidence;
+    },
   };
 }
 
