@@ -3,10 +3,10 @@
 // that `genMd` writes (and a GitHub-backed data layer commits), reconstruct the
 // front-matter fields plus a domain `Evidence[]`.
 //
-// The file is a YAML front-matter block delimited by `---`, followed by a
-// Markdown body. `genMd` writes one `##` body section per front-matter
-// `evidence:` entry, in the SAME ORDER, so we recover each item's reflection
-// note by pairing body sections with front-matter entries by index.
+// The file is a YAML front-matter block delimited by `---` fence lines,
+// followed by a Markdown body. Everything the app needs — including each
+// reflection's note — lives in the front-matter; the body is presentation only
+// and is never parsed back (so user text in the body can't corrupt a load).
 
 import { load } from "js-yaml";
 import type { Evidence, EvidenceStatus, EvidenceType } from "../types";
@@ -68,24 +68,31 @@ function asIsoString(v: unknown): string {
   return String(v);
 }
 
-// ---- Front-matter split (mirrors the Python coverage script) ---------------
+// ---- Front-matter split (line-anchored fences) -----------------------------
 
 /**
- * Python's `text.split('---', 2)` splits on at most the first two occurrences,
- * keeping the remainder intact as the final element. JS's native `split` with a
- * limit drops the remainder, so replicate the Python semantics here.
+ * Split an index.md into its YAML front-matter and Markdown body. The block is
+ * delimited by `---` lines (a `---` on its own line, ignoring trailing
+ * whitespace) — NOT by any `---` substring, so titles/notes/feedback that
+ * contain `---` no longer split the file in the wrong place.
  */
-function splitWithLimit(text: string, sep: string, limit: number): string[] {
-  const out: string[] = [];
-  let rest = text;
-  while (out.length < limit) {
-    const i = rest.indexOf(sep);
-    if (i === -1) break;
-    out.push(rest.slice(0, i));
-    rest = rest.slice(i + sep.length);
+function splitFrontMatter(md: string): { frontMatter: string; body: string } {
+  const lines = md.split(/\r?\n/);
+  // A fence is `---` at column 0 (trailing whitespace tolerated). Crucially it
+  // must NOT be indented: an indented `---` is block-scalar content (e.g. a
+  // literal `---` line inside a reflection note), not a fence.
+  const isFence = (l: string | undefined) => /^---[ \t]*$/.test(l ?? "");
+  if (!isFence(lines[0])) {
+    throw new Error("parseIndexMd: no front-matter block found (expected an opening `---` fence).");
   }
-  out.push(rest);
-  return out;
+  const end = lines.findIndex((l, i) => i > 0 && isFence(l));
+  if (end === -1) {
+    throw new Error("parseIndexMd: unterminated front-matter block (missing closing `---` fence).");
+  }
+  return {
+    frontMatter: lines.slice(1, end).join("\n"),
+    body: lines.slice(end + 1).join("\n"),
+  };
 }
 
 // ---- Raw front-matter item shape (as YAML-loaded) --------------------------
@@ -100,6 +107,7 @@ interface RawEvidence {
   status?: unknown;
   date?: unknown;
   reviewed_by?: unknown;
+  note?: unknown;
   feedback?: unknown;
 }
 
@@ -114,68 +122,19 @@ interface RawFrontMatter {
   updated?: unknown;
 }
 
-// ---- Body note recovery ----------------------------------------------------
-
-/**
- * Split the Markdown body into per-evidence sections. `genMd` starts each
- * section with a `## ` heading and emits them in front-matter order, so the
- * returned array lines up with the `evidence:` list by index.
- */
-function bodySections(body: string): string[][] {
-  const lines = body.split("\n");
-  const sections: string[][] = [];
-  let current: string[] | null = null;
-  for (const line of lines) {
-    if (line.startsWith("## ")) {
-      current = [line];
-      sections.push(current);
-    } else if (current) {
-      current.push(line);
-    }
-  }
-  return sections;
-}
-
-/**
- * Recover the reflection note from one body section. `genMd` lays a section out
- * as: the `## ` heading, an optional `- Link:`/`- File:` line, a `- Maps:` line,
- * then (if a note exists) a blank line + the note text, then (if feedback
- * exists) a blank line + `> Coach: …`, then a trailing blank line. The note is
- * therefore everything between the `- Maps:` line and either the `> Coach:` line
- * or the end of the section, with surrounding blank lines trimmed.
- */
-function extractNote(section: string[]): string {
-  const mapsIdx = section.findIndex((l) => l.startsWith("- Maps:"));
-  if (mapsIdx === -1) return "";
-  let tail = section.slice(mapsIdx + 1);
-  const coachIdx = tail.findIndex((l) => l.startsWith("> Coach:"));
-  if (coachIdx !== -1) tail = tail.slice(0, coachIdx);
-  // Trim leading and trailing blank lines (the separators genMd inserts).
-  while (tail.length && tail[0].trim() === "") tail.shift();
-  while (tail.length && tail[tail.length - 1].trim() === "") tail.pop();
-  return tail.join("\n");
-}
-
 // ---- Main entry ------------------------------------------------------------
 
 /** Parse an `evidence/<KSB>/index.md` string into the domain model. */
 export function parseIndexMd(md: string): ParsedFolder {
-  // `['', frontMatterYaml, body]` — same split the coverage script relies on.
-  const parts = splitWithLimit(md, "---", 2);
-  if (parts.length < 3) {
-    throw new Error("parseIndexMd: no front-matter block found (expected two `---` fences).");
-  }
-  const frontMatterYaml = parts[1];
-  const body = parts[2];
+  const { frontMatter } = splitFrontMatter(md);
 
-  const fm = (load(frontMatterYaml) ?? {}) as RawFrontMatter;
+  const fm = (load(frontMatter) ?? {}) as RawFrontMatter;
 
   const rawEvidence: RawEvidence[] = Array.isArray(fm.evidence)
     ? (fm.evidence as RawEvidence[])
     : [];
-  const sections = bodySections(body);
 
-  const evidence: Evidence[] = rawEvidence.map((item, i) => {
+  const evidence: Evidence[] = rawEvidence.map((item) => {
     const type = String(item.type) as EvidenceType;
     const maps = Array.isArray(item.maps) ? item.maps.map((m) => String(m)) : [];
 
@@ -184,9 +143,9 @@ export function parseIndexMd(md: string): ParsedFolder {
       ksbIds: maps,
       type,
       title: String(item.title ?? ""),
-      // Notes only live on reflection items in the domain model; recover from
-      // the paired body section.
-      note: type === "reflection" ? extractNote(sections[i] ?? []) : "",
+      // Notes only live on reflection items in the domain model; read the note
+      // straight from the front-matter (block scalar).
+      note: type === "reflection" && item.note != null ? String(item.note) : "",
       status: repoStatusToDomain(String(item.status)),
       date: isoToDisplayDate(asIsoString(item.date)),
       feedback: item.feedback == null ? "" : String(item.feedback),

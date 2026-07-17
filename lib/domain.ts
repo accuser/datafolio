@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import { dump } from "js-yaml";
 import type {
   Category,
   Evidence,
@@ -190,39 +191,50 @@ export function renderIndexMd(
     submitted: "submitted",
     approved: "approved",
   };
-  const q = (s: string) => JSON.stringify(s);
   const httpsRef = (url?: string) =>
     url ? "https://" + url.replace(/^https?:\/\//, "") : "";
-  const L: string[] = [];
-  L.push("---");
-  L.push("ksb: " + k.id);
-  L.push("type: " + k.cat);
-  L.push("title: " + q(k.title));
-  L.push("route: " + k.route);
-  L.push("status: " + smap[sk]);
+
+  // ---- Front-matter (structured; serialised by js-yaml) --------------------
+  // Building an object and letting `dump` handle quoting/escaping means ordinary
+  // user text — titles/feedback/notes containing `---`, `:`, `#`, `>` etc. —
+  // can never break the YAML. The reflection note lives here (as a block
+  // scalar), not reconstructed from the Markdown body.
+  const fm: Record<string, unknown> = {
+    ksb: k.id,
+    type: k.cat,
+    title: k.title,
+    route: k.route,
+    status: smap[sk],
+  };
   if (k.points) {
-    L.push("subpoints:");
-    k.points.forEach((p) => {
-      L.push("  - id: " + p.id);
-      L.push("    covered: " + (evForPoint(coverageEvidence, p.id).length > 0));
-    });
+    fm.subpoints = k.points.map((p) => ({
+      id: p.id,
+      covered: evForPoint(coverageEvidence, p.id).length > 0,
+    }));
   }
-  L.push("evidence:" + (ev.length ? "" : " []"));
-  ev.forEach((e) => {
-    L.push("  - id: " + e.id);
-    L.push("    title: " + q(e.title));
-    L.push("    type: " + e.type);
-    if (e.type === "upload") L.push("    file: " + e.fileName);
-    else if (e.type === "github") L.push("    ref: " + httpsRef(e.url));
-    L.push("    maps: [" + e.ksbIds.join(", ") + "]");
-    L.push("    status: " + e.status.toLowerCase());
-    L.push("    date: " + isoDate(e.date));
-    L.push("    reviewed_by: coach");
-    L.push("    feedback: " + q(e.feedback || ""));
+  fm.evidence = ev.map((e) => {
+    const item: Record<string, unknown> = {
+      id: e.id,
+      title: e.title,
+      type: e.type,
+    };
+    if (e.type === "upload") item.file = e.fileName ?? "";
+    else if (e.type === "github") item.ref = httpsRef(e.url);
+    item.maps = e.ksbIds;
+    item.status = e.status.toLowerCase();
+    item.date = isoDate(e.date);
+    item.reviewed_by = "coach";
+    if (e.type === "reflection" && e.note) item.note = e.note;
+    item.feedback = e.feedback || "";
+    return item;
   });
-  L.push("updated: " + isoDate(todayLabel()));
-  L.push("---");
-  L.push("");
+  fm.updated = isoDate(todayLabel());
+
+  // `lineWidth: -1` keeps long titles/statements on one line (no folding).
+  const frontMatter = dump(fm, { lineWidth: -1, noRefs: true });
+
+  // ---- Body (presentation only — never parsed back) ------------------------
+  const L: string[] = [];
   L.push("# " + k.id + " — " + k.short);
   L.push("");
   L.push("> " + k.title);
@@ -243,5 +255,6 @@ export function renderIndexMd(
     }
     L.push("");
   });
-  return L.join("\n");
+
+  return "---\n" + frontMatter + "---\n\n" + L.join("\n");
 }
