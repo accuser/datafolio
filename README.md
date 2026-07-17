@@ -27,6 +27,13 @@ seam (`lib/data/store.ts`).
   private repo. Set up the App per **[docs/github-app.md](docs/github-app.md)**
   and configure `.env.local` from `.env.example`.
 
+## Deploy
+
+Runs on **Cloudflare Workers** via the OpenNext adapter (`nodejs_compat` for the
+Node backend). See **[docs/cloudflare.md](docs/cloudflare.md)** — build with
+`npm run cf:build`, preview on `workerd` with `npm run preview`, ship with
+`npm run deploy`.
+
 ## Layout
 
 ```

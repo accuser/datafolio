@@ -1,0 +1,15 @@
+# Local secrets for `wrangler dev` / `npm run preview` (the Cloudflare runtime).
+# Copy to `.dev.vars` and fill in. These mirror the server-side vars from
+# .env.example — in production they're set with `wrangler secret put <NAME>`.
+#
+# Note: NEXT_PUBLIC_DATAFOLIO_BACKEND is a *build-time* var, not a runtime secret,
+# so it does NOT go here — set it when you run the build, e.g.
+#   NEXT_PUBLIC_DATAFOLIO_BACKEND=github npm run deploy
+
+GITHUB_APP_ID=123456
+GITHUB_APP_CLIENT_ID=Iv1.0123456789abcdef
+GITHUB_APP_CLIENT_SECRET=your-app-client-secret
+GITHUB_APP_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----"
+SESSION_SECRET=replace-with-a-long-random-string-at-least-32-chars
+DATAFOLIO_REPO_NAME=portfolio-evidence
+APP_BASE_URL=http://localhost:8787
