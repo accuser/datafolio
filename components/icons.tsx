@@ -36,6 +36,26 @@ export function Lock({ size = 16, color = "#71717a", strokeWidth = 2, style }: I
   );
 }
 
+export function LogOut({ size = 16, color = "currentColor", strokeWidth = 2, style }: IconProps) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={color}
+      strokeWidth={strokeWidth}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={{ flexShrink: 0, ...style }}
+    >
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+      <path d="M16 17l5-5-5-5" />
+      <path d="M21 12H9" />
+    </svg>
+  );
+}
+
 export function ChevronRight({ size = 17, color = "#d4d4d8", strokeWidth = 2, style }: IconProps) {
   return (
     <svg

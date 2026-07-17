@@ -2,7 +2,7 @@
 
 import type { CSSProperties } from "react";
 import { BACKEND_MODE, useApp } from "@/lib/state";
-import { GithubMark, Lock } from "./icons";
+import { GithubMark, Lock, LogOut } from "./icons";
 
 function navTab(active: boolean): CSSProperties {
   return {
@@ -164,6 +164,26 @@ export function Header() {
           <div style={{ fontSize: 13, fontWeight: 600 }}>{user.name}</div>
           <div style={{ fontSize: 11.5, color: "#a1a1aa" }}>@{user.login}</div>
         </div>
+        <button
+          onClick={actions.signOut}
+          title="Sign out"
+          aria-label="Sign out"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: 32,
+            height: 32,
+            marginLeft: 2,
+            borderRadius: 8,
+            border: "1px solid #ececec",
+            background: "#fff",
+            color: "#71717a",
+            cursor: "pointer",
+          }}
+        >
+          <LogOut size={15} />
+        </button>
       </div>
     </header>
   );

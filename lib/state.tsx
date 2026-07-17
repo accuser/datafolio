@@ -142,6 +142,7 @@ function reducer(state: AppState, action: Action): AppState {
 
 export interface AppActions {
   signIn(): void;
+  signOut(): void;
   goDashboard(): void;
   openRepo(): void;
   openCoverage(): void;
@@ -233,6 +234,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
           window.location.assign("/api/auth/login");
         } else {
           patch({ signedIn: true, view: "dashboard" });
+        }
+      },
+      signOut: async () => {
+        // Destroy the server session, then drop back to the sign-in screen. In
+        // GitHub mode a full reload re-runs the session check (now signed out).
+        try {
+          await fetch("/api/auth/logout", { method: "POST" });
+        } catch {
+          // Even if the request fails, still clear the local signed-in state.
+        }
+        if (BACKEND_MODE === "github") {
+          window.location.assign("/");
+        } else {
+          patch({ signedIn: false, view: "signin", role: "learner", error: null });
         }
       },
       goDashboard: () => patch({ view: "dashboard" }),
