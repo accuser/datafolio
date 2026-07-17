@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { canWrite } from "@/lib/github/app";
 import { resolveRepoContext } from "@/lib/github/request-context";
-import { createGitHubStore, CONFLICT_MESSAGE } from "@/lib/data/github-store";
+import { createGitHubStore } from "@/lib/data/github-store";
+import { storeErrorResponse } from "@/lib/data/error-response";
 import { validateEvidencePatch } from "@/lib/data/validation";
 
 // PATCH /api/evidence/:id  → update an item (coach approve / request-changes,
@@ -41,13 +42,7 @@ export async function PATCH(
     const evidence = await store.updateEvidence(id, valid.patch);
     return NextResponse.json({ evidence });
   } catch (e) {
-    const message = (e as Error).message;
-    const status = message.includes("not found")
-      ? 404
-      : message === CONFLICT_MESSAGE
-        ? 409
-        : 502;
-    return NextResponse.json({ error: message }, { status });
+    return storeErrorResponse("PATCH /api/evidence/:id", e);
   }
 }
 
@@ -70,12 +65,6 @@ export async function DELETE(
     const evidence = await store.deleteEvidence(id);
     return NextResponse.json({ evidence });
   } catch (e) {
-    const message = (e as Error).message;
-    const status = message.includes("not found")
-      ? 404
-      : message === CONFLICT_MESSAGE
-        ? 409
-        : 502;
-    return NextResponse.json({ error: message }, { status });
+    return storeErrorResponse("DELETE /api/evidence/:id", e);
   }
 }

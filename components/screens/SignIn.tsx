@@ -156,7 +156,11 @@ export function SignIn() {
           </div>
           <p style={{ fontSize: 13, color: "#a1a1aa", margin: "24px 0 0", textAlign: "center" }}>
             New to the programme? Fork the{" "}
-            <a href="#" onClick={(e) => e.preventDefault()}>
+            <a
+              href="https://github.com/accuser/datafolio-template"
+              target="_blank"
+              rel="noreferrer"
+            >
               template repo
             </a>{" "}
             first.
