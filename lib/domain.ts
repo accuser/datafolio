@@ -168,8 +168,22 @@ export function isoDate(label: string): string {
 /** Generate the KSB folder's index.md exactly as the coverage script expects.
  *  This is the write payload a GitHub-backed data layer would commit. */
 export function genMd(evidence: Evidence[], k: Ksb): string {
-  const ev = evFor(evidence, k.id);
-  const sk = ksbStatusKey(evidence, k.id);
+  return renderIndexMd(k, evFor(evidence, k.id), evidence);
+}
+
+/** Render a folder's index.md. `ev` are the items physically stored in this
+ *  folder (its `evidence[]` list + body); `coverageEvidence` is the full set of
+ *  evidence across the repo, used to compute cross-folder sub-point coverage and
+ *  the derived KSB status. `genMd` passes the same array for both, matching the
+ *  in-app preview; a GitHub-backed store passes only this folder's primary items
+ *  as `ev` so an item mapped to several KSBs is stored once (in its primary
+ *  folder) yet still counts toward every mapped KSB's coverage. */
+export function renderIndexMd(
+  k: Ksb,
+  ev: Evidence[],
+  coverageEvidence: Evidence[],
+): string {
+  const sk = ksbStatusKey(coverageEvidence, k.id);
   const smap: Record<KsbStatusKey, string> = {
     notstarted: "not-started",
     inprogress: "in-progress",
@@ -190,7 +204,7 @@ export function genMd(evidence: Evidence[], k: Ksb): string {
     L.push("subpoints:");
     k.points.forEach((p) => {
       L.push("  - id: " + p.id);
-      L.push("    covered: " + (evForPoint(evidence, p.id).length > 0));
+      L.push("    covered: " + (evForPoint(coverageEvidence, p.id).length > 0));
     });
   }
   L.push("evidence:" + (ev.length ? "" : " []"));

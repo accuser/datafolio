@@ -11,6 +11,7 @@ import {
 } from "react";
 import { todayLabel } from "./domain";
 import { createMockStore, type EvidenceStore } from "./data/store";
+import { createHttpStore, fetchSession } from "./data/http-store";
 import { SEED_EVIDENCE, SEED_USER } from "./data/seed";
 import type {
   Evidence,
@@ -29,10 +30,28 @@ export type StatusFilter =
   | "notstarted";
 export type RouteFilter = "all" | "portfolio" | "project";
 
+/** 'github' drives the app off the backend proxy (real repos); anything else
+ *  uses the in-memory mock so the UX demo runs with no configuration. */
+export const BACKEND_MODE =
+  process.env.NEXT_PUBLIC_DATAFOLIO_BACKEND === "github" ? "github" : "mock";
+
+function initialsOf(name: string): string {
+  return name
+    .split(" ")
+    .map((w) => w[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+}
+
 interface AppState {
   view: View;
   role: Role;
   signedIn: boolean;
+  /** True while evidence is being (re)loaded from the backend. */
+  loading: boolean;
+  user: UserProfile;
   filter: StatusFilter;
   routeFilter: RouteFilter;
   selectedKsbId: string | null;
@@ -47,6 +66,8 @@ const initialState: AppState = {
   view: "signin",
   role: "learner",
   signedIn: false,
+  loading: false,
+  user: SEED_USER,
   filter: "all",
   routeFilter: "all",
   selectedKsbId: null,
@@ -54,7 +75,8 @@ const initialState: AppState = {
   reviewComments: {},
   openFolders: {},
   mdPreviewKid: null,
-  evidence: SEED_EVIDENCE,
+  // Mock mode is seeded so the demo renders instantly; GitHub mode loads on sign-in.
+  evidence: BACKEND_MODE === "github" ? [] : SEED_EVIDENCE,
 };
 
 type Action =
@@ -155,8 +177,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     stateRef.current = state;
   }, [state]);
 
-  // The data-layer seam — swap createMockStore for a GitHub-backed store later.
-  const storeRef = useRef<EvidenceStore>(createMockStore(SEED_EVIDENCE));
+  // The data-layer seam: GitHub-backed HTTP store, or the in-memory mock.
+  const storeRef = useRef<EvidenceStore>(
+    BACKEND_MODE === "github"
+      ? createHttpStore()
+      : createMockStore(SEED_EVIDENCE),
+  );
 
   const actions = useMemo<AppActions>(() => {
     const store = storeRef.current;
@@ -164,7 +190,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
       dispatch({ type: "PATCH", patch: p });
 
     return {
-      signIn: () => patch({ signedIn: true, view: "dashboard" }),
+      signIn: () => {
+        if (BACKEND_MODE === "github") {
+          // Real GitHub App user OAuth handshake.
+          window.location.assign("/api/auth/login");
+        } else {
+          patch({ signedIn: true, view: "dashboard" });
+        }
+      },
       goDashboard: () => patch({ view: "dashboard" }),
       openRepo: () => patch({ view: "repo" }),
       openCoverage: () => patch({ view: "coverage" }),
@@ -247,8 +280,45 @@ export function AppProvider({ children }: { children: ReactNode }) {
     // Handlers are intentionally stable; latest state is read via stateRef.
   }, []);
 
+  // GitHub mode: restore the session on mount and hydrate evidence from the repo.
+  useEffect(() => {
+    if (BACKEND_MODE !== "github") return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const session = await fetchSession();
+        if (cancelled || !session.user) return;
+        const name = session.user.name || session.user.login;
+        dispatch({
+          type: "PATCH",
+          patch: {
+            signedIn: true,
+            view: "dashboard",
+            loading: true,
+            role: session.role === "coach" ? "coach" : "learner",
+            user: {
+              name,
+              login: session.user.login,
+              initials: initialsOf(name),
+              repo: session.target?.repo || "portfolio-evidence",
+            },
+          },
+        });
+        const evidence = await storeRef.current.load();
+        if (!cancelled) dispatch({ type: "SET_EVIDENCE", evidence });
+      } catch {
+        // Session/load failed — stay on the sign-in screen.
+      } finally {
+        if (!cancelled) dispatch({ type: "PATCH", patch: { loading: false } });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const value = useMemo(
-    () => ({ state, user: SEED_USER, actions }),
+    () => ({ state, user: state.user, actions }),
     [state, actions],
   );
 

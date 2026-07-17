@@ -1,36 +1,67 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# DataFolio
 
-## Getting Started
+A web app for **Level 6 Data Scientist (ST0585)** apprentices to capture
+portfolio evidence against every KSB (Knowledge, Skill, Behaviour) — down to
+sub-points — and commit it to their own **private GitHub repo**. A coach reviews
+and approves or requests changes. Built with **Next.js + Catalyst** on the
+apprenticeship's repository contract (`evidence/<KSB>/index.md`).
 
-First, run the development server:
+## Run it
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run dev        # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Out of the box it runs in **mock mode** — in-memory sample data, no GitHub, no
+auth — so you can click through all six screens in both roles (learner / coach).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Two data modes
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The UI is identical in both; only the data layer swaps behind the `EvidenceStore`
+seam (`lib/data/store.ts`).
 
-## Learn More
+- **Mock** (default) — `createMockStore`, seeded sample evidence.
+- **GitHub** (`NEXT_PUBLIC_DATAFOLIO_BACKEND=github`) — a provider-owned **GitHub
+  App** authenticates users and a thin backend proxy reads/commits each learner's
+  private repo. Set up the App per **[docs/github-app.md](docs/github-app.md)**
+  and configure `.env.local` from `.env.example`.
 
-To learn more about Next.js, take a look at the following resources:
+## Layout
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```
+app/
+  page.tsx                 # AppProvider + the single-page app shell
+  api/
+    auth/{login,callback,logout}/   # GitHub App user OAuth
+    session/                        # current identity + role
+    evidence/[[id]]/                # read (GET) + write (POST/PATCH) proxy
+components/
+  screens/                 # Sign in, Dashboard, KSB detail, Add evidence, Repository, Coverage
+  catalyst/                # vendored Catalyst UI kit
+lib/
+  domain.ts                # status derivation, genMd/renderIndexMd, meta helpers
+  ksbs.ts  types.ts        # the 19 KSBs + domain types
+  data/                    # store seam: mock, http (client), github (server)
+  github/                  # App client, config, session context, front-matter parser
+  session.ts               # iron-session cookie
+docs/github-app.md         # GitHub App registration + onboarding
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Checks
 
-## Deploy on Vercel
+```bash
+npx tsc --noEmit                                   # types
+npx eslint .                                        # lint
+npx tsx lib/github/frontmatter.roundtrip.ts         # index.md parse↔serialize round-trip
+node --conditions=react-server --import tsx \
+  lib/data/github-store.test.ts                     # GitHub store (fake Octokit) load/add/update
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## How writes map to the repo
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Each evidence item is stored **once**, in its primary KSB folder, with `maps[]`
+cross-referencing other KSBs/sub-points it evidences. A mutation regenerates
+every affected folder's `index.md` and commits them **atomically** (Git Data
+API); the in-repo `scripts/build_coverage.py` Action regenerates the coverage
+matrix on push, unchanged.
