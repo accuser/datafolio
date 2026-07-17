@@ -65,7 +65,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div style={{ minHeight: "100vh", background: "#fafafa" }}>
-      <div style={{ maxWidth: 1160, margin: "0 auto", padding: "0 32px" }}>
+      <div className="app-container">
         <Header />
         <ErrorBanner />
         <main>{children}</main>

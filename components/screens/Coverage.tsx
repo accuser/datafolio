@@ -23,13 +23,14 @@ export function Coverage() {
         <InlineCode>COVERAGE.md</InlineCode>.
       </p>
 
+      <div className="table-scroll" style={{ marginBottom: 28 }}>
       <div
         style={{
           border: "1px solid #ececec",
           borderRadius: 14,
           overflow: "hidden",
           background: "#fff",
-          marginBottom: 28,
+          minWidth: 680,
         }}
       >
         <div
@@ -100,8 +101,9 @@ export function Coverage() {
           );
         })}
       </div>
+      </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+      <div className="grid-2" style={{ display: "grid", gap: 16 }}>
         <div style={{ background: "#fff", border: "1px solid #ececec", borderRadius: 14, padding: "18px 20px" }}>
           <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 10 }}>Front-matter schema</div>
           <div style={{ fontSize: 13, color: "#52525b", lineHeight: 1.7 }}>

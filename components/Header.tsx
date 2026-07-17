@@ -48,6 +48,8 @@ export function Header() {
         display: "flex",
         alignItems: "center",
         gap: 14,
+        rowGap: 10,
+        flexWrap: "wrap",
         padding: "16px 0",
         borderBottom: "1px solid #ececec",
       }}
@@ -105,6 +107,7 @@ export function Header() {
       <div style={{ flex: 1 }} />
 
       <div
+        className="hide-sm"
         style={{
           display: "flex",
           alignItems: "center",

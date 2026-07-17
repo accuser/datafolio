@@ -1,9 +1,5 @@
 @import "tailwindcss";
 
-/* Catalyst uses class-based dark mode (opt-in via a `.dark` wrapper) rather than
-   the prefers-color-scheme default, so dark code/preview cards can be scoped. */
-@custom-variant dark (&:where(.dark, .dark *));
-
 @theme {
   /* Inter + JetBrains Mono are loaded via next/font in app/layout.tsx and exposed
      as CSS variables; map Tailwind's font tokens onto them. */
@@ -12,13 +8,67 @@
   --font-sans--font-feature-settings: "cv11";
 }
 
-/* Ensure every utility class used by the copied Catalyst components is emitted. */
-@source "../components/catalyst/**/*.tsx";
-
 html,
 body {
   padding: 0;
   margin: 0;
+}
+
+/* ---- Responsive helpers -------------------------------------------------- */
+/* The screens use inline styles; these classes carry the media-query-dependent
+   bits so the fixed-width desktop layout adapts on small viewports. */
+
+.app-container {
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 0 32px;
+}
+
+/* Two-column card grids (dashboard route split, coverage schema/code) stack. */
+.grid-2 {
+  grid-template-columns: 1fr 1fr;
+}
+
+/* Horizontal scroll container for the wide coverage table. */
+.table-scroll {
+  overflow-x: auto;
+}
+
+/* Evidence-type picker sits in a row, stacks when cramped. */
+.type-cards {
+  flex-direction: row;
+}
+
+/* Sign-in splits into a hero + form; collapses to one column on small screens. */
+.signin-grid {
+  grid-template-columns: 1.1fr 1fr;
+}
+@media (max-width: 860px) {
+  .signin-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  /* Non-essential header chrome (the repo badge) hides on small screens. */
+  .hide-sm {
+    display: none !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .app-container {
+    padding: 0 16px;
+  }
+  .grid-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .type-cards {
+    flex-direction: column;
+  }
 }
 
 body {

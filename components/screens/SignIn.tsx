@@ -6,9 +6,10 @@ import { GithubMark, Lock } from "../icons";
 export function SignIn() {
   const { actions } = useApp();
   return (
-    <div style={{ minHeight: "100vh", display: "grid", gridTemplateColumns: "1.1fr 1fr" }}>
-      {/* Left panel */}
+    <div className="signin-grid" style={{ minHeight: "100vh", display: "grid" }}>
+      {/* Left panel — hero; hidden on phones so the form is front-and-centre. */}
       <div
+        className="hide-sm"
         style={{
           padding: "56px 64px",
           display: "flex",

@@ -196,9 +196,9 @@ export function Dashboard() {
 
       {/* Route split */}
       <div
+        className="grid-2"
         style={{
           display: "grid",
-          gridTemplateColumns: "1fr 1fr",
           gap: 14,
           marginBottom: 28,
         }}

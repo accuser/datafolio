@@ -124,6 +124,7 @@ export function AddEvidence({ ksbId, editId }: { ksbId: string; editId?: string 
       <div
         role="group"
         aria-labelledby="evidence-type-label"
+        className="type-cards"
         style={{ display: "flex", gap: 10, marginBottom: 24 }}
       >
         {TYPE_CARDS.map((t) => {
