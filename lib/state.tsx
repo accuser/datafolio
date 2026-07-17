@@ -12,6 +12,7 @@ import {
 import { todayLabel } from "./domain";
 import { createMockStore, type EvidenceStore } from "./data/store";
 import { createHttpStore, fetchSession } from "./data/http-store";
+import { MAX_UPLOAD_BYTES, MAX_UPLOAD_MB } from "./data/uploads";
 import { SEED_EVIDENCE, SEED_USER } from "./data/seed";
 import type {
   Evidence,
@@ -51,6 +52,8 @@ interface AppState {
   signedIn: boolean;
   /** True while evidence is being (re)loaded from the backend. */
   loading: boolean;
+  /** Last user-facing error (failed commit, oversized upload, …); null if none. */
+  error: string | null;
   user: UserProfile;
   filter: StatusFilter;
   routeFilter: RouteFilter;
@@ -67,6 +70,7 @@ const initialState: AppState = {
   role: "learner",
   signedIn: false,
   loading: false,
+  error: null,
   user: SEED_USER,
   filter: "all",
   routeFilter: "all",
@@ -156,6 +160,7 @@ export interface AppActions {
   setRouteFilter(routeFilter: RouteFilter): void;
   openMd(kid: string): void;
   closeMd(): void;
+  dismissError(): void;
 }
 
 interface AppContextValue {
@@ -229,6 +234,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
       addTag: (id) => dispatch({ type: "ADD_TAG", id }),
       removeTag: (id) => dispatch({ type: "REMOVE_TAG", id }),
       setFile: (file) => {
+        // Reject oversized files before reading them (the server enforces the
+        // same cap; this is just early feedback).
+        if (file.size > MAX_UPLOAD_BYTES) {
+          patch({ error: `“${file.name}” is too large (max ${MAX_UPLOAD_MB} MB).` });
+          return;
+        }
         // Read the chosen file's bytes as base64 so an upload can be committed.
         const reader = new FileReader();
         reader.onload = () => {
@@ -289,6 +300,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setRouteFilter: (routeFilter) => patch({ routeFilter }),
       openMd: (kid) => patch({ mdPreviewKid: kid }),
       closeMd: () => patch({ mdPreviewKid: null }),
+      dismissError: () => patch({ error: null }),
     };
     // Handlers are intentionally stable; latest state is read via stateRef.
   }, []);

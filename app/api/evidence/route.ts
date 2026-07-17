@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { canWrite } from "@/lib/github/app";
 import { resolveRepoContext } from "@/lib/github/request-context";
 import { createGitHubStore } from "@/lib/data/github-store";
-import type { Evidence } from "@/lib/types";
+import { validateNewEvidence } from "@/lib/data/validation";
 
 // GET  /api/evidence  → all evidence for the signed-in user's target repo.
 export async function GET() {
@@ -35,15 +35,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "You do not have write access to this repo" }, { status: 403 });
   }
 
-  const body = (await request.json()) as { item?: Evidence; fileContentBase64?: string };
-  if (!body.item || !body.item.title?.trim()) {
-    return NextResponse.json({ error: "Missing evidence item" }, { status: 400 });
+  const valid = validateNewEvidence(await request.json().catch(() => null));
+  if (!valid.ok) {
+    return NextResponse.json({ error: valid.error }, { status: 400 });
   }
 
   try {
     const store = createGitHubStore(ctx);
-    const evidence = await store.addEvidence(body.item, {
-      fileContentBase64: body.fileContentBase64,
+    const evidence = await store.addEvidence(valid.item, {
+      fileContentBase64: valid.fileContentBase64,
     });
     return NextResponse.json({ evidence });
   } catch (e) {

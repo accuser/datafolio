@@ -3,6 +3,7 @@ import type { Octokit } from "@octokit/core";
 import { KSB_BY_ID } from "../ksbs";
 import { renderIndexMd, rootOf } from "../domain";
 import { parseIndexMd } from "../github/frontmatter";
+import { sanitizeFileName } from "./uploads";
 import type { AddOptions } from "./store";
 import type { Evidence } from "../types";
 
@@ -137,6 +138,12 @@ export function createGitHubStore(ctx: GitHubStoreContext) {
     },
 
     async addEvidence(item: Evidence, opts: AddOptions = {}): Promise<Evidence[]> {
+      // Defence in depth: never trust a filename as a tree path, even though the
+      // API route already sanitises it. Keep the stored name and the committed
+      // blob path in lock-step.
+      if (item.type === "upload" && item.fileName) {
+        item = { ...item, fileName: sanitizeFileName(item.fileName) };
+      }
       const { evidence: current, branch } = await loadAll();
       const all = [item, ...current];
       const uploads: { path: string; contentBase64: string }[] = [];
