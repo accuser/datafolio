@@ -42,6 +42,37 @@ function dedupById(items: Evidence[]): Evidence[] {
   return items.filter((e) => (seen.has(e.id) ? false : (seen.add(e.id), true)));
 }
 
+/** Shown when concurrent commits still conflict after all retries. */
+export const CONFLICT_MESSAGE =
+  "The repository changed while saving. Please try again.";
+
+/** A non-fast-forward ref update — someone else committed first (GitHub 422). */
+function isFastForwardConflict(e: unknown): boolean {
+  const status = (e as { status?: number } | null)?.status;
+  const msg = String((e as { message?: string } | null)?.message ?? "");
+  return status === 422 && /fast[ -]?forward/i.test(msg);
+}
+
+/**
+ * Run a read-modify-write and retry it from a fresh read if the final ref
+ * update lost a race. Each attempt re-loads, so the retry re-applies the
+ * mutation on top of the winning commit rather than clobbering it.
+ */
+async function withConflictRetry<T>(fn: () => Promise<T>): Promise<T> {
+  const MAX_ATTEMPTS = 3;
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await fn();
+    } catch (e) {
+      if (isFastForwardConflict(e)) {
+        if (attempt < MAX_ATTEMPTS) continue;
+        throw new Error(CONFLICT_MESSAGE);
+      }
+      throw e;
+    }
+  }
+}
+
 export function createGitHubStore(ctx: GitHubStoreContext) {
   const { octokit, owner, repo } = ctx;
 
@@ -150,53 +181,64 @@ export function createGitHubStore(ctx: GitHubStoreContext) {
       if (item.type === "upload" && item.fileName) {
         item = { ...item, fileName: sanitizeFileName(item.fileName) };
       }
-      const { evidence: current, branch } = await loadAll();
-      const all = [item, ...current];
-      const uploads: { path: string; contentBase64: string }[] = [];
-      if (item.type === "upload" && item.fileName && opts.fileContentBase64) {
-        uploads.push({
-          path: `evidence/${primaryRoot(item)}/${item.fileName}`,
-          contentBase64: opts.fileContentBase64,
-        });
-      }
-      await commit(branch, affectedFolders(item), all, `Add evidence: ${item.title}`, uploads);
-      return all;
+      return withConflictRetry(async () => {
+        const { evidence: current, branch } = await loadAll();
+        const all = [item, ...current];
+        const uploads: { path: string; contentBase64: string }[] = [];
+        if (item.type === "upload" && item.fileName && opts.fileContentBase64) {
+          uploads.push({
+            path: `evidence/${primaryRoot(item)}/${item.fileName}`,
+            contentBase64: opts.fileContentBase64,
+          });
+        }
+        await commit(branch, affectedFolders(item), all, `Add evidence: ${item.title}`, uploads);
+        return all;
+      });
     },
 
     async updateEvidence(id: string, patch: Partial<Evidence>): Promise<Evidence[]> {
-      const { evidence: current, branch } = await loadAll();
-      const target = current.find((e) => e.id === id);
-      if (!target) throw new Error(`Evidence ${id} not found`);
-      const all = current.map((e) => (e.id === id ? { ...e, ...patch } : e));
-      const updated = all.find((e) => e.id === id)!;
-      await commit(
-        branch,
-        affectedFolders(updated),
-        all,
-        `Review evidence: ${updated.title} → ${updated.status}`,
-      );
-      return all;
+      return withConflictRetry(async () => {
+        const { evidence: current, branch } = await loadAll();
+        const target = current.find((e) => e.id === id);
+        if (!target) throw new Error(`Evidence ${id} not found`);
+        const all = current.map((e) => (e.id === id ? { ...e, ...patch } : e));
+        const updated = all.find((e) => e.id === id)!;
+        // Regenerate the item's folders AND any it used to map to — otherwise a
+        // remap leaves a stale copy in the old folder's index.md forever.
+        const folders = [
+          ...new Set([...affectedFolders(target), ...affectedFolders(updated)]),
+        ];
+        await commit(
+          branch,
+          folders,
+          all,
+          `Review evidence: ${updated.title} → ${updated.status}`,
+        );
+        return all;
+      });
     },
 
     async deleteEvidence(id: string): Promise<Evidence[]> {
-      const { evidence: current, branch } = await loadAll();
-      const target = current.find((e) => e.id === id);
-      if (!target) throw new Error(`Evidence ${id} not found`);
-      const all = current.filter((e) => e.id !== id);
-      // Remove the uploaded file blob too, so no orphan is left behind.
-      const deletions =
-        target.type === "upload" && target.fileName
-          ? [`evidence/${primaryRoot(target)}/${target.fileName}`]
-          : [];
-      await commit(
-        branch,
-        affectedFolders(target),
-        all,
-        `Delete evidence: ${target.title}`,
-        [],
-        deletions,
-      );
-      return all;
+      return withConflictRetry(async () => {
+        const { evidence: current, branch } = await loadAll();
+        const target = current.find((e) => e.id === id);
+        if (!target) throw new Error(`Evidence ${id} not found`);
+        const all = current.filter((e) => e.id !== id);
+        // Remove the uploaded file blob too, so no orphan is left behind.
+        const deletions =
+          target.type === "upload" && target.fileName
+            ? [`evidence/${primaryRoot(target)}/${target.fileName}`]
+            : [];
+        await commit(
+          branch,
+          affectedFolders(target),
+          all,
+          `Delete evidence: ${target.title}`,
+          [],
+          deletions,
+        );
+        return all;
+      });
     },
   };
 }

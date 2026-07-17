@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { canWrite } from "@/lib/github/app";
 import { resolveRepoContext } from "@/lib/github/request-context";
-import { createGitHubStore } from "@/lib/data/github-store";
+import { createGitHubStore, CONFLICT_MESSAGE } from "@/lib/data/github-store";
 import { validateNewEvidence } from "@/lib/data/validation";
 
 // GET  /api/evidence  → all evidence for the signed-in user's target repo.
@@ -47,6 +47,8 @@ export async function POST(request: Request) {
     });
     return NextResponse.json({ evidence });
   } catch (e) {
-    return NextResponse.json({ error: (e as Error).message }, { status: 502 });
+    const message = (e as Error).message;
+    const status = message === CONFLICT_MESSAGE ? 409 : 502;
+    return NextResponse.json({ error: message }, { status });
   }
 }
