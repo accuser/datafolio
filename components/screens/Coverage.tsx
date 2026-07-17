@@ -64,6 +64,7 @@ export function Coverage() {
             <HoverDiv
               key={k.id}
               onClick={() => actions.openKsb(k.id)}
+              ariaLabel={`Open ${k.id}: ${k.short}`}
               style={{
                 display: "grid",
                 gridTemplateColumns: GRID,

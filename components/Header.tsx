@@ -52,11 +52,24 @@ export function Header() {
         borderBottom: "1px solid #ececec",
       }}
     >
-      <div
-        style={{ display: "flex", alignItems: "center", gap: 11, cursor: "pointer" }}
+      <button
+        type="button"
         onClick={actions.goDashboard}
+        aria-label="DataFolio home"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 11,
+          cursor: "pointer",
+          background: "none",
+          border: "none",
+          padding: 0,
+          font: "inherit",
+          color: "inherit",
+        }}
       >
-        <div
+        <span
+          aria-hidden="true"
           style={{
             width: 30,
             height: 30,
@@ -71,11 +84,11 @@ export function Header() {
           }}
         >
           D
-        </div>
+        </span>
         <span style={{ fontWeight: 600, fontSize: 15, letterSpacing: "-0.01em" }}>
           DataFolio
         </span>
-      </div>
+      </button>
 
       <nav style={{ display: "flex", gap: 2, marginLeft: 14 }}>
         <button style={navTab(overviewActive)} onClick={actions.goDashboard}>

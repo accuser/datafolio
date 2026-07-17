@@ -91,6 +91,7 @@ export function Repository() {
               <div key={k.id}>
                 <HoverDiv
                   onClick={() => actions.toggleFolder(k.id)}
+                  ariaLabel={`${open ? "Collapse" : "Expand"} the evidence/${k.id} folder`}
                   style={{
                     display: "flex",
                     alignItems: "center",
@@ -102,6 +103,8 @@ export function Repository() {
                   hoverStyle={{ background: "#fafafa" }}
                 >
                   <svg
+                    aria-hidden="true"
+                    focusable="false"
                     width={12}
                     height={12}
                     viewBox="0 0 24 24"
@@ -131,6 +134,7 @@ export function Repository() {
                   <div style={{ borderLeft: "1px solid #ececec", marginLeft: 47 }}>
                     <HoverDiv
                       onClick={() => actions.openMd(k.id)}
+                      ariaLabel={`Preview evidence/${k.id}/index.md`}
                       style={{ ...FILE_ROW, cursor: "pointer" }}
                       hoverStyle={{ background: "#fafafa" }}
                     >
@@ -174,16 +178,22 @@ export function Repository() {
                     ))}
 
                     <div style={{ padding: "8px 18px 12px" }}>
-                      <a
-                        href="#"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          actions.openKsb(k.id);
+                      <button
+                        type="button"
+                        onClick={() => actions.openKsb(k.id)}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          padding: 0,
+                          color: "#4f46e5",
+                          fontSize: 12.5,
+                          fontFamily: "inherit",
+                          cursor: "pointer",
+                          textDecoration: "underline",
                         }}
-                        style={{ fontSize: 12.5 }}
                       >
                         Open evidence/{k.id} in DataFolio →
-                      </a>
+                      </button>
                     </div>
                   </div>
                 )}

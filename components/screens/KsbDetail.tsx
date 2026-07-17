@@ -154,6 +154,7 @@ function EvidenceCard({ e, ksbId }: { e: Evidence; ksbId: string }) {
             <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px dashed #ececec" }}>
               <textarea
                 placeholder="Add feedback for the learner (optional)…"
+                aria-label={`Feedback for ${e.title}`}
                 rows={2}
                 value={state.reviewComments[e.id] || ""}
                 onChange={(ev) => actions.setReview(e.id, ev.target.value)}
@@ -438,6 +439,7 @@ export function KsbDetail({ ksbId }: { ksbId: string }) {
         </div>
         <HoverDiv
           onClick={() => actions.openFolderView(sel.id)}
+          ariaLabel={`Open the evidence/${sel.id} folder in the repository`}
           style={{
             minWidth: 260,
             ...CARD,
@@ -445,7 +447,7 @@ export function KsbDetail({ ksbId }: { ksbId: string }) {
             padding: "13px 16px",
             cursor: "pointer",
           }}
-          hoverStyle={{ borderColor: "#c7d2fe" }}
+          hoverStyle={{ border: "1px solid #c7d2fe" }}
         >
           <div
             style={{

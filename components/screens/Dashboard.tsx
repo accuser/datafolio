@@ -314,8 +314,9 @@ export function Dashboard() {
                     padding: "15px 18px",
                     cursor: "pointer",
                   }}
+                  ariaLabel={`Open ${k.id}: ${k.short}`}
                   hoverStyle={{
-                    borderColor: "#c7d2fe",
+                    border: "1px solid #c7d2fe",
                     boxShadow: "0 2px 10px rgba(79,70,229,.07)",
                   }}
                 >

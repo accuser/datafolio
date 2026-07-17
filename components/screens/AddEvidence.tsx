@@ -118,20 +118,33 @@ export function AddEvidence({ ksbId, editId }: { ksbId: string; editId?: string 
           : "This will be committed to your private repo and mapped to the KSBs and sub-points you tag."}
       </p>
 
-      <label style={{ ...LABEL, marginBottom: 9 }}>Evidence type</label>
-      <div style={{ display: "flex", gap: 10, marginBottom: 24 }}>
+      <label style={{ ...LABEL, marginBottom: 9 }} id="evidence-type-label">
+        Evidence type
+      </label>
+      <div
+        role="group"
+        aria-labelledby="evidence-type-label"
+        style={{ display: "flex", gap: 10, marginBottom: 24 }}
+      >
         {TYPE_CARDS.map((t) => {
           const ti = typeInfo(t.key);
           const on = form.type === t.key;
           // Type is fixed once created — locked while editing.
           if (editing && !on) return null;
           return (
-            <div
+            <button
               key={t.key}
+              type="button"
+              aria-pressed={on}
+              disabled={editing}
               onClick={() => {
                 if (!editing) actions.setFormField("type", t.key);
               }}
               style={{
+                textAlign: "left",
+                appearance: "none",
+                font: "inherit",
+                color: "inherit",
                 cursor: editing ? "default" : "pointer",
                 flex: 1,
                 border: "1.5px solid " + (on ? "#4f46e5" : "#e4e4e7"),
@@ -141,6 +154,7 @@ export function AddEvidence({ ksbId, editId }: { ksbId: string; editId?: string 
               }}
             >
               <div
+                aria-hidden="true"
                 style={{
                   width: 32,
                   height: 32,
@@ -160,7 +174,7 @@ export function AddEvidence({ ksbId, editId }: { ksbId: string; editId?: string 
               <div style={{ fontSize: 12, color: "#a1a1aa", lineHeight: 1.4, marginTop: 3 }}>
                 {t.desc}
               </div>
-            </div>
+            </button>
           );
         })}
       </div>
@@ -171,6 +185,7 @@ export function AddEvidence({ ksbId, editId }: { ksbId: string; editId?: string 
           value={form.title}
           onChange={(e) => actions.setFormField("title", e.target.value)}
           placeholder={titlePlaceholder}
+          aria-label="Title"
           style={INPUT}
         />
       </div>
@@ -182,6 +197,7 @@ export function AddEvidence({ ksbId, editId }: { ksbId: string; editId?: string 
             value={form.url}
             onChange={(e) => actions.setFormField("url", e.target.value)}
             placeholder="github.com/you/portfolio-evidence/pull/12"
+            aria-label="GitHub URL"
             style={{ ...INPUT, fontFamily: mono }}
           />
           <div style={{ fontSize: 12.5, color: "#a1a1aa", marginTop: 6 }}>
@@ -198,6 +214,7 @@ export function AddEvidence({ ksbId, editId }: { ksbId: string; editId?: string 
             onChange={(e) => actions.setFormField("note", e.target.value)}
             rows={6}
             placeholder="Describe what you did, the decisions you made, and how it demonstrates this KSB…"
+            aria-label="Reflection"
             style={{ ...INPUT, lineHeight: 1.6, resize: "vertical" }}
           />
         </div>
@@ -283,12 +300,24 @@ export function AddEvidence({ ksbId, editId }: { ksbId: string; editId?: string 
               }}
             >
               {id}
-              <span
+              <button
+                type="button"
                 onClick={() => actions.removeTag(id)}
-                style={{ cursor: "pointer", fontSize: 14, lineHeight: 1, opacity: 0.6 }}
+                aria-label={`Remove mapping ${id}`}
+                style={{
+                  background: "none",
+                  border: "none",
+                  padding: 0,
+                  color: "inherit",
+                  fontFamily: "inherit",
+                  cursor: "pointer",
+                  fontSize: 14,
+                  lineHeight: 1,
+                  opacity: 0.6,
+                }}
               >
                 ×
-              </span>
+              </button>
             </span>
           ))}
         </div>
@@ -297,6 +326,7 @@ export function AddEvidence({ ksbId, editId }: { ksbId: string; editId?: string 
           onChange={(e) => {
             if (e.target.value) actions.addTag(e.target.value);
           }}
+          aria-label="Map to another KSB or sub-point"
           style={{ ...INPUT, color: "#52525b", background: "#fff" }}
         >
           <option value="">＋ Also map to another KSB or sub-point…</option>

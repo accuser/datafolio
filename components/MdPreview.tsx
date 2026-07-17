@@ -30,6 +30,7 @@ export function MdPreview() {
         }}
       >
         <DialogPanel
+          aria-label={path ? `Preview of ${path}` : "File preview"}
           style={{
             width: "100%",
             maxWidth: 720,
@@ -67,6 +68,7 @@ export function MdPreview() {
             <span style={{ flex: 1 }} />
             <button
               onClick={actions.closeMd}
+              aria-label="Close preview"
               style={{
                 background: "none",
                 border: "none",
