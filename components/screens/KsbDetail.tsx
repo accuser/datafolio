@@ -22,7 +22,7 @@ const CARD: CSSProperties = {
   border: "1px solid #ececec",
 };
 
-function EvidenceCard({ e }: { e: Evidence }) {
+function EvidenceCard({ e, ksbId }: { e: Evidence; ksbId: string }) {
   const { state, actions } = useApp();
   const isCoach = state.role === "coach";
   const isLearner = state.role === "learner";
@@ -254,7 +254,7 @@ function EvidenceCard({ e }: { e: Evidence }) {
               )}
               {!confirmDelete && (
                 <button
-                  onClick={() => actions.openEdit(e.id)}
+                  onClick={() => actions.openEdit(ksbId, e.id)}
                   disabled={state.submitting}
                   style={cardActionStyle("#fff", "#3f3f46", state.submitting, "#e4e4e7")}
                 >
@@ -319,10 +319,10 @@ function cardActionStyle(
   };
 }
 
-export function KsbDetail() {
+export function KsbDetail({ ksbId }: { ksbId: string }) {
   const { state, actions } = useApp();
-  const { evidence, selectedKsbId, role } = state;
-  const sel = (selectedKsbId && KSB_BY_ID[selectedKsbId]) || KSBS[0];
+  const { evidence, role } = state;
+  const sel = KSB_BY_ID[ksbId] || KSBS[0];
   const isLearner = role === "learner";
 
   const sk = ksbStatusKey(evidence, sel.id);
@@ -558,7 +558,7 @@ export function KsbDetail() {
         </h2>
         {isLearner && (
           <button
-            onClick={actions.openAdd}
+            onClick={() => actions.openAdd(sel.id)}
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -601,7 +601,7 @@ export function KsbDetail() {
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {ev.map((e) => (
-            <EvidenceCard key={e.id} e={e} />
+            <EvidenceCard key={e.id} e={e} ksbId={sel.id} />
           ))}
         </div>
       )}

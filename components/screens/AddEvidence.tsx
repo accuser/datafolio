@@ -1,6 +1,6 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import { useEffect, useRef, type CSSProperties } from "react";
 import { useApp } from "@/lib/state";
 import { KSBS } from "@/lib/ksbs";
 import { rootOf, typeInfo } from "@/lib/domain";
@@ -32,17 +32,32 @@ const TYPE_CARDS: { key: EvidenceType; label: string; desc: string }[] = [
   { key: "upload", label: "File upload", desc: "Notebook, PDF or image" },
 ];
 
-export function AddEvidence() {
+export function AddEvidence({ ksbId, editId }: { ksbId: string; editId?: string }) {
   const { state, actions } = useApp();
   const form = state.form;
-  if (!form) return null;
+
+  // Build the form from the route once (per add/edit target). For an edit we
+  // wait until the target item has loaded, so a deep link / refresh still works.
+  const initedRef = useRef<string | null>(null);
+  useEffect(() => {
+    const target = editId ? `edit:${editId}` : `add:${ksbId}`;
+    if (initedRef.current === target) return;
+    if (editId && !state.evidence.some((e) => e.id === editId)) return;
+    actions.startForm(ksbId, editId);
+    initedRef.current = target;
+  }, [ksbId, editId, state.evidence, actions]);
+
+  const ready = !!form && (editId ? form.editingId === editId : !form.editingId);
+  if (!ready || !form) {
+    return (
+      <div style={{ padding: "48px 0", color: "#a1a1aa", fontSize: 14 }}>Loading…</div>
+    );
+  }
 
   const busy = state.submitting;
   const editing = !!form.editingId;
   const canSave = !!form.title.trim() && !busy;
-  const primary = form.ksbIds.length
-    ? rootOf(form.ksbIds[0])
-    : state.selectedKsbId || "K1";
+  const primary = form.ksbIds.length ? rootOf(form.ksbIds[0]) : ksbId || "K1";
   const commitPath =
     "evidence/" +
     primary +
@@ -75,7 +90,7 @@ export function AddEvidence() {
   return (
     <div style={{ padding: "26px 0 64px", maxWidth: 680 }}>
       <button
-        onClick={actions.backToKsb}
+        onClick={() => actions.backToKsb(ksbId)}
         style={{
           display: "inline-flex",
           alignItems: "center",
@@ -91,7 +106,7 @@ export function AddEvidence() {
         }}
       >
         <ChevronLeft size={15} />
-        Back to {state.selectedKsbId}
+        Back to {ksbId}
       </button>
 
       <h1 style={{ fontSize: 22, fontWeight: 700, letterSpacing: "-0.01em", margin: "0 0 6px" }}>
@@ -360,7 +375,7 @@ export function AddEvidence() {
         </button>
         <div style={{ flex: 1 }} />
         <button
-          onClick={actions.backToKsb}
+          onClick={() => actions.backToKsb(ksbId)}
           disabled={busy}
           style={{
             background: "none",

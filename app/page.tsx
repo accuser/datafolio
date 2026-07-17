@@ -1,10 +1,5 @@
-import { AppProvider } from "@/lib/state";
-import { DataFolioApp } from "@/components/DataFolioApp";
+import { Dashboard } from "@/components/screens/Dashboard";
 
-export default function Home() {
-  return (
-    <AppProvider>
-      <DataFolioApp />
-    </AppProvider>
-  );
+export default function Page() {
+  return <Dashboard />;
 }

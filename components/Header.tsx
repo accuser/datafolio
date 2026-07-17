@@ -1,6 +1,7 @@
 "use client";
 
 import type { CSSProperties } from "react";
+import { usePathname } from "next/navigation";
 import { BACKEND_MODE, useApp } from "@/lib/state";
 import { GithubMark, Lock, LogOut } from "./icons";
 
@@ -35,8 +36,11 @@ function roleTab(active: boolean): CSSProperties {
 
 export function Header() {
   const { state, user, actions } = useApp();
-  const { view, role } = state;
-  const overviewActive = view === "dashboard" || view === "ksb" || view === "add";
+  const { role } = state;
+  const pathname = usePathname();
+  const overviewActive = pathname === "/" || pathname.startsWith("/ksb");
+  const repoActive = pathname.startsWith("/repository");
+  const coverageActive = pathname.startsWith("/coverage");
 
   return (
     <header
@@ -77,10 +81,10 @@ export function Header() {
         <button style={navTab(overviewActive)} onClick={actions.goDashboard}>
           Overview
         </button>
-        <button style={navTab(view === "repo")} onClick={actions.openRepo}>
+        <button style={navTab(repoActive)} onClick={actions.openRepo}>
           Repository
         </button>
-        <button style={navTab(view === "coverage")} onClick={actions.openCoverage}>
+        <button style={navTab(coverageActive)} onClick={actions.openCoverage}>
           Coverage
         </button>
       </nav>

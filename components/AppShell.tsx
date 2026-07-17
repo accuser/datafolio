@@ -1,14 +1,10 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useApp } from "@/lib/state";
 import { Header } from "./Header";
 import { MdPreview } from "./MdPreview";
 import { SignIn } from "./screens/SignIn";
-import { Dashboard } from "./screens/Dashboard";
-import { KsbDetail } from "./screens/KsbDetail";
-import { AddEvidence } from "./screens/AddEvidence";
-import { Repository } from "./screens/Repository";
-import { Coverage } from "./screens/Coverage";
 
 function ErrorBanner() {
   const { state, actions } = useApp();
@@ -55,10 +51,15 @@ function ErrorBanner() {
   );
 }
 
-export function DataFolioApp() {
+/**
+ * App chrome + auth gate. When signed out it shows the sign-in screen (so no
+ * route leaks a signed-out user into the app); otherwise it wraps the routed
+ * page in the header/nav, error banner and markdown preview modal.
+ */
+export function AppShell({ children }: { children: ReactNode }) {
   const { state } = useApp();
 
-  if (!state.signedIn || state.view === "signin") {
+  if (!state.signedIn) {
     return <SignIn />;
   }
 
@@ -67,11 +68,7 @@ export function DataFolioApp() {
       <div style={{ maxWidth: 1160, margin: "0 auto", padding: "0 32px" }}>
         <Header />
         <ErrorBanner />
-        {state.view === "dashboard" && <Dashboard />}
-        {state.view === "ksb" && <KsbDetail />}
-        {state.view === "add" && <AddEvidence />}
-        {state.view === "repo" && <Repository />}
-        {state.view === "coverage" && <Coverage />}
+        <main>{children}</main>
       </div>
       <MdPreview />
     </div>

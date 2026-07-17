@@ -9,6 +9,7 @@ import {
   useRef,
   type ReactNode,
 } from "react";
+import { useRouter } from "next/navigation";
 import { rootOf, todayLabel } from "./domain";
 import { createMockStore, type EvidenceStore } from "./data/store";
 import { createHttpStore, fetchSession } from "./data/http-store";
@@ -20,7 +21,6 @@ import type {
   EvidenceStatus,
   Role,
   UserProfile,
-  View,
 } from "./types";
 
 export type StatusFilter =
@@ -47,7 +47,6 @@ function initialsOf(name: string): string {
 }
 
 interface AppState {
-  view: View;
   role: Role;
   signedIn: boolean;
   /** True while evidence is being (re)loaded from the backend. */
@@ -59,7 +58,6 @@ interface AppState {
   user: UserProfile;
   filter: StatusFilter;
   routeFilter: RouteFilter;
-  selectedKsbId: string | null;
   form: EvidenceForm | null;
   reviewComments: Record<string, string>;
   openFolders: Record<string, boolean>;
@@ -68,7 +66,6 @@ interface AppState {
 }
 
 const initialState: AppState = {
-  view: "signin",
   role: "learner",
   signedIn: false,
   loading: false,
@@ -77,7 +74,6 @@ const initialState: AppState = {
   user: SEED_USER,
   filter: "all",
   routeFilter: "all",
-  selectedKsbId: null,
   form: null,
   reviewComments: {},
   openFolders: {},
@@ -148,16 +144,20 @@ export interface AppActions {
   openCoverage(): void;
   setRole(role: Role): void;
   openKsb(id: string): void;
-  backToKsb(): void;
+  backToKsb(ksbId: string): void;
   openFolderView(kid: string): void;
   toggleFolder(kid: string): void;
-  openAdd(): void;
+  /** Navigate to the add-evidence screen for a KSB. */
+  openAdd(ksbId: string): void;
+  /** Navigate to the edit screen for an existing item (under its KSB). */
+  openEdit(ksbId: string, id: string): void;
+  /** Initialise the add/edit form from the route (called by the add screen). */
+  startForm(ksbId: string, editId?: string): void;
   setFormField(key: keyof EvidenceForm, value: unknown): void;
   addTag(id: string): void;
   removeTag(id: string): void;
   setFile(file: File): void;
   save(status: EvidenceStatus): void;
-  openEdit(id: string): void;
   resubmit(id: string): void;
   deleteEvidence(id: string): void;
   approve(id: string): void;
@@ -180,6 +180,14 @@ const AppContext = createContext<AppContextValue | null>(null);
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initialState);
+  const router = useRouter();
+
+  // Router snapshot so the stable action handlers can navigate without being
+  // re-created; navigation is URL-driven now that views are real routes.
+  const routerRef = useRef(router);
+  useEffect(() => {
+    routerRef.current = router;
+  }, [router]);
 
   // Always-current snapshot so the memoized (stable) action handlers can read
   // the latest state without re-creating themselves on every render. Handlers
@@ -233,7 +241,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
           // Real GitHub App user OAuth handshake.
           window.location.assign("/api/auth/login");
         } else {
-          patch({ signedIn: true, view: "dashboard" });
+          patch({ signedIn: true });
+          routerRef.current.push("/");
         }
       },
       signOut: async () => {
@@ -247,35 +256,54 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (BACKEND_MODE === "github") {
           window.location.assign("/");
         } else {
-          patch({ signedIn: false, view: "signin", role: "learner", error: null });
+          patch({ signedIn: false, role: "learner", error: null, form: null });
+          routerRef.current.push("/");
         }
       },
-      goDashboard: () => patch({ view: "dashboard" }),
-      openRepo: () => patch({ view: "repo" }),
-      openCoverage: () => patch({ view: "coverage" }),
+      goDashboard: () => routerRef.current.push("/"),
+      openRepo: () => routerRef.current.push("/repository"),
+      openCoverage: () => routerRef.current.push("/coverage"),
       setRole: (role) => patch({ role }),
-      openKsb: (id) => patch({ selectedKsbId: id, view: "ksb" }),
-      backToKsb: () => patch({ view: "ksb" }),
-      openFolderView: (kid) =>
-        patch({
-          view: "repo",
-          openFolders: { ...stateRef.current.openFolders, [kid]: true },
-        }),
+      openKsb: (id) => routerRef.current.push(`/ksb/${id}`),
+      backToKsb: (ksbId) => routerRef.current.push(`/ksb/${ksbId}`),
+      openFolderView: (kid) => {
+        patch({ openFolders: { ...stateRef.current.openFolders, [kid]: true } });
+        routerRef.current.push("/repository");
+      },
       toggleFolder: (kid) => dispatch({ type: "TOGGLE_FOLDER", kid }),
-      openAdd: () =>
-        patch({
-          view: "add",
-          form: {
-            type: "github",
-            title: "",
-            url: "",
-            note: "",
-            fileName: "",
-            ksbIds: stateRef.current.selectedKsbId
-              ? [stateRef.current.selectedKsbId]
-              : [],
-          },
-        }),
+      openAdd: (ksbId) => routerRef.current.push(`/ksb/${ksbId}/add`),
+      openEdit: (ksbId, id) =>
+        routerRef.current.push(`/ksb/${ksbId}/add?edit=${encodeURIComponent(id)}`),
+      // Build the add/edit form for the current route; the add screen calls this
+      // on mount so the form survives a refresh / deep link.
+      startForm: (ksbId, editId) => {
+        if (editId) {
+          const item = stateRef.current.evidence.find((e) => e.id === editId);
+          if (!item) return; // evidence not loaded yet — caller retries on load
+          patch({
+            form: {
+              type: item.type,
+              title: item.title,
+              url: item.url ?? "",
+              note: item.note ?? "",
+              fileName: item.fileName ?? "",
+              ksbIds: [...item.ksbIds],
+              editingId: item.id,
+            },
+          });
+        } else {
+          patch({
+            form: {
+              type: "github",
+              title: "",
+              url: "",
+              note: "",
+              fileName: "",
+              ksbIds: ksbId ? [ksbId] : [],
+            },
+          });
+        }
+      },
       setFormField: (key, value) =>
         dispatch({ type: "SET_FORM_FIELD", key, value }),
       addTag: (id) => dispatch({ type: "ADD_TAG", id }),
@@ -335,30 +363,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
               fileContentBase64: f.type === "upload" ? f.fileContentBase64 : undefined,
             });
           }
+          const targetKsb = f.ksbIds.length ? rootOf(f.ksbIds[0]) : "K1";
           dispatch({ type: "SET_EVIDENCE", evidence: next });
-          patch({ view: "ksb", form: null });
+          patch({ form: null });
+          routerRef.current.push(`/ksb/${targetKsb}`);
         }),
-
-      // Open the add screen pre-filled to edit an existing item.
-      openEdit: (id) => {
-        const item = stateRef.current.evidence.find((e) => e.id === id);
-        if (!item) return;
-        patch({
-          view: "add",
-          selectedKsbId:
-            stateRef.current.selectedKsbId ??
-            (item.ksbIds.length ? rootOf(item.ksbIds[0]) : "K1"),
-          form: {
-            type: item.type,
-            title: item.title,
-            url: item.url ?? "",
-            note: item.note ?? "",
-            fileName: item.fileName ?? "",
-            ksbIds: [...item.ksbIds],
-            editingId: item.id,
-          },
-        });
-      },
 
       // One-click resubmit after a coach requested changes.
       resubmit: (id) =>
@@ -416,7 +425,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
           type: "PATCH",
           patch: {
             signedIn: true,
-            view: "dashboard",
             loading: true,
             role: session.role === "coach" ? "coach" : "learner",
             user: {
