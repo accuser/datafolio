@@ -1,6 +1,6 @@
 import "server-only";
 import type { Octokit } from "@octokit/core";
-import { getInstallationOctokit } from "./app";
+import { canRead, getInstallationOctokit } from "./app";
 import { isGitHubConfigured } from "./config";
 import { getSession } from "../session";
 
@@ -33,6 +33,16 @@ export async function resolveRepoContext(): Promise<ContextResult> {
   }
   try {
     const octokit = await getInstallationOctokit(target.owner, target.repo);
+    // Read authorisation: the signed-in user must own the repo or be a
+    // collaborator on it. Without this, any signed-in user could read another
+    // learner's private evidence by pointing `target` at their repo.
+    if (!(await canRead(octokit, target.owner, target.repo, session.user.login))) {
+      return {
+        ok: false,
+        status: 403,
+        error: "You do not have access to this repository",
+      };
+    }
     return {
       ok: true,
       ctx: {

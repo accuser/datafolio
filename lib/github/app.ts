@@ -59,3 +59,28 @@ export async function canWrite(
     return false;
   }
 }
+
+/**
+ * Whether `username` may READ `owner/repo` — the owner, or a collaborator with
+ * any permission (read/triage/write/maintain/admin). Guards the read paths so a
+ * signed-in user cannot pull another learner's private portfolio just by
+ * pointing the session at their repo.
+ */
+export async function canRead(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  username: string,
+): Promise<boolean> {
+  if (username.toLowerCase() === owner.toLowerCase()) return true;
+  try {
+    const { data } = await octokit.request(
+      "GET /repos/{owner}/{repo}/collaborators/{username}/permission",
+      { owner, repo, username },
+    );
+    // Non-collaborators come back as "none" (or a 404, caught below).
+    return data.permission !== "none";
+  } catch {
+    return false;
+  }
+}
