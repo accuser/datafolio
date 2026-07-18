@@ -27,12 +27,27 @@ const itemB: Evidence = {
   note: "First line.\n\nSecond paragraph.", status: "Approved",
   date: "1 Jun 2026", feedback: "Solid.",
 };
+// itemU: an upload, primary S4, whose file blob lives at evidence/S4/deck.pdf.
+const itemU: Evidence = {
+  id: "up1", ksbIds: ["S4"], type: "upload", title: "Insights deck",
+  fileName: "deck.pdf", note: "", status: "Submitted", date: "3 Jul 2026", feedback: "",
+};
+const seed = [itemA, itemB, itemU];
 
 // The fake repo's blobs, keyed by a synthetic sha.
 const blobs: Record<string, string> = {
-  "sha-K4": genMd([itemA, itemB], KSB_BY_ID["K4"]),
-  "sha-S4": genMd([itemA, itemB], KSB_BY_ID["S4"]),
+  "sha-K4": genMd(seed, KSB_BY_ID["K4"]),
+  "sha-S4": genMd(seed, KSB_BY_ID["S4"]),
 };
+
+// The repo tree as a mutable path→sha map, so a test can drop a blob to exercise
+// the "file already gone" delete guard. Includes the upload's file blob.
+const treePaths = new Map<string, string>([
+  ["README.md", "sha-readme"],
+  ["evidence/K4/index.md", "sha-K4"],
+  ["evidence/S4/index.md", "sha-S4"],
+  ["evidence/S4/deck.pdf", "sha-deck"],
+]);
 
 interface CapturedTree {
   base_tree: string;
@@ -51,11 +66,7 @@ const fakeOctokit = {
       case "GET /repos/{owner}/{repo}/git/trees/{tree_sha}":
         return {
           data: {
-            tree: [
-              { path: "README.md", type: "blob", sha: "sha-readme" },
-              { path: "evidence/K4/index.md", type: "blob", sha: "sha-K4" },
-              { path: "evidence/S4/index.md", type: "blob", sha: "sha-S4" },
-            ],
+            tree: [...treePaths].map(([path, sha]) => ({ path, type: "blob", sha })),
           },
         };
       case "GET /repos/{owner}/{repo}/git/blobs/{file_sha}": {
@@ -88,14 +99,16 @@ async function main() {
 
   // --- load ---
   const loaded = await store.load();
-  assert(loaded.length === 2, `load returns 2 items, got ${loaded.length}`);
+  assert(loaded.length === 3, `load returns 3 items, got ${loaded.length}`);
   const a = loaded.find((e) => e.id === "a1")!;
   const b = loaded.find((e) => e.id === "b1")!;
-  assert(a && b, "both seed items present");
+  const u = loaded.find((e) => e.id === "up1")!;
+  assert(a && b && u, "all seed items present");
   assert(a.url === "github.com/x/y/blob/main/churn.ipynb", "github url parsed (protocol stripped)");
   assert(a.status === "Submitted", "status capitalized on load");
   assert(b.note === "First line.\n\nSecond paragraph.", "multi-line reflection note recovered from body");
   assert(b.feedback === "Solid.", "feedback parsed");
+  assert(u.type === "upload" && u.fileName === "deck.pdf", "upload filename recovered on load");
 
   // --- add: new github item mapped to K4.1 (primary K4) ---
   captured.trees = []; captured.commits = 0; captured.refUpdates = 0;
@@ -105,7 +118,7 @@ async function main() {
     date: "17 Jul 2026", feedback: "",
   };
   const afterAdd = await store.addEvidence(newItem);
-  assert(afterAdd.length === 3, "add returns 3 items");
+  assert(afterAdd.length === 4, "add returns 4 items");
   assert(captured.commits === 1 && captured.refUpdates === 1, "add makes exactly one atomic commit");
   const addTree = captured.trees[0];
   const k4Entry = addTree.tree.find((t) => t.path === "evidence/K4/index.md");
@@ -143,7 +156,60 @@ async function main() {
     "index.md records the upload filename",
   );
 
-  console.log("GITHUB-STORE OK — load/add/update produce correct atomic commits");
+  // --- update: remapping an upload's primary folder moves its file blob ---
+  // up1's first mapping goes S4 → K2, so its physical folder changes. The file
+  // must follow, or the new folder's index.md links a `./deck.pdf` that isn't
+  // there and a later delete targets the wrong path.
+  captured.trees = []; captured.commits = 0;
+  const blobsBeforeRemap = blobCounter;
+  await store.updateEvidence("up1", { ksbIds: ["K2"] });
+  assert(captured.commits === 1, "remap makes exactly one atomic commit");
+  assert(blobCounter === blobsBeforeRemap, "moving a file re-points its blob — no re-upload");
+  const remapTree = captured.trees[0].tree;
+  assert(
+    remapTree.some((t) => t.path === "evidence/K2/deck.pdf" && t.sha === "sha-deck"),
+    "file blob written at the new primary folder by reference",
+  );
+  assert(
+    remapTree.some((t) => t.path === "evidence/S4/deck.pdf" && t.sha === null),
+    "file blob removed from the old primary folder in the same commit",
+  );
+  const remapK2 = remapTree.find((t) => t.path === "evidence/K2/index.md");
+  assert(remapK2?.content?.includes("file: deck.pdf"), "new folder's index.md links the moved file");
+  const remapS4 = remapTree.find((t) => t.path === "evidence/S4/index.md");
+  assert(remapS4 && !/id: up1/.test(remapS4.content!), "old folder's index.md drops the moved item");
+
+  // --- update: remap within the same root folder does NOT move the file ---
+  captured.trees = [];
+  await store.updateEvidence("up1", { ksbIds: ["S4.1", "S4"] });
+  const sameRootTree = captured.trees[0].tree;
+  assert(
+    !sameRootTree.some((t) => t.path.endsWith("/deck.pdf")),
+    "no file move when the primary root is unchanged",
+  );
+
+  // --- delete: an upload removes its file blob alongside the index rewrite ---
+  captured.trees = []; captured.commits = 0;
+  await store.deleteEvidence("up1");
+  assert(captured.commits === 1, "delete makes one commit");
+  const delTree = captured.trees[0].tree;
+  assert(
+    delTree.some((t) => t.path === "evidence/S4/deck.pdf" && t.sha === null),
+    "deleting an upload also removes its file blob",
+  );
+
+  // --- delete guard: a file already gone is not re-deleted (would 422) ---
+  treePaths.delete("evidence/S4/deck.pdf"); // simulate a missing / already-removed blob
+  captured.trees = []; captured.commits = 0;
+  await store.deleteEvidence("up1");
+  assert(captured.commits === 1, "delete still commits when the file blob is absent");
+  const delTree2 = captured.trees[0].tree;
+  assert(
+    !delTree2.some((t) => t.path === "evidence/S4/deck.pdf"),
+    "an absent file blob is not added as a deletion, so the commit can't 422",
+  );
+
+  console.log("GITHUB-STORE OK — load/add/update/remap/delete produce correct atomic commits");
 }
 
 main().catch((e) => {

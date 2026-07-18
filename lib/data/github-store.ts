@@ -81,12 +81,23 @@ export function createGitHubStore(ctx: GitHubStoreContext) {
     return data.default_branch;
   }
 
-  async function loadAll(): Promise<{ evidence: Evidence[]; branch: string }> {
+  async function loadAll(): Promise<{
+    evidence: Evidence[];
+    branch: string;
+    /** Every blob path in the tree → its sha, so a remap can move an uploaded
+     *  file by referencing its existing blob (no re-upload) and a delete can
+     *  skip paths that aren't actually there. */
+    blobShas: Map<string, string>;
+  }> {
     const branch = await defaultBranch();
     const { data: tree } = await octokit.request(
       "GET /repos/{owner}/{repo}/git/trees/{tree_sha}",
       { owner, repo, tree_sha: branch, recursive: "true" },
     );
+    const blobShas = new Map<string, string>();
+    for (const t of tree.tree) {
+      if (t.type === "blob" && t.path && t.sha) blobShas.set(t.path, t.sha);
+    }
     const indexFiles = tree.tree.filter(
       (t) => t.type === "blob" && t.path && t.sha && INDEX_RE.test(t.path),
     );
@@ -101,7 +112,7 @@ export function createGitHubStore(ctx: GitHubStoreContext) {
       }),
     );
     const evidence = dedupById(folders.flatMap((p) => p.evidence));
-    return { evidence, branch };
+    return { evidence, branch, blobShas };
   }
 
   /** Atomically commit the regenerated index.md of each affected folder (plus any
@@ -113,6 +124,10 @@ export function createGitHubStore(ctx: GitHubStoreContext) {
     message: string,
     uploads: { path: string; contentBase64: string }[] = [],
     deletions: string[] = [],
+    // Relocate an existing blob within the same commit (used when an upload's
+    // primary folder changes): write it at `toPath` by reference and drop
+    // `fromPath`, so the file follows its item instead of being orphaned.
+    moves: { fromPath: string; toPath: string; sha: string }[] = [],
   ): Promise<void> {
     const { data: ref } = await octokit.request(
       "GET /repos/{owner}/{repo}/git/ref/{ref}",
@@ -145,6 +160,13 @@ export function createGitHubStore(ctx: GitHubStoreContext) {
         { owner, repo, content: up.contentBase64, encoding: "base64" },
       );
       treeEntries.push({ path: up.path, mode: "100644", type: "blob", sha: blob.sha });
+    }
+
+    // Move a blob by re-pointing its bytes at the new path and removing the old
+    // one — no download/re-upload, both in this one commit.
+    for (const mv of moves) {
+      treeEntries.push({ path: mv.toPath, mode: "100644", type: "blob", sha: mv.sha });
+      treeEntries.push({ path: mv.fromPath, mode: "100644", type: "blob", sha: null });
     }
 
     // A tree entry with sha:null removes the path from the tree (deleted file).
@@ -198,7 +220,7 @@ export function createGitHubStore(ctx: GitHubStoreContext) {
 
     async updateEvidence(id: string, patch: Partial<Evidence>): Promise<Evidence[]> {
       return withConflictRetry(async () => {
-        const { evidence: current, branch } = await loadAll();
+        const { evidence: current, branch, blobShas } = await loadAll();
         const target = current.find((e) => e.id === id);
         if (!target) throw new Error(`Evidence ${id} not found`);
         const all = current.map((e) => (e.id === id ? { ...e, ...patch } : e));
@@ -208,11 +230,29 @@ export function createGitHubStore(ctx: GitHubStoreContext) {
         const folders = [
           ...new Set([...affectedFolders(target), ...affectedFolders(updated)]),
         ];
+        // If a remap moved an upload's primary folder, relocate its file too, or
+        // the new folder's index.md links a `./file` that lives elsewhere and the
+        // eventual delete targets a path that no longer holds the blob.
+        const moves: { fromPath: string; toPath: string; sha: string }[] = [];
+        if (target.type === "upload" && target.fileName) {
+          const oldRoot = primaryRoot(target);
+          const newRoot = primaryRoot(updated);
+          if (oldRoot !== newRoot) {
+            const fromPath = `evidence/${oldRoot}/${target.fileName}`;
+            const sha = blobShas.get(fromPath);
+            if (sha) {
+              moves.push({ fromPath, toPath: `evidence/${newRoot}/${target.fileName}`, sha });
+            }
+          }
+        }
         await commit(
           branch,
           folders,
           all,
           `Review evidence: ${updated.title} → ${updated.status}`,
+          [],
+          [],
+          moves,
         );
         return all;
       });
@@ -220,15 +260,18 @@ export function createGitHubStore(ctx: GitHubStoreContext) {
 
     async deleteEvidence(id: string): Promise<Evidence[]> {
       return withConflictRetry(async () => {
-        const { evidence: current, branch } = await loadAll();
+        const { evidence: current, branch, blobShas } = await loadAll();
         const target = current.find((e) => e.id === id);
         if (!target) throw new Error(`Evidence ${id} not found`);
         const all = current.filter((e) => e.id !== id);
-        // Remove the uploaded file blob too, so no orphan is left behind.
-        const deletions =
+        // Remove the uploaded file blob too, so no orphan is left behind. Only if
+        // it's actually there — deleting a path absent from the tree would 422
+        // the whole commit.
+        const filePath =
           target.type === "upload" && target.fileName
-            ? [`evidence/${primaryRoot(target)}/${target.fileName}`]
-            : [];
+            ? `evidence/${primaryRoot(target)}/${target.fileName}`
+            : "";
+        const deletions = filePath && blobShas.has(filePath) ? [filePath] : [];
         await commit(
           branch,
           affectedFolders(target),
