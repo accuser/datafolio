@@ -42,6 +42,33 @@ function dedupById(items: Evidence[]): Evidence[] {
   return items.filter((e) => (seen.has(e.id) ? false : (seen.add(e.id), true)));
 }
 
+/** Split a filename into [stem, extension-with-dot]; ext is "" when there is none. */
+function splitExtension(name: string): [string, string] {
+  const dot = name.lastIndexOf(".");
+  return dot > 0 ? [name.slice(0, dot), name.slice(dot)] : [name, ""];
+}
+
+/**
+ * A filename that won't overwrite an existing blob in `folder`. If
+ * `evidence/<folder>/<fileName>` is already taken in the tree, suffix the
+ * basename (`deck.pdf` → `deck-2.pdf` → `deck-3.pdf` …) until the path is free.
+ * The caller stores the returned name on the item so index.md's `./<file>` link
+ * and the committed blob path stay in lock-step.
+ */
+function uniqueFileName(
+  folder: string,
+  fileName: string,
+  blobShas: Map<string, string>,
+): string {
+  const taken = (name: string) => blobShas.has(`evidence/${folder}/${name}`);
+  if (!taken(fileName)) return fileName;
+  const [stem, ext] = splitExtension(fileName);
+  for (let i = 2; ; i++) {
+    const candidate = `${stem}-${i}${ext}`;
+    if (!taken(candidate)) return candidate;
+  }
+}
+
 /** Shown when concurrent commits still conflict after all retries. */
 export const CONFLICT_MESSAGE =
   "The repository changed while saving. Please try again.";
@@ -84,9 +111,10 @@ export function createGitHubStore(ctx: GitHubStoreContext) {
   async function loadAll(): Promise<{
     evidence: Evidence[];
     branch: string;
-    /** Every blob path in the tree → its sha, so a remap can move an uploaded
-     *  file by referencing its existing blob (no re-upload) and a delete can
-     *  skip paths that aren't actually there. */
+    /** Every blob path in the tree → its sha, so a writer can spot a name that
+     *  would collide with an existing file, a remap can move an uploaded file by
+     *  referencing its existing blob (no re-upload), and a delete can skip paths
+     *  that aren't actually there. */
     blobShas: Map<string, string>;
   }> {
     const branch = await defaultBranch();
@@ -204,15 +232,21 @@ export function createGitHubStore(ctx: GitHubStoreContext) {
         item = { ...item, fileName: sanitizeFileName(item.fileName) };
       }
       return withConflictRetry(async () => {
-        const { evidence: current, branch } = await loadAll();
-        const all = [item, ...current];
+        const { evidence: current, branch, blobShas } = await loadAll();
         const uploads: { path: string; contentBase64: string }[] = [];
         if (item.type === "upload" && item.fileName && opts.fileContentBase64) {
+          // De-dupe against files already in the folder so a same-named upload
+          // can't silently clobber another item's blob. Store the resolved name
+          // on the item so index.md and the committed blob path stay in step.
+          const folder = primaryRoot(item);
+          const fileName = uniqueFileName(folder, item.fileName, blobShas);
+          item = { ...item, fileName };
           uploads.push({
-            path: `evidence/${primaryRoot(item)}/${item.fileName}`,
+            path: `evidence/${folder}/${fileName}`,
             contentBase64: opts.fileContentBase64,
           });
         }
+        const all = [item, ...current];
         await commit(branch, affectedFolders(item), all, `Add evidence: ${item.title}`, uploads);
         return all;
       });
@@ -223,16 +257,14 @@ export function createGitHubStore(ctx: GitHubStoreContext) {
         const { evidence: current, branch, blobShas } = await loadAll();
         const target = current.find((e) => e.id === id);
         if (!target) throw new Error(`Evidence ${id} not found`);
-        const all = current.map((e) => (e.id === id ? { ...e, ...patch } : e));
-        const updated = all.find((e) => e.id === id)!;
-        // Regenerate the item's folders AND any it used to map to — otherwise a
-        // remap leaves a stale copy in the old folder's index.md forever.
-        const folders = [
-          ...new Set([...affectedFolders(target), ...affectedFolders(updated)]),
-        ];
+        let updated: Evidence = { ...target, ...patch };
+
         // If a remap moved an upload's primary folder, relocate its file too, or
         // the new folder's index.md links a `./file` that lives elsewhere and the
-        // eventual delete targets a path that no longer holds the blob.
+        // eventual delete targets a path that no longer holds the blob. De-dupe
+        // the destination name (same rule as addEvidence) so the move can't
+        // clobber a file already in the new folder, and keep the item's stored
+        // fileName in step with the moved blob path.
         const moves: { fromPath: string; toPath: string; sha: string }[] = [];
         if (target.type === "upload" && target.fileName) {
           const oldRoot = primaryRoot(target);
@@ -241,10 +273,19 @@ export function createGitHubStore(ctx: GitHubStoreContext) {
             const fromPath = `evidence/${oldRoot}/${target.fileName}`;
             const sha = blobShas.get(fromPath);
             if (sha) {
-              moves.push({ fromPath, toPath: `evidence/${newRoot}/${target.fileName}`, sha });
+              const fileName = uniqueFileName(newRoot, target.fileName, blobShas);
+              updated = { ...updated, fileName };
+              moves.push({ fromPath, toPath: `evidence/${newRoot}/${fileName}`, sha });
             }
           }
         }
+
+        const all = current.map((e) => (e.id === id ? updated : e));
+        // Regenerate the item's folders AND any it used to map to — otherwise a
+        // remap leaves a stale copy in the old folder's index.md forever.
+        const folders = [
+          ...new Set([...affectedFolders(target), ...affectedFolders(updated)]),
+        ];
         await commit(
           branch,
           folders,
