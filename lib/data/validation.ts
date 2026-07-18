@@ -109,14 +109,27 @@ export function validateNewEvidence(body: unknown): ValidatedEvidence {
 
 export type ValidatedPatch =
   | { ok: true; patch: Partial<Evidence> }
-  | { ok: false; error: string };
+  | { ok: false; error: string; status?: number };
+
+/** Content fields a learner owns; editing any of them invalidates a review. */
+const CONTENT_FIELDS = ["title", "url", "note", "ksbIds"] as const;
 
 /**
  * Validate a PATCH body (learner edit / resubmit, or coach review). Only a
  * known, safe subset of fields may be changed; everything else is dropped, and
  * each supplied field is type-/length-checked. id and date are never patchable.
+ *
+ * `isOwner` (login === repo owner, i.e. the learner) gates the role-specific
+ * rules that the UI enforces but a hand-crafted request otherwise wouldn't:
+ *   - `feedback` is the coach's field, so a learner may not write it (403).
+ *   - editing content invalidates any prior review, so an owner edit that omits
+ *     a status is forced back to Draft rather than silently keeping Approved.
+ * (Rejecting a learner's explicit self-approval stays with the route handler.)
  */
-export function validateEvidencePatch(body: unknown): ValidatedPatch {
+export function validateEvidencePatch(
+  body: unknown,
+  { isOwner }: { isOwner: boolean },
+): ValidatedPatch {
   const raw = (body as { patch?: unknown } | null)?.patch;
   if (!raw || typeof raw !== "object") {
     return { ok: false, error: "Missing patch" };
@@ -134,7 +147,17 @@ export function validateEvidencePatch(body: unknown): ValidatedPatch {
   }
   if ("url" in r) patch.url = str(r.url).slice(0, URL_MAX);
   if ("note" in r) patch.note = str(r.note).slice(0, NOTE_MAX);
-  if ("feedback" in r) patch.feedback = str(r.feedback).slice(0, FEEDBACK_MAX);
+  if ("feedback" in r) {
+    // "Coach feedback" is a review field: only a non-owner (coach) may set it.
+    if (isOwner) {
+      return {
+        ok: false,
+        error: "Only a coach can leave feedback on evidence.",
+        status: 403,
+      };
+    }
+    patch.feedback = str(r.feedback).slice(0, FEEDBACK_MAX);
+  }
   if ("ksbIds" in r) {
     const ksbIds = Array.isArray(r.ksbIds)
       ? r.ksbIds.filter((x): x is string => typeof x === "string" && VALID_KSB_IDS.has(x))
@@ -149,6 +172,14 @@ export function validateEvidencePatch(body: unknown): ValidatedPatch {
       return { ok: false, error: "Invalid status" };
     }
     patch.status = r.status as EvidenceStatus;
+  }
+
+  // A learner editing content must not leave the item Approved/Changes. The UI
+  // always downgrades on edit; enforce it here for requests that don't. An
+  // explicit Approved/Changes is left for the route's self-approval rejection.
+  const editsContent = CONTENT_FIELDS.some((f) => f in r);
+  if (isOwner && editsContent && patch.status === undefined) {
+    patch.status = "Draft";
   }
 
   if (Object.keys(patch).length === 0) {
