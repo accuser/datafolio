@@ -27,16 +27,31 @@ const itemB: Evidence = {
   note: "First line.\n\nSecond paragraph.", status: "Approved",
   date: "1 Jun 2026", feedback: "Solid.",
 };
+// itemU: an upload, primary S4, whose file blob lives at evidence/S4/deck.pdf.
+const itemU: Evidence = {
+  id: "up1", ksbIds: ["S4"], type: "upload", title: "Insights deck",
+  fileName: "deck.pdf", note: "", status: "Submitted", date: "3 Jul 2026", feedback: "",
+};
+const seed = [itemA, itemB, itemU];
 
 // The fake repo's blobs, keyed by a synthetic sha.
 const blobs: Record<string, string> = {
-  "sha-K4": genMd([itemA, itemB], KSB_BY_ID["K4"]),
-  "sha-S4": genMd([itemA, itemB], KSB_BY_ID["S4"]),
+  "sha-K4": genMd(seed, KSB_BY_ID["K4"]),
+  "sha-S4": genMd(seed, KSB_BY_ID["S4"]),
 };
+
+// The repo tree as a mutable path→sha map, so a test can drop a blob to exercise
+// the "file already gone" delete guard. Includes the upload's file blob.
+const treePaths = new Map<string, string>([
+  ["README.md", "sha-readme"],
+  ["evidence/K4/index.md", "sha-K4"],
+  ["evidence/S4/index.md", "sha-S4"],
+  ["evidence/S4/deck.pdf", "sha-deck"],
+]);
 
 interface CapturedTree {
   base_tree: string;
-  tree: { path: string; content?: string; sha?: string }[];
+  tree: { path: string; content?: string; sha?: string | null }[];
 }
 const captured: { trees: CapturedTree[]; commits: number; refUpdates: number } = {
   trees: [], commits: 0, refUpdates: 0,
@@ -51,11 +66,7 @@ const fakeOctokit = {
       case "GET /repos/{owner}/{repo}/git/trees/{tree_sha}":
         return {
           data: {
-            tree: [
-              { path: "README.md", type: "blob", sha: "sha-readme" },
-              { path: "evidence/K4/index.md", type: "blob", sha: "sha-K4" },
-              { path: "evidence/S4/index.md", type: "blob", sha: "sha-S4" },
-            ],
+            tree: [...treePaths].map(([path, sha]) => ({ path, type: "blob", sha })),
           },
         };
       case "GET /repos/{owner}/{repo}/git/blobs/{file_sha}": {
@@ -83,11 +94,12 @@ const fakeOctokit = {
   },
 } as unknown as Octokit;
 
-// A fresh in-memory repo with an explicit set of tree blobs, for the collision
-// and remap-move scenarios. `treeBlobs` lists every blob path already in the
-// tree (index files plus any uploaded files); `indexContent` maps an index
-// blob's sha to its Markdown so loadAll can parse it. Non-index blobs (the
-// uploaded files) need no content — only their paths matter for collisions.
+// A fresh, isolated in-memory repo with an explicit set of tree blobs, for the
+// filename-collision scenarios (which need a pre-existing blob at the target
+// path). `treeBlobs` lists every blob path already in the tree (index files plus
+// any uploaded files); `indexContent` maps an index blob's sha to its Markdown
+// so loadAll can parse it. Non-index blobs need no content — only their paths
+// matter for collision detection.
 interface FreshTreeEntry {
   path: string;
   content?: string;
@@ -144,14 +156,16 @@ async function main() {
 
   // --- load ---
   const loaded = await store.load();
-  assert(loaded.length === 2, `load returns 2 items, got ${loaded.length}`);
+  assert(loaded.length === 3, `load returns 3 items, got ${loaded.length}`);
   const a = loaded.find((e) => e.id === "a1")!;
   const b = loaded.find((e) => e.id === "b1")!;
-  assert(a && b, "both seed items present");
+  const u = loaded.find((e) => e.id === "up1")!;
+  assert(a && b && u, "all seed items present");
   assert(a.url === "github.com/x/y/blob/main/churn.ipynb", "github url parsed (protocol stripped)");
   assert(a.status === "Submitted", "status capitalized on load");
   assert(b.note === "First line.\n\nSecond paragraph.", "multi-line reflection note recovered from body");
   assert(b.feedback === "Solid.", "feedback parsed");
+  assert(u.type === "upload" && u.fileName === "deck.pdf", "upload filename recovered on load");
 
   // --- add: new github item mapped to K4.1 (primary K4) ---
   captured.trees = []; captured.commits = 0; captured.refUpdates = 0;
@@ -161,7 +175,7 @@ async function main() {
     date: "17 Jul 2026", feedback: "",
   };
   const afterAdd = await store.addEvidence(newItem);
-  assert(afterAdd.length === 3, "add returns 3 items");
+  assert(afterAdd.length === 4, "add returns 4 items");
   assert(captured.commits === 1 && captured.refUpdates === 1, "add makes exactly one atomic commit");
   const addTree = captured.trees[0];
   const k4Entry = addTree.tree.find((t) => t.path === "evidence/K4/index.md");
@@ -180,26 +194,30 @@ async function main() {
   assert(updK4!.content!.includes("Great work."), "coach feedback written to index.md");
 
   // --- add: upload item with file bytes → blob committed in the same commit ---
+  // A fresh name (no clash with the seeded evidence/S4/deck.pdf) so this stays a
+  // plain "upload is committed" case; collisions are covered separately below.
   captured.trees = []; captured.commits = 0;
   const blobsBefore = blobCounter;
   const uploadItem: Evidence = {
-    id: "u1", ksbIds: ["S4"], type: "upload", title: "Insights deck",
-    fileName: "deck.pdf", note: "", status: "Submitted", date: "17 Jul 2026", feedback: "",
+    id: "u1", ksbIds: ["S4"], type: "upload", title: "Model notebook",
+    fileName: "notebook.pdf", note: "", status: "Submitted", date: "17 Jul 2026", feedback: "",
   };
   await store.addEvidence(uploadItem, { fileContentBase64: b64("%PDF-1.4 fake bytes") });
   assert(blobCounter === blobsBefore + 1, "upload creates exactly one git blob");
   assert(captured.commits === 1, "upload is one atomic commit");
   const upTree = captured.trees[0];
   assert(
-    upTree.tree.some((t) => t.path === "evidence/S4/deck.pdf" && t.sha),
+    upTree.tree.some((t) => t.path === "evidence/S4/notebook.pdf" && t.sha),
     "uploaded file committed as a blob in the primary folder",
   );
   assert(
-    upTree.tree.some((t) => t.path === "evidence/S4/index.md" && t.content?.includes("file: deck.pdf")),
+    upTree.tree.some((t) => t.path === "evidence/S4/index.md" && t.content?.includes("file: notebook.pdf")),
     "index.md records the upload filename",
   );
 
-  // --- add: a filename collision in the same folder is de-duped, not clobbered ---
+  // --- add: a colliding filename in the same folder is de-duped, not clobbered ---
+  // evidence/S4/deck.pdf already exists; a second upload that sanitises to the
+  // same name must be stored as deck-2.pdf, leaving the existing blob intact.
   {
     const existing: Evidence = {
       id: "x1", ksbIds: ["S4"], type: "upload", title: "Existing deck",
@@ -230,6 +248,8 @@ async function main() {
   }
 
   // --- update/remap: moving a file into a folder that already has that name ---
+  // m1 moves K4 → S4, but S4 already holds a report.pdf. The moved blob must land
+  // as report-2.pdf and leave the occupant's blob untouched.
   {
     const moving: Evidence = {
       id: "m1", ksbIds: ["K4.2"], type: "upload", title: "Report",
@@ -257,62 +277,73 @@ async function main() {
     const tree = c.trees[0].tree;
     assert(
       tree.some((t) => t.path === "evidence/S4/report-2.pdf" && t.sha === "sha-report-src"),
-      "existing blob re-pointed (by sha) to the de-duped destination path",
+      "the moved blob is re-pointed (by sha) to the de-duped destination path",
     );
     assert(tree.some((t) => t.path === "evidence/K4/report.pdf" && t.sha === null),
       "the source blob path is deleted");
     assert(c.newBlobs.length === 0, "a move re-points the blob by sha — no re-upload");
+    assert(!tree.some((t) => t.path === "evidence/S4/report.pdf"),
+      "the occupant blob in the destination is left untouched");
     const s4 = tree.find((t) => t.path === "evidence/S4/index.md");
     assert(s4?.content?.includes("file: report-2.pdf"), "new folder links the moved, de-duped file");
     const k4 = tree.find((t) => t.path === "evidence/K4/index.md");
     assert(k4 !== undefined && !k4.content?.includes("id: m1"), "item removed from the old folder");
   }
 
-  // --- update/remap: a move with no name clash keeps the original filename ---
-  {
-    const moving: Evidence = {
-      id: "p1", ksbIds: ["K4.2"], type: "upload", title: "Slides",
-      fileName: "slides.pdf", note: "", status: "Submitted", date: "2 Jul 2026", feedback: "",
-    };
-    const { store: s, captured: c } = buildStore(
-      [
-        { path: "evidence/K4/index.md", sha: "t-K4" },
-        { path: "evidence/S4/index.md", sha: "t-S4" },
-        { path: "evidence/K4/slides.pdf", sha: "sha-slides" },
-      ],
-      { "t-K4": genMd([moving], KSB_BY_ID["K4"]), "t-S4": genMd([], KSB_BY_ID["S4"]) },
-    );
-    const after = await s.updateEvidence("p1", { ksbIds: ["S4"] });
-    assert(after.find((e) => e.id === "p1")!.fileName === "slides.pdf",
-      "no clash keeps the original filename");
-    const tree = c.trees[0].tree;
-    assert(tree.some((t) => t.path === "evidence/S4/slides.pdf" && t.sha === "sha-slides"),
-      "file moved to the new folder under the same name");
-    assert(tree.some((t) => t.path === "evidence/K4/slides.pdf" && t.sha === null),
-      "old path deleted on move");
-  }
+  // --- update: remapping an upload's primary folder moves its file blob ---
+  // up1's first mapping goes S4 → K2, so its physical folder changes. The file
+  // must follow, or the new folder's index.md links a `./deck.pdf` that isn't
+  // there and a later delete targets the wrong path.
+  captured.trees = []; captured.commits = 0;
+  const blobsBeforeRemap = blobCounter;
+  await store.updateEvidence("up1", { ksbIds: ["K2"] });
+  assert(captured.commits === 1, "remap makes exactly one atomic commit");
+  assert(blobCounter === blobsBeforeRemap, "moving a file re-points its blob — no re-upload");
+  const remapTree = captured.trees[0].tree;
+  assert(
+    remapTree.some((t) => t.path === "evidence/K2/deck.pdf" && t.sha === "sha-deck"),
+    "file blob written at the new primary folder by reference",
+  );
+  assert(
+    remapTree.some((t) => t.path === "evidence/S4/deck.pdf" && t.sha === null),
+    "file blob removed from the old primary folder in the same commit",
+  );
+  const remapK2 = remapTree.find((t) => t.path === "evidence/K2/index.md");
+  assert(remapK2?.content?.includes("file: deck.pdf"), "new folder's index.md links the moved file");
+  const remapS4 = remapTree.find((t) => t.path === "evidence/S4/index.md");
+  assert(remapS4 && !/id: up1/.test(remapS4.content!), "old folder's index.md drops the moved item");
 
-  // --- update: a status-only change on an upload never touches its file blob ---
-  {
-    const item: Evidence = {
-      id: "y1", ksbIds: ["S4"], type: "upload", title: "Deck",
-      fileName: "deck.pdf", note: "", status: "Submitted", date: "2 Jul 2026", feedback: "",
-    };
-    const { store: s, captured: c } = buildStore(
-      [
-        { path: "evidence/S4/index.md", sha: "t-S4" },
-        { path: "evidence/S4/deck.pdf", sha: "sha-deck" },
-      ],
-      { "t-S4": genMd([item], KSB_BY_ID["S4"]) },
-    );
-    await s.updateEvidence("y1", { status: "Approved", feedback: "Nice." });
-    const tree = c.trees[0].tree;
-    assert(!tree.some((t) => t.path.endsWith("deck.pdf")),
-      "status-only update leaves the file blob untouched");
-    assert(c.newBlobs.length === 0, "status-only update creates no blobs");
-  }
+  // --- update: remap within the same root folder does NOT move the file ---
+  captured.trees = [];
+  await store.updateEvidence("up1", { ksbIds: ["S4.1", "S4"] });
+  const sameRootTree = captured.trees[0].tree;
+  assert(
+    !sameRootTree.some((t) => t.path.endsWith("/deck.pdf")),
+    "no file move when the primary root is unchanged",
+  );
 
-  console.log("GITHUB-STORE OK — load/add/update produce correct atomic commits");
+  // --- delete: an upload removes its file blob alongside the index rewrite ---
+  captured.trees = []; captured.commits = 0;
+  await store.deleteEvidence("up1");
+  assert(captured.commits === 1, "delete makes one commit");
+  const delTree = captured.trees[0].tree;
+  assert(
+    delTree.some((t) => t.path === "evidence/S4/deck.pdf" && t.sha === null),
+    "deleting an upload also removes its file blob",
+  );
+
+  // --- delete guard: a file already gone is not re-deleted (would 422) ---
+  treePaths.delete("evidence/S4/deck.pdf"); // simulate a missing / already-removed blob
+  captured.trees = []; captured.commits = 0;
+  await store.deleteEvidence("up1");
+  assert(captured.commits === 1, "delete still commits when the file blob is absent");
+  const delTree2 = captured.trees[0].tree;
+  assert(
+    !delTree2.some((t) => t.path === "evidence/S4/deck.pdf"),
+    "an absent file blob is not added as a deletion, so the commit can't 422",
+  );
+
+  console.log("GITHUB-STORE OK — load/add/update/remap/delete + filename de-dup produce correct atomic commits");
 }
 
 main().catch((e) => {

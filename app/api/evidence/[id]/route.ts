@@ -21,15 +21,19 @@ export async function PATCH(
   }
 
   const { id } = await params;
-  const valid = validateEvidencePatch(await request.json().catch(() => null));
+
+  // The repo owner is the learner; a collaborator is the coach. Role-specific
+  // write rules (a learner may not set coach feedback; editing content downgrades
+  // status) are enforced in validateEvidencePatch given this flag.
+  const isOwner = ctx.login.toLowerCase() === ctx.owner.toLowerCase();
+  const valid = validateEvidencePatch(await request.json().catch(() => null), { isOwner });
   if (!valid.ok) {
-    return NextResponse.json({ error: valid.error }, { status: 400 });
+    return NextResponse.json({ error: valid.error }, { status: valid.status ?? 400 });
   }
 
   // A review verdict (Approve / Request changes) is a coach action. The repo
   // owner is the learner, so reject self-review server-side — the client role
   // toggle must not let a learner approve their own evidence.
-  const isOwner = ctx.login.toLowerCase() === ctx.owner.toLowerCase();
   if (isOwner && (valid.patch.status === "Approved" || valid.patch.status === "Changes")) {
     return NextResponse.json(
       { error: "You can’t review your own evidence — only a coach can approve or request changes." },
@@ -57,6 +61,17 @@ export async function DELETE(
 
   if (!(await canWrite(ctx.octokit, ctx.owner, ctx.repo, ctx.login))) {
     return NextResponse.json({ error: "You do not have write access to this repo" }, { status: 403 });
+  }
+
+  // Deleting evidence is the learner's own action; a coach (collaborator with
+  // push access) reviews but must not remove a learner's evidence. The UI hides
+  // delete from coaches — enforce the same boundary server-side.
+  const isOwner = ctx.login.toLowerCase() === ctx.owner.toLowerCase();
+  if (!isOwner) {
+    return NextResponse.json(
+      { error: "Only the learner who owns this portfolio can delete evidence." },
+      { status: 403 },
+    );
   }
 
   const { id } = await params;
