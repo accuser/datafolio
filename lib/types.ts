@@ -73,3 +73,15 @@ export interface UserProfile {
   login: string;
   initials: string;
 }
+
+/**
+ * A portfolio repo the signed-in user can reach — either their own (`learner`)
+ * or one they're a collaborator on (`coach`). Enumerated at sign-in from the
+ * repos where the App is installed and the user has access, so a coach can
+ * switch between the learners they mentor without hand-typing logins.
+ */
+export interface Portfolio {
+  owner: string;
+  repo: string;
+  role: Role;
+}

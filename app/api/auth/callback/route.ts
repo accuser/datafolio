@@ -1,10 +1,13 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { getGitHubConfig } from "@/lib/github/config";
+import { fetchUserPortfolios, pickDefaultTarget } from "@/lib/github/portfolios";
 import { getSession } from "@/lib/session";
 
 // Complete the OAuth round-trip: verify state, exchange the code for a
-// user-to-server token, read the user's identity, and store it in the session.
-// The token itself is not persisted — repo access uses installation tokens.
+// user-to-server token, read the user's identity, enumerate the portfolios they
+// can reach, and store all of that in the session. The token itself is not
+// persisted — repo access uses installation tokens, and the portfolio list is
+// cached so we never need the user token again.
 export async function GET(req: NextRequest) {
   const cfg = getGitHubConfig();
   if (!cfg) {
@@ -49,8 +52,26 @@ export async function GET(req: NextRequest) {
   };
 
   session.user = { login: u.login, name: u.name || u.login, avatarUrl: u.avatar_url };
+
+  // Enumerate reachable portfolios while we still hold the user token; the list
+  // is cached so the token can be discarded. A failure here must not block
+  // sign-in — the switcher just falls back to an empty roster.
+  let portfolios: Awaited<ReturnType<typeof fetchUserPortfolios>> = [];
+  try {
+    portfolios = await fetchUserPortfolios(tokenJson.access_token, u.login, cfg.repoName);
+  } catch {
+    portfolios = [];
+  }
+  session.portfolios = portfolios;
+
+  // Land on the repo the coach asked for (?owner=...); otherwise pick a sensible
+  // default (own portfolio, else the first reachable one — the dead-end fix).
   if (!session.target?.owner) {
-    session.target = { owner: u.login, repo: session.target?.repo || cfg.repoName };
+    session.target = pickDefaultTarget(
+      portfolios,
+      u.login,
+      session.target?.repo || cfg.repoName,
+    );
   }
   session.oauthState = undefined;
   await session.save();

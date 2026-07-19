@@ -12,13 +12,14 @@ import {
 import { useRouter } from "next/navigation";
 import { rootOf, todayLabel } from "./domain";
 import { createMockStore, type EvidenceStore } from "./data/store";
-import { createHttpStore, fetchSession } from "./data/http-store";
+import { createHttpStore, fetchSession, selectPortfolio } from "./data/http-store";
 import { MAX_UPLOAD_BYTES, MAX_UPLOAD_MB } from "./data/uploads";
 import { SEED_EVIDENCE, SEED_USER } from "./data/seed";
 import type {
   Evidence,
   EvidenceForm,
   EvidenceStatus,
+  Portfolio,
   Role,
   UserProfile,
 } from "./types";
@@ -63,6 +64,10 @@ interface AppState {
   openFolders: Record<string, boolean>;
   mdPreviewKid: string | null;
   evidence: Evidence[];
+  /** Portfolios the signed-in user can switch between (own + coached). */
+  portfolios: Portfolio[];
+  /** The portfolio currently in view (owner = whose repo, not necessarily me). */
+  target: { owner: string; repo: string } | null;
 }
 
 const initialState: AppState = {
@@ -80,6 +85,8 @@ const initialState: AppState = {
   mdPreviewKid: null,
   // Mock mode is seeded so the demo renders instantly; GitHub mode loads on sign-in.
   evidence: BACKEND_MODE === "github" ? [] : SEED_EVIDENCE,
+  portfolios: [],
+  target: null,
 };
 
 type Action =
@@ -139,6 +146,8 @@ function reducer(state: AppState, action: Action): AppState {
 export interface AppActions {
   signIn(): void;
   signOut(): void;
+  /** Switch to another portfolio (own or coached), then reload. */
+  switchPortfolio(owner: string, repo: string): void;
   goDashboard(): void;
   openRepo(): void;
   openCoverage(): void;
@@ -259,6 +268,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
           patch({ signedIn: false, role: "learner", error: null, form: null });
           routerRef.current.push("/");
         }
+      },
+      // Point the session at another portfolio, then hard-reload so role,
+      // target and evidence all re-hydrate from the server as one consistent
+      // set (mirrors the sign-out reload). No-op in mock mode.
+      switchPortfolio: (owner, repo) => {
+        if (BACKEND_MODE !== "github") return;
+        const cur = stateRef.current.target;
+        if (cur && cur.owner === owner && cur.repo === repo) return;
+        runExclusive(async () => {
+          await selectPortfolio(owner, repo);
+          window.location.assign("/");
+        });
       },
       goDashboard: () => routerRef.current.push("/"),
       openRepo: () => routerRef.current.push("/repository"),
@@ -433,6 +454,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
               initials: initialsOf(name),
               repo: session.target?.repo || "portfolio-evidence",
             },
+            portfolios: session.portfolios ?? [],
+            target: session.target ?? null,
           },
         });
         const evidence = await storeRef.current.load();

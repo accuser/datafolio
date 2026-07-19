@@ -1,4 +1,4 @@
-import type { Evidence } from "../types";
+import type { Evidence, Portfolio } from "../types";
 import type { EvidenceStore } from "./store";
 
 // Client-side EvidenceStore that talks to the backend proxy (/api/evidence).
@@ -22,6 +22,7 @@ export interface SessionInfo {
   user: { login: string; name: string; avatarUrl: string } | null;
   target?: { owner: string; repo: string };
   role?: "learner" | "coach" | "unknown";
+  portfolios?: Portfolio[];
 }
 
 export function createHttpStore(): EvidenceStore {
@@ -56,4 +57,12 @@ export function createHttpStore(): EvidenceStore {
 
 export function fetchSession(): Promise<SessionInfo> {
   return api<SessionInfo>("/api/session");
+}
+
+/** Switch the active portfolio server-side. Caller reloads to re-hydrate. */
+export function selectPortfolio(owner: string, repo: string): Promise<{ ok: boolean }> {
+  return api<{ ok: boolean }>("/api/portfolios/select", {
+    method: "POST",
+    body: JSON.stringify({ owner, repo }),
+  });
 }
