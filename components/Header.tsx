@@ -1,9 +1,9 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import { type CSSProperties, useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { BACKEND_MODE, useApp } from "@/lib/state";
-import { GithubMark, Lock, LogOut } from "./icons";
+import { Check, GithubMark, Lock, LogOut } from "./icons";
 
 function navTab(active: boolean): CSSProperties {
   return {
@@ -32,6 +32,189 @@ function roleTab(active: boolean): CSSProperties {
     color: active ? "#18181b" : "#71717a",
     boxShadow: active ? "0 1px 3px rgba(0,0,0,.08)" : "none",
   };
+}
+
+// A caret that points down, rotating up when the menu is open.
+function Caret({ open }: { open: boolean }) {
+  return (
+    <svg
+      width="12"
+      height="12"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      style={{ transition: "transform .15s", transform: open ? "rotate(180deg)" : "none" }}
+    >
+      <path d="M6 9l6 6 6-6" />
+    </svg>
+  );
+}
+
+/**
+ * The active-portfolio chip. In GitHub mode, when the user can reach more than
+ * one portfolio (their own plus any they coach), it becomes a dropdown for
+ * switching between them. Otherwise it's the static "repo · private" chip.
+ */
+function PortfolioChip() {
+  const { state, user, actions } = useApp();
+  const { portfolios, target, submitting } = state;
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  // Close on outside click or Escape.
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  const chipStyle: CSSProperties = {
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
+    padding: "5px 10px",
+    background: "#f4f4f5",
+    borderRadius: 8,
+    fontSize: 12.5,
+    color: "#52525b",
+    whiteSpace: "nowrap",
+  };
+
+  const currentOwner = target?.owner ?? user.login;
+
+  // Static chip: mock mode, or only one portfolio to show.
+  if (BACKEND_MODE !== "github" || portfolios.length < 2) {
+    return (
+      <div className="hide-sm" style={chipStyle}>
+        <Lock size={13} color="currentColor" strokeWidth={2.2} />
+        {user.repo} · private
+      </div>
+    );
+  }
+
+  return (
+    <div className="hide-sm" ref={ref} style={{ position: "relative" }}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        disabled={submitting}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        title="Switch portfolio"
+        style={{
+          ...chipStyle,
+          border: "none",
+          fontFamily: "inherit",
+          fontWeight: 600,
+          cursor: submitting ? "default" : "pointer",
+        }}
+      >
+        <Lock size={13} color="currentColor" strokeWidth={2.2} />
+        <span>{currentOwner}</span>
+        <Caret open={open} />
+      </button>
+
+      {open && (
+        <div
+          role="menu"
+          style={{
+            position: "absolute",
+            top: "calc(100% + 6px)",
+            right: 0,
+            minWidth: 240,
+            background: "#fff",
+            border: "1px solid #ececec",
+            borderRadius: 10,
+            boxShadow: "0 8px 28px rgba(0,0,0,0.12)",
+            padding: 6,
+            zIndex: 60,
+          }}
+        >
+          <div
+            style={{
+              fontSize: 11,
+              fontWeight: 600,
+              letterSpacing: "0.04em",
+              textTransform: "uppercase",
+              color: "#a1a1aa",
+              padding: "6px 8px 4px",
+            }}
+          >
+            Portfolios
+          </div>
+          {portfolios.map((p) => {
+            const active = p.owner === currentOwner && p.repo === (target?.repo ?? user.repo);
+            return (
+              <button
+                key={`${p.owner}/${p.repo}`}
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setOpen(false);
+                  actions.switchPortfolio(p.owner, p.repo);
+                }}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  width: "100%",
+                  textAlign: "left",
+                  border: "none",
+                  background: active ? "#eef2ff" : "transparent",
+                  borderRadius: 7,
+                  padding: "8px 8px",
+                  fontFamily: "inherit",
+                  fontSize: 13,
+                  color: "#18181b",
+                  cursor: "pointer",
+                }}
+              >
+                <span
+                  style={{
+                    width: 16,
+                    display: "flex",
+                    justifyContent: "center",
+                    color: "#4f46e5",
+                    flexShrink: 0,
+                  }}
+                >
+                  {active ? <Check size={14} /> : null}
+                </span>
+                <span style={{ flex: 1, fontWeight: 600 }}>{p.owner}</span>
+                <span
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: p.role === "learner" ? "#4f46e5" : "#71717a",
+                    background: p.role === "learner" ? "#eef2ff" : "#f4f4f5",
+                    borderRadius: 6,
+                    padding: "2px 7px",
+                    textTransform: "capitalize",
+                  }}
+                >
+                  {p.role === "learner" ? "You" : "Coach"}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function Header() {
@@ -106,23 +289,7 @@ export function Header() {
 
       <div style={{ flex: 1 }} />
 
-      <div
-        className="hide-sm"
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-          padding: "5px 10px",
-          background: "#f4f4f5",
-          borderRadius: 8,
-          fontSize: 12.5,
-          color: "#52525b",
-          whiteSpace: "nowrap",
-        }}
-      >
-        <Lock size={13} color="currentColor" strokeWidth={2.2} />
-        {user.repo} · private
-      </div>
+      <PortfolioChip />
 
       {/* The role toggle is a demo affordance for mock mode. In GitHub mode the
           role is derived from real repo access (owner = learner, collaborator =

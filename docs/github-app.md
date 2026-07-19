@@ -70,9 +70,24 @@ Restart the dev server after changing env.
 ## 4. Onboard a coach
 
 1. The learner adds the coach as a **collaborator** (write access) on their repo.
-2. The coach signs in and opens the learner's repo by passing the learner's
-   login: `…/api/auth/login?owner=<learner-login>` (or `?owner=…&repo=…`).
-   The backend confirms they're a collaborator before allowing any review.
+2. The coach **Signs in with GitHub**. At sign-in the backend enumerates every
+   portfolio repo the coach can reach — their own (if any) plus every learner
+   repo they're a collaborator on where the App is installed — and caches the
+   list in the session.
+3. The coach picks a learner from the **portfolio switcher** in the header (top
+   right). No need to hand-type logins. The deep link
+   `…/api/auth/login?owner=<learner-login>` still works if you want to jump
+   straight to one learner.
+
+The backend still confirms collaborator access (`canRead`/`canWrite`) on every
+request, so the switcher only ever lists — and only ever opens — repos the coach
+already has GitHub permission on. Switching is discovery, not new access.
+
+> **Install scope matters.** A learner repo appears in a coach's switcher only if
+> the App's installation on that account **includes that repo**. If a learner
+> installed the App on *"only select repositories"*, the portfolio repo must be
+> one of them; *"all repositories"* also works. A repo the App isn't installed on
+> is invisible to the switcher (and to the backend), even to a valid collaborator.
 
 ---
 

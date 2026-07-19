@@ -13,12 +13,18 @@ export async function GET() {
   if (!session.user) {
     return NextResponse.json({ configured: true, user: null });
   }
-  const { user, target } = session;
+  const { user, target, portfolios } = session;
   const role =
     target && target.owner
       ? user.login.toLowerCase() === target.owner.toLowerCase()
         ? "learner"
         : "coach"
       : "unknown";
-  return NextResponse.json({ configured: true, user, target, role });
+  return NextResponse.json({
+    configured: true,
+    user,
+    target,
+    role,
+    portfolios: portfolios ?? [],
+  });
 }
