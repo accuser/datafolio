@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { getGitHubConfig } from "@/lib/github/config";
-import { fetchUserPortfolios } from "@/lib/github/portfolios";
+import { fetchUserPortfolios, pickDefaultTarget } from "@/lib/github/portfolios";
 import { getSession } from "@/lib/session";
 
 // Complete the OAuth round-trip: verify state, exchange the code for a
@@ -64,16 +64,14 @@ export async function GET(req: NextRequest) {
   }
   session.portfolios = portfolios;
 
-  // Land on the repo the coach asked for (?owner=...), else the user's own
-  // portfolio, else — for a coach who owns none — the first portfolio they can
-  // reach. This last case is what stops a coach-only user hitting a dead end on
-  // a non-existent own-repo.
+  // Land on the repo the coach asked for (?owner=...); otherwise pick a sensible
+  // default (own portfolio, else the first reachable one — the dead-end fix).
   if (!session.target?.owner) {
-    const own = portfolios.find((p) => p.role === "learner");
-    const fallback = own ?? portfolios[0];
-    session.target = fallback
-      ? { owner: fallback.owner, repo: fallback.repo }
-      : { owner: u.login, repo: session.target?.repo || cfg.repoName };
+    session.target = pickDefaultTarget(
+      portfolios,
+      u.login,
+      session.target?.repo || cfg.repoName,
+    );
   }
   session.oauthState = undefined;
   await session.save();

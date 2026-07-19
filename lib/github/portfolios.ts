@@ -13,6 +13,12 @@ const API = "https://api.github.com";
 const PER_PAGE = 100;
 // Defensive cap: a coach's roster is small, but never loop unbounded.
 const MAX_PAGES = 10;
+// The list is cached in the encrypted session cookie (~4KB browser limit) and
+// sent on every request, so bound its length. Rosters this large are the
+// provider-scale case the collaborator model doesn't target; truncating keeps
+// the learner's own portfolio (sorted first) and the alphabetically-first
+// coached repos rather than risking an oversized cookie.
+const MAX_PORTFOLIOS = 50;
 
 interface Installation {
   id: number;
@@ -72,19 +78,32 @@ export async function fetchUserPortfolios(
     "installations",
   );
 
+  // Fan out the per-installation repo listings rather than paging serially —
+  // this runs inside the OAuth callback, so sequential round-trips add straight
+  // to sign-in latency. allSettled so one bad installation degrades to fewer
+  // portfolios instead of wiping the whole roster.
+  const results = await Promise.allSettled(
+    installations.map((inst) =>
+      paginate<Repo>(
+        token,
+        `/user/installations/${inst.id}/repositories`,
+        "repositories",
+      ),
+    ),
+  );
+
   const me = login.toLowerCase();
+  const wanted = repoName.toLowerCase();
   const seen = new Set<string>();
   const portfolios: Portfolio[] = [];
 
-  for (const inst of installations) {
-    const repos = await paginate<Repo>(
-      token,
-      `/user/installations/${inst.id}/repositories`,
-      "repositories",
-    );
-    for (const r of repos) {
-      if (r.name !== repoName) continue;
-      const key = `${r.owner.login.toLowerCase()}/${r.name}`;
+  for (const result of results) {
+    if (result.status !== "fulfilled") continue;
+    for (const r of result.value) {
+      // GitHub repo names match case-insensitively; align with owner handling
+      // so a differently-cased DATAFOLIO_REPO_NAME can't silently drop everyone.
+      if (r.name.toLowerCase() !== wanted) continue;
+      const key = `${r.owner.login.toLowerCase()}/${r.name.toLowerCase()}`;
       if (seen.has(key)) continue;
       seen.add(key);
       portfolios.push({
@@ -95,8 +114,28 @@ export async function fetchUserPortfolios(
     }
   }
 
-  return portfolios.sort((a, b) => {
+  portfolios.sort((a, b) => {
     if (a.role !== b.role) return a.role === "learner" ? -1 : 1;
     return a.owner.toLowerCase().localeCompare(b.owner.toLowerCase());
   });
+
+  return portfolios.slice(0, MAX_PORTFOLIOS);
+}
+
+/**
+ * The portfolio to land on after sign-in when the caller hasn't already pinned
+ * one (e.g. a coach deep-linking `?owner=`): the user's own repo if they have
+ * it, else the first portfolio they can reach — which is what stops a coach who
+ * owns no portfolio hitting a dead end — else a best-effort own-login default.
+ */
+export function pickDefaultTarget(
+  portfolios: Portfolio[],
+  login: string,
+  defaultRepo: string,
+): { owner: string; repo: string } {
+  const own = portfolios.find((p) => p.role === "learner");
+  const fallback = own ?? portfolios[0];
+  return fallback
+    ? { owner: fallback.owner, repo: fallback.repo }
+    : { owner: login, repo: defaultRepo };
 }

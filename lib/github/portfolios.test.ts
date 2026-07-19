@@ -4,7 +4,7 @@
  * (portfolio repo name only), role derivation (own = learner, else coach),
  * de-duping and ordering. Run: `tsx lib/github/portfolios.test.ts`.
  */
-import { fetchUserPortfolios } from "./portfolios";
+import { fetchUserPortfolios, pickDefaultTarget } from "./portfolios";
 
 function assert(cond: unknown, msg: string): asserts cond {
   if (!cond) throw new Error("ASSERT FAILED: " + msg);
@@ -120,6 +120,85 @@ async function main() {
       stub as unknown as typeof fetch,
     );
     assert(result[0].role === "learner", "owner match is case-insensitive");
+  }
+
+  // --- case-insensitive repo-name filter (differently-cased repo still matches) ---
+  {
+    const stub = stubFetch([1], {
+      1: [
+        { name: "Portfolio-Evidence", owner: "alice" },
+        { name: "not-it", owner: "bob" },
+      ],
+    });
+    const result = await withFetch(
+      () => fetchUserPortfolios("tok", "alice", REPO),
+      stub as unknown as typeof fetch,
+    );
+    assert(result.length === 1, "differently-cased repo name still matches");
+    assert(result[0].owner === "alice", "the cased portfolio repo is kept");
+  }
+
+  // --- one failing installation degrades gracefully (allSettled) ---
+  {
+    const stub = async (url: string | URL): Promise<Response> => {
+      const path = new URL(url.toString()).pathname;
+      const json = (body: unknown) =>
+        ({ ok: true, status: 200, json: async () => body }) as Response;
+      if (path === "/user/installations") {
+        return json({ installations: [{ id: 1 }, { id: 2 }] });
+      }
+      if (path === "/user/installations/1/repositories") {
+        return { ok: false, status: 500 } as Response; // this one blows up
+      }
+      return json({ repositories: [{ name: REPO, owner: { login: "bob" } }] });
+    };
+    const result = await withFetch(
+      () => fetchUserPortfolios("tok", "alice", REPO),
+      stub as unknown as typeof fetch,
+    );
+    assert(result.length === 1 && result[0].owner === "bob", "surviving installation still yields its portfolios");
+  }
+
+  // --- roster is length-capped for cookie safety (learner kept, first) ---
+  {
+    const many = Array.from({ length: 80 }, (_, i) => ({
+      name: REPO,
+      owner: `coach-${String(i).padStart(3, "0")}`,
+    }));
+    many.push({ name: REPO, owner: "alice" }); // the user's own, unsorted position
+    const stub = stubFetch([1], { 1: many });
+    const result = await withFetch(
+      () => fetchUserPortfolios("tok", "alice", REPO),
+      stub as unknown as typeof fetch,
+    );
+    assert(result.length === 50, "roster capped at MAX_PORTFOLIOS");
+    assert(result[0].owner === "alice" && result[0].role === "learner", "own portfolio survives the cap, first");
+  }
+
+  // --- pickDefaultTarget: own repo wins ---
+  {
+    const portfolios = [
+      { owner: "alice", repo: REPO, role: "learner" as const },
+      { owner: "bob", repo: REPO, role: "coach" as const },
+    ];
+    const t = pickDefaultTarget(portfolios, "alice", REPO);
+    assert(t.owner === "alice" && t.repo === REPO, "own portfolio is the default target");
+  }
+
+  // --- pickDefaultTarget: coach with no own repo lands on the first reachable (the dead-end fix) ---
+  {
+    const portfolios = [
+      { owner: "bob", repo: REPO, role: "coach" as const },
+      { owner: "carol", repo: REPO, role: "coach" as const },
+    ];
+    const t = pickDefaultTarget(portfolios, "coachonly", REPO);
+    assert(t.owner === "bob" && t.repo === REPO, "coach-only lands on first reachable portfolio, not a dead end");
+  }
+
+  // --- pickDefaultTarget: no portfolios → best-effort own-login default ---
+  {
+    const t = pickDefaultTarget([], "newbie", REPO);
+    assert(t.owner === "newbie" && t.repo === REPO, "empty roster falls back to own login + default repo");
   }
 
   console.log("portfolios.test.ts: all assertions passed");

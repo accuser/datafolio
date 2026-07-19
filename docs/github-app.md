@@ -89,6 +89,14 @@ already has GitHub permission on. Switching is discovery, not new access.
 > one of them; *"all repositories"* also works. A repo the App isn't installed on
 > is invisible to the switcher (and to the backend), even to a valid collaborator.
 
+> **The roster refreshes on sign-in.** The switcher list is enumerated once at
+> sign-in and cached in the session. If a learner grants or revokes a coach's
+> access afterwards, it isn't reflected until the coach signs in again — and a
+> revoked-access switch will appear to succeed but then fail to load the evidence
+> (every request re-checks access server-side, so nothing leaks). The list is
+> also length-capped, so a coach with an unusually large roster (a provider-scale
+> case this model isn't built for) may not see every learner.
+
 ---
 
 ## How it maps to the repository contract
