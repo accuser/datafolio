@@ -113,6 +113,15 @@ interface AppState {
   evidence: Evidence[];
   /** Revision cards across the portfolio. */
   cards: Card[];
+  /**
+   * Set when the cards failed to load, so the revision panel can tell "no cards
+   * yet" apart from "couldn't read your cards". Without the distinction, the
+   * empty state invited the learner to generate a starter deck that already
+   * existed in the repo but hadn't been read — re-adding a deck they had.
+   */
+  cardsError: string | null;
+  /** True once a cards load has succeeded — gates the seed-a-deck affordance. */
+  cardsLoaded: boolean;
   /** Card id currently open in the inline editor; null when none is. */
   editingCardId: string | null;
   /** KSB whose "new card" composer is open; null when none is. */
@@ -150,6 +159,9 @@ const initialState: AppState = {
   // Mock mode is seeded so the demo renders instantly; GitHub mode loads on sign-in.
   evidence: BACKEND_MODE === "github" ? [] : SEED_EVIDENCE,
   cards: BACKEND_MODE === "github" ? [] : SEED_CARDS,
+  cardsError: null,
+  // Mock mode's seed counts as loaded; GitHub mode loads on sign-in.
+  cardsLoaded: BACKEND_MODE !== "github",
   editingCardId: null,
   composingFor: null,
   portfolios: [],
@@ -744,9 +756,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
         cardStoreRef.current
           .load()
           .then((cards) => {
-            if (!cancelled) dispatch({ type: "SET_CARDS", cards });
+            if (!cancelled) {
+              dispatch({ type: "SET_CARDS", cards });
+              dispatch({
+                type: "PATCH",
+                patch: { cardsLoaded: true, cardsError: null },
+              });
+            }
           })
-          .catch(() => {});
+          .catch((e) => {
+            // A cards failure must not blank the evidence screen, so it stays a
+            // panel-local error rather than a loadError. But it is no longer
+            // silent: cardsLoaded stays false, so the revision panel shows the
+            // failure instead of an empty deck that invites re-seeding.
+            if (!cancelled) {
+              dispatch({
+                type: "PATCH",
+                patch: {
+                  cardsError:
+                    (e as Error)?.message ||
+                    "Couldn’t load your revision cards.",
+                },
+              });
+            }
+          });
         dispatch({
           type: "PATCH",
           patch: {

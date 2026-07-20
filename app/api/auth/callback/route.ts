@@ -30,32 +30,47 @@ export async function GET(req: NextRequest) {
     return fail("state");
   }
 
-  const tokenRes = await fetch("https://github.com/login/oauth/access_token", {
-    method: "POST",
-    headers: { Accept: "application/json", "Content-Type": "application/json" },
-    body: JSON.stringify({
-      client_id: cfg.clientId,
-      client_secret: cfg.clientSecret,
-      code,
-      redirect_uri: `${cfg.baseUrl}/api/auth/callback`,
-    }),
-  });
-  const tokenJson = (await tokenRes.json()) as { access_token?: string };
+  // Any network or parse failure here is a failed sign-in, not a crash. GitHub
+  // can answer a 5xx with an HTML error page, so parsing the body as JSON before
+  // checking the response threw inside the handler and surfaced an uncaught 500
+  // mid-sign-in instead of the intended fail("token") redirect.
+  let tokenJson: { access_token?: string };
+  try {
+    const tokenRes = await fetch("https://github.com/login/oauth/access_token", {
+      method: "POST",
+      headers: { Accept: "application/json", "Content-Type": "application/json" },
+      body: JSON.stringify({
+        client_id: cfg.clientId,
+        client_secret: cfg.clientSecret,
+        code,
+        redirect_uri: `${cfg.baseUrl}/api/auth/callback`,
+      }),
+    });
+    if (!tokenRes.ok) return await fail("token");
+    tokenJson = (await tokenRes.json()) as { access_token?: string };
+  } catch {
+    return await fail("token");
+  }
   if (!tokenJson.access_token) return await fail("token");
 
-  const userRes = await fetch("https://api.github.com/user", {
-    headers: {
-      Authorization: `Bearer ${tokenJson.access_token}`,
-      Accept: "application/vnd.github+json",
-      "User-Agent": "DataFolio",
-    },
-  });
-  if (!userRes.ok) return await fail("user");
-  const u = (await userRes.json()) as {
+  let u: {
     login: string;
     name: string | null;
     avatar_url: string;
   };
+  try {
+    const userRes = await fetch("https://api.github.com/user", {
+      headers: {
+        Authorization: `Bearer ${tokenJson.access_token}`,
+        Accept: "application/vnd.github+json",
+        "User-Agent": "DataFolio",
+      },
+    });
+    if (!userRes.ok) return await fail("user");
+    u = (await userRes.json()) as typeof u;
+  } catch {
+    return await fail("user");
+  }
 
   session.user = { login: u.login, name: u.name || u.login, avatarUrl: u.avatar_url };
 

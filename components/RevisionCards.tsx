@@ -199,11 +199,14 @@ function RevisionCard({ c, genre }: { c: Card; genre: "recall" | "rehearsal" }) 
  */
 export function RevisionCards({ ksb }: { ksb: Ksb }) {
   const { state, actions } = useApp();
-  const { cards, standard, role } = state;
+  const { cards, standard, role, cardsError, cardsLoaded } = state;
   const isLearner = role === "learner";
   const mine = cardsFor(cards, ksb.id);
   const genre = genreOf(standard, ksb.methods);
   const composing = state.composingFor === ksb.id;
+  // Until the cards have actually loaded we can't claim this KSB has none, and
+  // must not offer to seed a deck that may already exist unread in the repo.
+  const cardsUnavailable = !!cardsError && !cardsLoaded;
 
   return (
     <>
@@ -214,7 +217,7 @@ export function RevisionCards({ ksb }: { ksb: Ksb }) {
             {mine.length ? `· ${mine.length}` : ""}
           </span>
         </h2>
-        {isLearner && (
+        {isLearner && !cardsUnavailable && (
           <div className="revision-head__actions">
             {!mine.some((c) => c.source === "seed") && (
               <button
@@ -256,7 +259,21 @@ export function RevisionCards({ ksb }: { ksb: Ksb }) {
         />
       )}
 
-      {mine.length === 0 && !composing ? (
+      {cardsUnavailable ? (
+        // Not the "no cards yet" empty state: we don't know that there are none,
+        // only that we couldn't read them. Saying so keeps the learner from
+        // generating a duplicate deck.
+        <div role="status" className="empty-state empty-state--evidence">
+          <div className="empty-state__title empty-state__title--muted">
+            Couldn’t load your revision cards
+          </div>
+          <div className="empty-state__body empty-state__body--flush">
+            Your cards are safe in your repository — this was a problem reading
+            them. Reload to try again; avoid generating new cards until they’ve
+            loaded, so you don’t end up with a duplicate deck.
+          </div>
+        </div>
+      ) : mine.length === 0 && !composing ? (
         <div className="empty-state empty-state--evidence">
           <div className="empty-state__title empty-state__title--muted">
             No cards yet
