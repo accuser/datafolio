@@ -104,7 +104,7 @@ type Action =
   | { type: "SET_FORM_FIELD"; key: keyof EvidenceForm; value: unknown }
   | { type: "ADD_TAG"; id: string }
   | { type: "REMOVE_TAG"; id: string }
-  | { type: "TOGGLE_FOLDER"; kid: string }
+  | { type: "SET_FOLDER"; kid: string; open: boolean }
   | { type: "SET_REVIEW"; id: string; value: string };
 
 function reducer(state: AppState, action: Action): AppState {
@@ -134,13 +134,10 @@ function reducer(state: AppState, action: Action): AppState {
             },
           }
         : state;
-    case "TOGGLE_FOLDER":
+    case "SET_FOLDER":
       return {
         ...state,
-        openFolders: {
-          ...state.openFolders,
-          [action.kid]: !state.openFolders[action.kid],
-        },
+        openFolders: { ...state.openFolders, [action.kid]: action.open },
       };
     case "SET_REVIEW":
       return {
@@ -157,24 +154,18 @@ export interface AppActions {
   signOut(): void;
   /** Switch to another portfolio (own or coached), then reload. */
   switchPortfolio(owner: string, repo: string): void;
-  goDashboard(): void;
-  openRepo(): void;
-  openCoverage(): void;
   setRole(role: Role): void;
-  openKsb(id: string): void;
-  backToKsb(ksbId: string): void;
-  openFolderView(kid: string): void;
-  toggleFolder(kid: string): void;
-  /** Navigate to the add-evidence screen for a KSB. */
-  openAdd(ksbId: string): void;
-  /** Navigate to the edit screen for an existing item (under its KSB). */
-  openEdit(ksbId: string, id: string): void;
+  /** Expand or collapse a repository folder. Takes an explicit value because the
+   *  rendered state can come from `?open=` rather than from this map. */
+  setFolderOpen(kid: string, open: boolean): void;
   /** Initialise the add/edit form from the route (called by the add screen). */
   startForm(ksbId: string, editId?: string): void;
   setFormField(key: keyof EvidenceForm, value: unknown): void;
   addTag(id: string): void;
   removeTag(id: string): void;
   setFile(file: File): void;
+  /** Clear the staged upload, returning the picker to its empty state. */
+  clearFile(): void;
   save(status: EvidenceStatus): void;
   resubmit(id: string): void;
   deleteEvidence(id: string): void;
@@ -186,6 +177,7 @@ export interface AppActions {
   openMd(kid: string): void;
   closeMd(): void;
   dismissError(): void;
+  dismissManifestWarning(): void;
 }
 
 interface AppContextValue {
@@ -290,20 +282,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
           window.location.assign("/");
         });
       },
-      goDashboard: () => routerRef.current.push("/"),
-      openRepo: () => routerRef.current.push("/repository"),
-      openCoverage: () => routerRef.current.push("/coverage"),
       setRole: (role) => patch({ role }),
-      openKsb: (id) => routerRef.current.push(`/ksb/${id}`),
-      backToKsb: (ksbId) => routerRef.current.push(`/ksb/${ksbId}`),
-      openFolderView: (kid) => {
-        patch({ openFolders: { ...stateRef.current.openFolders, [kid]: true } });
-        routerRef.current.push("/repository");
-      },
-      toggleFolder: (kid) => dispatch({ type: "TOGGLE_FOLDER", kid }),
-      openAdd: (ksbId) => routerRef.current.push(`/ksb/${ksbId}/add`),
-      openEdit: (ksbId, id) =>
-        routerRef.current.push(`/ksb/${ksbId}/add?edit=${encodeURIComponent(id)}`),
+      setFolderOpen: (kid, open) => dispatch({ type: "SET_FOLDER", kid, open }),
       // Build the add/edit form for the current route; the add screen calls this
       // on mount so the form survives a refresh / deep link.
       startForm: (ksbId, editId) => {
@@ -355,7 +335,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
           dispatch({ type: "SET_FORM_FIELD", key: "fileName", value: file.name });
           dispatch({ type: "SET_FORM_FIELD", key: "fileContentBase64", value: base64 });
         };
+        // Without this a failed read is silent: the form keeps the old file name
+        // (or none) and the user only finds out after committing.
+        reader.onerror = () => {
+          patch({
+            error: `Couldn’t read “${file.name}”. Please choose the file again.`,
+          });
+        };
         reader.readAsDataURL(file);
+      },
+      // Drop the chosen file so the picker returns to its empty state.
+      clearFile: () => {
+        dispatch({ type: "SET_FORM_FIELD", key: "fileName", value: "" });
+        dispatch({ type: "SET_FORM_FIELD", key: "fileContentBase64", value: undefined });
       },
 
       // Adding evidence is a single commit to the KSB folder. Submit → Submitted,
@@ -438,6 +430,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       openMd: (kid) => patch({ mdPreviewKid: kid }),
       closeMd: () => patch({ mdPreviewKid: null }),
       dismissError: () => patch({ error: null }),
+      dismissManifestWarning: () => patch({ manifestWarning: null }),
     };
     // Handlers are intentionally stable; latest state is read via stateRef.
   }, []);

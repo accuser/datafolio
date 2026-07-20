@@ -1,15 +1,21 @@
 "use client";
 
-import { useEffect, useRef, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
+import Link from "next/link";
 import { useApp } from "@/lib/state";
+import { MAX_UPLOAD_MB } from "@/lib/data/uploads";
 import { rootOf, typeInfo } from "@/lib/domain";
 import type { EvidenceType } from "@/lib/types";
 import { mono } from "../ui";
 import { ChevronLeft, UploadCloud } from "../icons";
 
+/** Matches the copy on the dropzone — notebooks, PDFs, images or slides. */
+const ACCEPT =
+  ".ipynb,.pdf,.md,.csv,.png,.jpg,.jpeg,.gif,.webp,.svg,.ppt,.pptx,.key,.doc,.docx";
+
 const LABEL: CSSProperties = {
   display: "block",
-  fontSize: 13.5,
+  fontSize: "0.875rem",
   fontWeight: 600,
   color: "#3f3f46",
   marginBottom: 7,
@@ -20,7 +26,7 @@ const INPUT: CSSProperties = {
   border: "1px solid #e4e4e7",
   borderRadius: 9,
   padding: "11px 13px",
-  fontSize: 14,
+  fontSize: "0.875rem",
   fontFamily: "inherit",
   color: "#18181b",
 };
@@ -35,6 +41,11 @@ export function AddEvidence({ ksbId, editId }: { ksbId: string; editId?: string 
   const { state, actions } = useApp();
   const form = state.form;
   const standard = state.standard;
+  // Title is required. Rather than sit behind a disabled button with no stated
+  // reason (and no way to tab onto it), the submit stays live and explains.
+  const [titleError, setTitleError] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const titleRef = useRef<HTMLInputElement>(null);
 
   // Build the form from the route once (per add/edit target). For an edit we
   // wait until the target item has loaded, so a deep link / refresh still works.
@@ -50,14 +61,25 @@ export function AddEvidence({ ksbId, editId }: { ksbId: string; editId?: string 
   const ready = !!form && (editId ? form.editingId === editId : !form.editingId);
   if (!ready || !form) {
     return (
-      <div style={{ padding: "48px 0", color: "#a1a1aa", fontSize: 14 }}>Loading…</div>
+      <div style={{ padding: "48px 0", color: "#71717a", fontSize: "0.875rem" }}>Loading…</div>
     );
   }
 
   const busy = state.submitting;
   const editing = !!form.editingId;
-  const canSave = !!form.title.trim() && !busy;
   const primary = form.ksbIds.length ? rootOf(form.ksbIds[0]) : ksbId || "K1";
+
+  // Validate on submit so the reason is stated, then put the cursor where the
+  // fix is. Draft saves go through the same gate — a draft still needs a name.
+  const submit = (status: "Submitted" | "Draft") => {
+    if (!form.title.trim()) {
+      setTitleError(true);
+      titleRef.current?.focus();
+      return;
+    }
+    setTitleError(false);
+    actions.save(status);
+  };
   const commitPath =
     "evidence/" +
     primary +
@@ -95,8 +117,8 @@ export function AddEvidence({ ksbId, editId }: { ksbId: string; editId?: string 
 
   return (
     <div style={{ padding: "26px 0 64px", maxWidth: 680 }}>
-      <button
-        onClick={() => actions.backToKsb(ksbId)}
+      <Link
+        href={`/ksb/${ksbId}`}
         style={{
           display: "inline-flex",
           alignItems: "center",
@@ -104,29 +126,31 @@ export function AddEvidence({ ksbId, editId }: { ksbId: string; editId?: string 
           background: "none",
           border: "none",
           color: "#71717a",
-          fontSize: 13.5,
+          fontSize: "0.875rem",
           fontFamily: "inherit",
           cursor: "pointer",
-          padding: 0,
-          marginBottom: 22,
+          padding: "4px 2px",
+          marginBottom: 18,
+          textDecoration: "none",
         }}
       >
         <ChevronLeft size={15} />
         Back to {ksbId}
-      </button>
+      </Link>
 
-      <h1 style={{ fontSize: 22, fontWeight: 700, letterSpacing: "-0.01em", margin: "0 0 6px" }}>
+      <h1 style={{ fontSize: "1.375rem", fontWeight: 700, letterSpacing: "-0.01em", margin: "0 0 6px" }}>
         {editing ? "Edit evidence" : "Add evidence"}
       </h1>
-      <p style={{ fontSize: 14.5, color: "#71717a", margin: "0 0 28px" }}>
+      <p style={{ fontSize: "0.9375rem", color: "#71717a", margin: "0 0 28px" }}>
         {editing
           ? "Update this item and resubmit it for review, or save it as a draft."
           : "This will be committed to your private repo and mapped to the KSBs and sub-points you tag."}
       </p>
 
-      <label style={{ ...LABEL, marginBottom: 9 }} id="evidence-type-label">
+      {/* A <label> with no control isn't a label — this names the button group. */}
+      <span style={{ ...LABEL, marginBottom: 9 }} id="evidence-type-label">
         Evidence type
-      </label>
+      </span>
       <div
         role="group"
         aria-labelledby="evidence-type-label"
@@ -171,14 +195,16 @@ export function AddEvidence({ ksbId, editId }: { ksbId: string; editId?: string 
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  fontSize: 15,
+                  fontSize: "0.9375rem",
                   fontWeight: 700,
                 }}
               >
                 {ti.icon}
               </div>
-              <div style={{ fontSize: 14, fontWeight: 600, marginTop: 10 }}>{t.label}</div>
-              <div style={{ fontSize: 12, color: "#a1a1aa", lineHeight: 1.4, marginTop: 3 }}>
+              <div style={{ fontSize: "0.875rem", fontWeight: 600, marginTop: 10 }}>{t.label}</div>
+              {/* #52525b, not #71717a — the selected card's violet tint drops
+                  #71717a to 4.4:1. */}
+              <div style={{ fontSize: "0.75rem", color: "#52525b", lineHeight: 1.4, marginTop: 3 }}>
                 {t.desc}
               </div>
             </button>
@@ -187,27 +213,51 @@ export function AddEvidence({ ksbId, editId }: { ksbId: string; editId?: string 
       </div>
 
       <div style={{ marginBottom: 20 }}>
-        <label style={LABEL}>Title</label>
+        <label style={LABEL} htmlFor="ev-title">
+          Title
+        </label>
         <input
+          id="ev-title"
+          ref={titleRef}
           value={form.title}
-          onChange={(e) => actions.setFormField("title", e.target.value)}
+          onChange={(e) => {
+            actions.setFormField("title", e.target.value);
+            if (titleError) setTitleError(false);
+          }}
           placeholder={titlePlaceholder}
-          aria-label="Title"
-          style={INPUT}
+          required
+          aria-invalid={titleError || undefined}
+          aria-describedby={titleError ? "ev-title-error" : undefined}
+          style={{
+            ...INPUT,
+            borderColor: titleError ? "#dc2626" : "#e4e4e7",
+          }}
         />
+        {titleError && (
+          <div
+            id="ev-title-error"
+            role="alert"
+            style={{ fontSize: "0.8125rem", color: "#b91c1c", marginTop: 6, fontWeight: 500 }}
+          >
+            Give this evidence a title before saving it.
+          </div>
+        )}
       </div>
 
       {form.type === "github" && (
         <div style={{ marginBottom: 20 }}>
-          <label style={LABEL}>GitHub URL</label>
+          <label style={LABEL} htmlFor="ev-url">
+            GitHub URL
+          </label>
           <input
+            id="ev-url"
             value={form.url}
             onChange={(e) => actions.setFormField("url", e.target.value)}
             placeholder="github.com/you/portfolio-evidence/pull/12"
-            aria-label="GitHub URL"
+            aria-describedby="ev-url-hint"
             style={{ ...INPUT, fontFamily: mono }}
           />
-          <div style={{ fontSize: 12.5, color: "#a1a1aa", marginTop: 6 }}>
+          <div id="ev-url-hint" style={{ fontSize: "0.8125rem", color: "#71717a", marginTop: 6 }}>
             Paste a link to a file, commit or pull request in your repo.
           </div>
         </div>
@@ -215,13 +265,15 @@ export function AddEvidence({ ksbId, editId }: { ksbId: string; editId?: string 
 
       {form.type === "reflection" && (
         <div style={{ marginBottom: 20 }}>
-          <label style={LABEL}>Reflection</label>
+          <label style={LABEL} htmlFor="ev-note">
+            Reflection
+          </label>
           <textarea
+            id="ev-note"
             value={form.note}
             onChange={(e) => actions.setFormField("note", e.target.value)}
             rows={6}
             placeholder="Describe what you did, the decisions you made, and how it demonstrates this KSB…"
-            aria-label="Reflection"
             style={{ ...INPUT, lineHeight: 1.6, resize: "vertical" }}
           />
         </div>
@@ -238,7 +290,7 @@ export function AddEvidence({ ksbId, editId }: { ksbId: string; editId?: string 
               border: "1px solid #e4e4e7",
               borderRadius: 10,
               padding: "11px 13px",
-              fontSize: 13.5,
+              fontSize: "0.875rem",
               fontFamily: mono,
               color: "#3f3f46",
               background: "#f4f4f5",
@@ -246,7 +298,7 @@ export function AddEvidence({ ksbId, editId }: { ksbId: string; editId?: string 
           >
             {form.fileName || "—"}
           </div>
-          <div style={{ fontSize: 12.5, color: "#a1a1aa", marginTop: 6 }}>
+          <div style={{ fontSize: "0.8125rem", color: "#71717a", marginTop: 6 }}>
             The uploaded file can&apos;t be swapped here — delete this item and add a new one to replace it.
           </div>
         </div>
@@ -254,41 +306,81 @@ export function AddEvidence({ ksbId, editId }: { ksbId: string; editId?: string 
 
       {form.type === "upload" && !editing && (
         <div style={{ marginBottom: 20 }}>
-          <label style={LABEL}>File</label>
+          <label style={LABEL} htmlFor="ev-file">
+            File
+          </label>
+          {/* It looks like a dropzone, so it accepts drops as well as clicks. */}
           <label
+            htmlFor="ev-file"
+            className="dropzone"
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDragging(true);
+            }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDragging(false);
+              const f = e.dataTransfer.files?.[0];
+              if (f) actions.setFile(f);
+            }}
             style={{
+              position: "relative",
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
               gap: 8,
-              border: "1.5px dashed #d4d4d8",
+              border: "1.5px dashed " + (dragging ? "#4f46e5" : "#d4d4d8"),
+              background: dragging ? "#f5f3ff" : "transparent",
               borderRadius: 12,
               padding: 28,
               cursor: "pointer",
               textAlign: "center",
             }}
           >
-            <UploadCloud size={26} />
-            <span style={{ fontSize: 14, fontWeight: 600, color: "#52525b" }}>
-              {form.fileName || "Click to choose a file"}
+            <UploadCloud size={26} color={dragging ? "#4f46e5" : "#71717a"} />
+            <span style={{ fontSize: "0.875rem", fontWeight: 600, color: "#52525b" }}>
+              {form.fileName || "Drop a file here, or click to choose one"}
             </span>
-            <span style={{ fontSize: 12.5, color: "#a1a1aa" }}>
-              Notebooks, PDFs, images or slides
+            <span style={{ fontSize: "0.8125rem", color: "#71717a" }}>
+              Notebooks, PDFs, images or slides · max {MAX_UPLOAD_MB} MB
             </span>
             <input
+              id="ev-file"
               type="file"
+              accept={ACCEPT}
               onChange={(e) => {
                 const f = e.target.files && e.target.files[0];
                 if (f) actions.setFile(f);
               }}
-              style={{ display: "none" }}
             />
           </label>
+          {form.fileName && (
+            <button
+              type="button"
+              onClick={actions.clearFile}
+              style={{
+                marginTop: 8,
+                background: "none",
+                border: "none",
+                padding: "4px 2px",
+                color: "#b91c1c",
+                fontSize: "0.8125rem",
+                fontWeight: 600,
+                fontFamily: "inherit",
+                cursor: "pointer",
+              }}
+            >
+              Remove {form.fileName}
+            </button>
+          )}
         </div>
       )}
 
       <div style={{ marginBottom: 22 }}>
-        <label style={LABEL}>Mapped KSBs &amp; sub-points</label>
+        <label style={LABEL} htmlFor="ev-map">
+          Mapped KSBs &amp; sub-points
+        </label>
         <div style={{ display: "flex", gap: 7, flexWrap: "wrap", marginBottom: 10 }}>
           {form.ksbIds.map((id) => (
             <span
@@ -297,9 +389,9 @@ export function AddEvidence({ ksbId, editId }: { ksbId: string; editId?: string 
                 display: "inline-flex",
                 alignItems: "center",
                 gap: 6,
-                fontSize: 12.5,
+                fontSize: "0.8125rem",
                 fontWeight: 600,
-                color: "#4f46e5",
+                color: "#4338ca",
                 background: "#eef2ff",
                 borderRadius: 8,
                 padding: "5px 9px",
@@ -312,15 +404,21 @@ export function AddEvidence({ ksbId, editId }: { ksbId: string; editId?: string 
                 onClick={() => actions.removeTag(id)}
                 aria-label={`Remove mapping ${id}`}
                 style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: 24,
+                  height: 24,
+                  margin: "-4px -6px -4px 0",
                   background: "none",
                   border: "none",
                   padding: 0,
                   color: "inherit",
                   fontFamily: "inherit",
                   cursor: "pointer",
-                  fontSize: 14,
+                  fontSize: "0.875rem",
                   lineHeight: 1,
-                  opacity: 0.6,
+                  opacity: 0.75,
                 }}
               >
                 ×
@@ -329,11 +427,11 @@ export function AddEvidence({ ksbId, editId }: { ksbId: string; editId?: string 
           ))}
         </div>
         <select
+          id="ev-map"
           value=""
           onChange={(e) => {
             if (e.target.value) actions.addTag(e.target.value);
           }}
-          aria-label="Map to another KSB or sub-point"
           style={{ ...INPUT, color: "#52525b", background: "#fff" }}
         >
           <option value="">＋ Also map to another KSB or sub-point…</option>
@@ -357,8 +455,8 @@ export function AddEvidence({ ksbId, editId }: { ksbId: string; editId?: string 
       >
         <div
           style={{
-            fontSize: 11,
-            color: "#64748b",
+            fontSize: "0.75rem",
+            color: "#94a3b8",
             letterSpacing: "0.05em",
             textTransform: "uppercase",
             marginBottom: 8,
@@ -366,24 +464,26 @@ export function AddEvidence({ ksbId, editId }: { ksbId: string; editId?: string 
         >
           Will commit to
         </div>
-        <div style={{ fontSize: 13, color: "#a5b4fc" }}>{commitPath}</div>
-        <div style={{ fontSize: 12.5, color: "#64748b", marginTop: 4 }}>{commitNote}</div>
+        <div style={{ fontSize: "0.8125rem", color: "#a5b4fc" }}>{commitPath}</div>
+        <div style={{ fontSize: "0.8125rem", color: "#94a3b8", marginTop: 4 }}>{commitNote}</div>
       </div>
 
-      <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+      <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
         <button
-          onClick={() => actions.save("Submitted")}
-          disabled={!canSave}
+          type="button"
+          onClick={() => submit("Submitted")}
+          disabled={busy}
           style={{
-            background: canSave ? "#4f46e5" : "#c7d2fe",
+            background: "#4f46e5",
             color: "#fff",
             border: "none",
             borderRadius: 9,
             padding: "11px 20px",
-            fontSize: 14,
+            fontSize: "0.875rem",
             fontWeight: 600,
             fontFamily: "inherit",
-            cursor: canSave ? "pointer" : "default",
+            cursor: busy ? "default" : "pointer",
+            opacity: busy ? 0.6 : 1,
           }}
         >
           {busy
@@ -393,7 +493,8 @@ export function AddEvidence({ ksbId, editId }: { ksbId: string; editId?: string 
               : "Submit for review"}
         </button>
         <button
-          onClick={() => actions.save("Draft")}
+          type="button"
+          onClick={() => submit("Draft")}
           disabled={busy}
           style={{
             background: "#fff",
@@ -401,7 +502,7 @@ export function AddEvidence({ ksbId, editId }: { ksbId: string; editId?: string 
             border: "1px solid #e4e4e7",
             borderRadius: 9,
             padding: "11px 18px",
-            fontSize: 14,
+            fontSize: "0.875rem",
             fontWeight: 600,
             fontFamily: "inherit",
             cursor: busy ? "default" : "pointer",
@@ -411,21 +512,20 @@ export function AddEvidence({ ksbId, editId }: { ksbId: string; editId?: string 
           {editing ? "Save as draft" : "Save draft"}
         </button>
         <div style={{ flex: 1 }} />
-        <button
-          onClick={() => actions.backToKsb(ksbId)}
-          disabled={busy}
+        <Link
+          href={`/ksb/${ksbId}`}
           style={{
             background: "none",
             border: "none",
             color: "#71717a",
-            fontSize: 14,
+            fontSize: "0.875rem",
             fontFamily: "inherit",
-            cursor: busy ? "default" : "pointer",
-            opacity: busy ? 0.6 : 1,
+            padding: "4px 2px",
+            textDecoration: "none",
           }}
         >
           Cancel
-        </button>
+        </Link>
       </div>
     </div>
   );
