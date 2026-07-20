@@ -66,35 +66,50 @@ export function pointStatusKey(evidence: Evidence[], pid: string): KsbStatusKey 
 
 // ---- Presentation metadata -------------------------------------------------
 
+/**
+ * A named colour pairing rather than a pair of hex values. The actual colours
+ * live in CSS (`--tone-*`), which is what lets them differ between the light and
+ * dark schemes — a status is "approved" in both, but green-on-mint in one and
+ * mint-on-deep-green in the other.
+ */
+export type Tone = "neutral" | "progress" | "review" | "approved" | "changes";
+
 export interface Meta {
   label: string;
-  bg: string;
-  fg: string;
+  tone: Tone;
 }
 
 export function statusMeta(key: KsbStatusKey): Meta {
   return {
-    notstarted: { label: "Not started", bg: "#f4f4f5", fg: "#52525b" },
-    inprogress: { label: "In progress", bg: "#fef3c7", fg: "#92400e" },
-    submitted: { label: "Awaiting review", bg: "#dbeafe", fg: "#1e40af" },
-    approved: { label: "Approved", bg: "#dcfce7", fg: "#166534" },
+    notstarted: { label: "Not started", tone: "neutral" as const },
+    inprogress: { label: "In progress", tone: "progress" as const },
+    submitted: { label: "Awaiting review", tone: "review" as const },
+    approved: { label: "Approved", tone: "approved" as const },
   }[key];
 }
 
 export function evMeta(status: EvidenceStatus): Meta {
   return {
-    Draft: { label: "Draft", bg: "#f4f4f5", fg: "#52525b" },
-    Submitted: { label: "Awaiting review", bg: "#dbeafe", fg: "#1e40af" },
-    Approved: { label: "Approved", bg: "#dcfce7", fg: "#166534" },
-    Changes: { label: "Changes requested", bg: "#ffedd5", fg: "#9a3412" },
+    Draft: { label: "Draft", tone: "neutral" as const },
+    Submitted: { label: "Awaiting review", tone: "review" as const },
+    Approved: { label: "Approved", tone: "approved" as const },
+    Changes: { label: "Changes requested", tone: "changes" as const },
   }[status];
 }
 
-export interface MethodMeta extends Meta {
+/**
+ * Methods carry literal colours, not a tone: they come from the standard's own
+ * config, so the set isn't known here and can't be enumerated as CSS classes.
+ * The pill adapts them for dark mode with `color-mix` instead.
+ */
+export interface MethodMeta {
   key: MethodKey;
+  label: string;
   abbr: string;
   note: string;
   collectsEvidence: boolean;
+  bg: string;
+  fg: string;
 }
 
 /** Presentation metadata for one assessment method of a standard. */
@@ -109,8 +124,8 @@ export function methodMeta(standard: Standard, key: MethodKey): MethodMeta {
       abbr: key,
       note: "",
       collectsEvidence: false,
-      bg: "#f4f4f5",
-      fg: "#71717a",
+      bg: "var(--tone-neutral-bg)",
+      fg: "var(--tone-neutral-fg)",
     };
   }
   return {
@@ -139,37 +154,34 @@ export function methodsLabel(standard: Standard, k: Ksb): string {
 export interface TypeInfo {
   label: string;
   icon: string;
-  bg: string;
-  fg: string;
+  /** Keys `--type-<tone>-bg` / `-fg` in CSS. */
+  tone: EvidenceType;
 }
 
 export function typeInfo(type: EvidenceType): TypeInfo {
   return {
-    github: { label: "GitHub link", icon: "{ }", bg: "#e0e7ff", fg: "#4338ca" },
+    github: { label: "GitHub link", icon: "{ }", tone: "github" as const },
     reflection: {
       label: "Written reflection",
       icon: "“",
-      bg: "#dcfce7",
-      fg: "#15803d",
+      tone: "reflection" as const,
     },
-    upload: { label: "File upload", icon: "⬆", bg: "#fef3c7", fg: "#b45309" },
+    upload: { label: "File upload", icon: "⬆", tone: "upload" as const },
   }[type];
 }
 
 export interface CategoryMeta {
   name: string;
   letter: string;
-  fg: string;
-  bg: string;
+  /** Keys `--cat-<tone>-bg` / `-fg` in CSS. */
+  tone: "knowledge" | "skill" | "behaviour";
 }
 
 export function categoryMeta(cat: Category): CategoryMeta {
   return {
-    // Each fg is the darkest step that clears 4.5:1 on its own tinted bg — the
-    // brighter 500-weights (#4f46e5 / #0891b2 / #9333ea) land at 3.5–4.0:1.
-    Knowledge: { name: "Knowledge", letter: "K", fg: "#4338ca", bg: "#eef2ff" },
-    Skill: { name: "Skills", letter: "S", fg: "#0e7490", bg: "#ecfeff" },
-    Behaviour: { name: "Behaviours", letter: "B", fg: "#7e22ce", bg: "#faf5ff" },
+    Knowledge: { name: "Knowledge", letter: "K", tone: "knowledge" as const },
+    Skill: { name: "Skills", letter: "S", tone: "skill" as const },
+    Behaviour: { name: "Behaviours", letter: "B", tone: "behaviour" as const },
   }[cat];
 }
 

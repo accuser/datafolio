@@ -217,12 +217,7 @@ export function Dashboard() {
       {groups.map((g) => (
         <div key={g.meta.name} className="ksb-group">
           <div className="ksb-group__head">
-            <span
-              className="ksb-group__letter"
-              style={
-                { "--cat-bg": g.meta.bg, "--cat-fg": g.meta.fg } as CSSProperties
-              }
-            >
+            <span className={`ksb-group__letter cat--${g.meta.tone}`}>
               {g.meta.letter}
             </span>
             <h2 className="ksb-group__name">{g.meta.name}</h2>
@@ -267,7 +262,7 @@ export function Dashboard() {
                     <span className="ksb-row__count">
                       {n === 0 ? "No evidence" : `${n} ${n === 1 ? "item" : "items"}`}
                     </span>
-                    <Pill bg={m.bg} fg={m.fg}>
+                    <Pill tone={m.tone}>
                       {m.label}
                     </Pill>
                     <ChevronRight />
@@ -309,7 +304,7 @@ export function Dashboard() {
                                 <span className="subpoint-item__count">
                                   {pn === 0 ? "—" : `${pn} ${pn === 1 ? "item" : "items"}`}
                                 </span>
-                                <Pill bg={psm.bg} fg={psm.fg}>
+                                <Pill tone={psm.tone}>
                                   {psm.label}
                                 </Pill>
                               </>

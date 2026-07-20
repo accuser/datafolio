@@ -1,25 +1,28 @@
 import type { CSSProperties, ReactNode } from "react";
 
 /**
- * Rounded status/route badge. The tone arrives as custom properties rather than
- * a modifier class because some pills are coloured by the standard's own config
- * (each assessment method carries its own pair), which we can't enumerate here.
+ * Rounded status/route badge, in one of two flavours.
+ *
+ * `tone` names a pairing defined in CSS, so it can differ between the light and
+ * dark schemes. `bg`/`fg` pass literal colours through for the pills we don't
+ * own — each assessment method carries its own pair in the standard's config,
+ * so that set can't be enumerated as classes; `.pill--data` adapts those for
+ * dark mode instead.
  */
-export function Pill({
-  bg,
-  fg,
-  children,
-  className,
-}: {
-  bg: string;
-  fg: string;
-  children: ReactNode;
-  className?: string;
-}) {
+export function Pill(
+  props: { children: ReactNode } & (
+    | { tone: string; bg?: never; fg?: never }
+    | { bg: string; fg: string; tone?: never }
+  ),
+) {
+  const { children } = props;
+  if (props.tone) {
+    return <span className={`pill pill--${props.tone}`}>{children}</span>;
+  }
   return (
     <span
-      className={className ? `pill ${className}` : "pill"}
-      style={{ "--pill-bg": bg, "--pill-fg": fg } as CSSProperties}
+      className="pill pill--data"
+      style={{ "--pill-bg": props.bg, "--pill-fg": props.fg } as CSSProperties}
     >
       {children}
     </span>

@@ -94,7 +94,7 @@ export function Coverage() {
                       {needed.length ? `${cov}/${needed.length}` : "—"}
                     </td>
                     <td>
-                      <Pill bg={m.bg} fg={m.fg}>
+                      <Pill tone={m.tone}>
                         {m.label}
                       </Pill>
                     </td>
@@ -127,7 +127,7 @@ export function Coverage() {
                         <td className="num">—</td>
                         <td>
                           {collects ? (
-                            <Pill bg={psm.bg} fg={psm.fg}>
+                            <Pill tone={psm.tone}>
                               {psm.label}
                             </Pill>
                           ) : (

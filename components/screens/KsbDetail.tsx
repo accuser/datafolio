@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { useApp } from "@/lib/state";
@@ -38,18 +38,11 @@ function EvidenceCard({ e, ksbId }: { e: Evidence; ksbId: string }) {
   return (
     <div className="card evidence-card">
       <div className="evidence-card__inner">
-        {/* Evidence-type colours are a fixed set but live beside their labels in
-            domain.ts, so they arrive as custom properties like the pills do. */}
-        <div
-          className="evidence-card__icon"
-          style={{ "--type-bg": ti.bg, "--type-fg": ti.fg } as CSSProperties}
-        >
-          {ti.icon}
-        </div>
+        <div className={`evidence-card__icon type--${ti.tone}`}>{ti.icon}</div>
         <div className="evidence-card__body">
           <div className="evidence-card__head">
             <span className="evidence-card__title">{e.title}</span>
-            <Pill bg={em.bg} fg={em.fg}>
+            <Pill tone={em.tone}>
               {em.label}
             </Pill>
           </div>
@@ -232,7 +225,7 @@ export function KsbDetail({ ksbId }: { ksbId: string }) {
                 {mm.label}
               </Pill>
             ))}
-            <Pill bg={m.bg} fg={m.fg}>
+            <Pill tone={m.tone}>
               {m.label}
             </Pill>
           </div>
