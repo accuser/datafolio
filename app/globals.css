@@ -2305,6 +2305,34 @@ a:hover {
   .type-cards {
     flex-direction: column;
   }
+
+  /* A phone can't fit the KSB row's six columns on one line, so it becomes two:
+     the code badge and statement above, the evidence count and status below.
+     The basis is exactly the space the badge and its gap leave, so the count is
+     the first thing pushed onto the second line. */
+  .ksb-row {
+    flex-wrap: wrap;
+    row-gap: 10px;
+  }
+  .ksb-row__body {
+    flex-basis: calc(100% - 52px);
+  }
+  /* Statements run to several lines on a phone, and a vertically centred badge
+     drifts into the middle of them — pin it to the first line instead. */
+  .ksb-row__code {
+    align-self: flex-start;
+  }
+  .ksb-row__count {
+    margin-left: 52px;
+  }
+  .ksb-row > svg {
+    margin-left: auto;
+  }
+  /* The method pills and sub-point count are what actually overflowed; wrapping
+     them keeps the row contained however narrow the viewport gets. */
+  .ksb-row__meta {
+    flex-wrap: wrap;
+  }
 }
 
 /* ---- Scheme-dependent component colours ---------------------------------- */
