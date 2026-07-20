@@ -12,7 +12,10 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # 22 LTS, not 20: `npm test` discovers test files with a glob passed to
+          # `node --test`, and glob support there only landed in Node 21. Node 20
+          # is also EOL as of April 2026 and deprecated on the runners.
+          node-version: 22
           cache: npm
       - run: npm ci
       - run: npm run lint

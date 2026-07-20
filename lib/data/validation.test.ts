@@ -1,9 +1,11 @@
 /**
- * Network-free unit test for validateEvidencePatch. Exercises the role-specific
- * write rules (learner vs reviewer) that the write API relies on, without touching
- * GitHub. Run: `tsx --conditions=react-server lib/data/validation.test.ts`.
+ * Network-free unit tests for the evidence validators. Exercises the
+ * role-specific write rules (learner vs reviewer) enforced by
+ * validateEvidencePatch, plus the untrusted-input handling in
+ * validateNewEvidence — filename sanitisation and the server-assigned id.
+ * Run: `tsx --conditions=react-server lib/data/validation.test.ts`.
  */
-import { validateEvidencePatch } from "./validation";
+import { validateEvidencePatch, validateNewEvidence } from "./validation";
 import { getStandard } from "../standards";
 
 const STD = getStandard("st0585");
@@ -116,4 +118,66 @@ for (const field of [
   assert(!v.ok, "unknown ksb id rejected");
 }
 
-console.log("VALIDATION OK — learner/reviewer write rules enforced");
+// --- validateNewEvidence: the server owns the id, never the client ----------
+const b64 = (s: string) => Buffer.from(s, "utf8").toString("base64");
+{
+  const v = validateNewEvidence(
+    { item: { id: "client-supplied-id", title: "T", type: "github", ksbIds: ["S4"], url: "x" } },
+    STD,
+  );
+  assert(v.ok, "a well-formed github item validates");
+  assert(v.ok && v.item.id !== "client-supplied-id", "a client id is not trusted");
+  assert(v.ok && /^e/.test(v.item.id), "the id is server-assigned (prefixed 'e')");
+}
+
+// --- validateNewEvidence: only Draft or Submitted may be created ------------
+{
+  const v = validateNewEvidence(
+    { item: { title: "T", type: "github", ksbIds: ["S4"], status: "Approved", url: "x" } },
+    STD,
+  );
+  assert(v.ok && v.item.status === "Draft", "a client can't create pre-approved evidence");
+}
+
+// --- validateNewEvidence: upload filenames are sanitised --------------------
+{
+  const v = validateNewEvidence(
+    {
+      item: { title: "Deck", type: "upload", ksbIds: ["S4"], fileName: "../../etc/passwd" },
+      fileContentBase64: b64("bytes"),
+    },
+    STD,
+  );
+  assert(v.ok, "a valid upload with a hostile filename still validates");
+  assert(v.ok && v.item.fileName !== undefined, "the upload keeps a filename");
+  assert(
+    v.ok && !/[\\/]/.test(v.item.fileName!),
+    `the stored filename has no path separators, got "${v.ok && v.item.fileName}"`,
+  );
+  assert(
+    v.ok && !v.item.fileName!.startsWith("."),
+    "the stored filename has no leading dot (no traversal / hidden file)",
+  );
+}
+
+// --- validateNewEvidence: an upload with no bytes is rejected ----------------
+{
+  const v = validateNewEvidence(
+    { item: { title: "Deck", type: "upload", ksbIds: ["S4"], fileName: "deck.pdf" } },
+    STD,
+  );
+  assert(!v.ok, "an upload with no file contents is rejected");
+}
+
+// --- validateNewEvidence: mapping is required and standard-checked -----------
+{
+  const noMap = validateNewEvidence({ item: { title: "T", type: "github", ksbIds: [] } }, STD);
+  assert(!noMap.ok, "evidence mapped to nothing is rejected");
+  const badMap = validateNewEvidence(
+    { item: { title: "T", type: "github", ksbIds: ["not-a-ksb"] } },
+    STD,
+  );
+  assert(!badMap.ok, "evidence mapped to an unknown id is rejected");
+}
+
+console.log("VALIDATION OK — learner/reviewer write rules + new-evidence sanitisation enforced");

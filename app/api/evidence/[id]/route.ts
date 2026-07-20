@@ -4,6 +4,7 @@ import { resolveRepoContext } from "@/lib/github/request-context";
 import { createGitHubStore, resolveStandard } from "@/lib/data/github-store";
 import { storeErrorResponse } from "@/lib/data/error-response";
 import { validateEvidencePatch } from "@/lib/data/validation";
+import { canDeleteEvidence, canSubmitVerdict } from "@/lib/data/authz";
 
 // PATCH /api/evidence/:id  → update an item (reviewer approve / request-changes,
 // or learner edit / resubmit). Body: { patch: Partial<Evidence> }. Commits
@@ -34,14 +35,11 @@ export async function PATCH(
     return NextResponse.json({ error: valid.error }, { status: valid.status ?? 400 });
   }
 
-  // A review verdict (Approve / Request changes) is a reviewer action. The repo
-  // owner is the learner, so reject self-review server-side — the client role
-  // toggle must not let a learner approve their own evidence.
-  if (ctx.isOwner && (valid.patch.status === "Approved" || valid.patch.status === "Changes")) {
-    return NextResponse.json(
-      { error: "You can’t review your own evidence — only a reviewer can approve or request changes." },
-      { status: 403 },
-    );
+  // Reject self-review server-side — the client role toggle must not let a
+  // learner approve their own evidence. See lib/data/authz.ts.
+  const verdict = canSubmitVerdict(ctx.isOwner, valid.patch.status);
+  if (!verdict.allow) {
+    return NextResponse.json({ error: verdict.error }, { status: verdict.status });
   }
 
   try {
@@ -66,14 +64,11 @@ export async function DELETE(
     return NextResponse.json({ error: "You do not have write access to this repo" }, { status: 403 });
   }
 
-  // Deleting evidence is the learner's own action; a reviewer (collaborator with
-  // push access) reviews but must not remove a learner's evidence. The UI hides
-  // delete from reviewers — enforce the same boundary server-side.
-  if (!ctx.isOwner) {
-    return NextResponse.json(
-      { error: "Only the learner who owns this portfolio can delete evidence." },
-      { status: 403 },
-    );
+  // A reviewer reviews but must not remove a learner's evidence — the same
+  // boundary the UI enforces by hiding delete. See lib/data/authz.ts.
+  const del = canDeleteEvidence(ctx.isOwner);
+  if (!del.allow) {
+    return NextResponse.json({ error: del.error }, { status: del.status });
   }
 
   const { id } = await params;
