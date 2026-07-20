@@ -18,7 +18,15 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "DataFolio — KSB portfolio evidence",
+  // The template gives each route a distinct <title>. Next's route announcer
+  // reads document.title on client navigation, so without per-route titles a
+  // screen reader user heard the same string after every navigation and got no
+  // signal they'd moved. `default` covers the home route and any page that sets
+  // none of its own.
+  title: {
+    default: "DataFolio — KSB portfolio evidence",
+    template: "%s · DataFolio",
+  },
   description:
     "Capture Level 6 Data Scientist (ST0585) portfolio evidence against every KSB and commit it to your private GitHub repo.",
 };

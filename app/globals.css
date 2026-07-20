@@ -1037,6 +1037,12 @@ a:hover {
   flex-wrap: wrap;
   align-items: center;
 }
+/* The two filter groups are semantic only — their boxes are removed so the
+   chips wrap as one flat row exactly as before, while the role="group" on each
+   still reaches the accessibility tree. */
+.filter-bar__set {
+  display: contents;
+}
 .filter-bar__divider {
   width: 1px;
   height: 22px;

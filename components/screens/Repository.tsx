@@ -58,9 +58,14 @@ export function Repository() {
                   type="button"
                   onClick={() => actions.setFolderOpen(k.id, !open)}
                   aria-expanded={open}
-                  aria-label={`${open ? "Collapse" : "Expand"} the evidence/${k.id} folder`}
                   className="row row--tint folder-row"
                 >
+                  {/* A verb only, so the visible name, status pill and file
+                      count all still contribute to the accessible name. A full
+                      aria-label would have replaced them — a screen reader user
+                      would hear "Expand the evidence/K1 folder" and lose the
+                      status and count a sighted user reads on the same row. */}
+                  <span className="sr-only">{open ? "Collapse" : "Expand"}</span>
                   <svg
                     aria-hidden="true"
                     focusable="false"
@@ -90,21 +95,24 @@ export function Repository() {
                     <button
                       type="button"
                       onClick={() => actions.openMd(k.id)}
-                      aria-label={`Preview evidence/${k.id}/index.md`}
                       className="row row--tint file-row"
                     >
-                      <span className="file-row__badge file-row__badge--md">M↓</span>
+                      {/* "Preview" as an sr-only verb, then the visible filename
+                          and entry count complete the name — so the count isn't
+                          lost the way a wholesale aria-label would lose it. */}
+                      <span className="sr-only">Preview evidence/{k.id}/</span>
+                      <span aria-hidden="true" className="file-row__badge file-row__badge--md">M↓</span>
                       index.md
                       <span className="file-row__aside">
                         — {items.length} entr{items.length === 1 ? "y" : "ies"}
                       </span>
                       <span className="row__spacer" />
-                      <span className="file-row__view">view →</span>
+                      <span aria-hidden="true" className="file-row__view">view →</span>
                     </button>
 
                     {uploads.map((u) => (
                       <div key={u.id} className="file-row file-row--static">
-                        <span className="file-row__badge file-row__badge--upload">▤</span>
+                        <span aria-hidden="true" className="file-row__badge file-row__badge--upload">▤</span>
                         {u.fileName}
                       </div>
                     ))}

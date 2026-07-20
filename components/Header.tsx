@@ -37,6 +37,7 @@ function PortfolioChip() {
   const { portfolios, target, submitting } = state;
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   // Close on outside click or Escape.
   useEffect(() => {
@@ -45,7 +46,12 @@ function PortfolioChip() {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
+      if (e.key === "Escape") {
+        setOpen(false);
+        // Escape must hand focus back to the trigger, or a keyboard user is
+        // dropped to <body> — the same restore the delete confirms already do.
+        triggerRef.current?.focus();
+      }
     };
     document.addEventListener("mousedown", onDown);
     document.addEventListener("keydown", onKey);
@@ -69,11 +75,15 @@ function PortfolioChip() {
 
   return (
     <div className="hide-sm portfolio-menu" ref={ref}>
+      {/* A disclosure, not a menu. The earlier role="menu"/"menuitem" promised
+          an arrow-key/Tab contract that was never wired — the items are plain
+          buttons in normal tab order — and declaring the role is worse than
+          omitting it. aria-expanded already carries the open/closed state. */}
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen((o) => !o)}
         disabled={submitting}
-        aria-haspopup="menu"
         aria-expanded={open}
         title="Switch portfolio"
         className="chip-static portfolio-menu__trigger"
@@ -84,7 +94,7 @@ function PortfolioChip() {
       </button>
 
       {open && (
-        <div role="menu" className="portfolio-menu__list">
+        <div className="portfolio-menu__list">
           <div className="eyebrow portfolio-menu__heading">Portfolios</div>
           {portfolios.map((p) => {
             const active = p.owner === currentOwner && p.repo === (target?.repo ?? user.repo);
@@ -92,7 +102,6 @@ function PortfolioChip() {
               <button
                 key={`${p.owner}/${p.repo}`}
                 type="button"
-                role="menuitem"
                 aria-current={active || undefined}
                 onClick={() => {
                   setOpen(false);

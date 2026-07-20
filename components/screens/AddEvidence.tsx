@@ -248,8 +248,15 @@ export function AddEvidence({ ksbId, editId }: { ksbId: string; editId?: string 
 
       {form.type === "upload" && editing && (
         <div className="field">
-          <label className="label">File</label>
-          <div className="file-locked">
+          {/* The value below is a read-only <div>, not a control, so this names
+              it via aria-labelledby rather than being a <label> that labels
+              nothing. */}
+          <span id="ev-file-locked-label" className="label">File</span>
+          <div
+            className="file-locked"
+            role="group"
+            aria-labelledby="ev-file-locked-label"
+          >
             {form.fileName || "—"}
           </div>
           <div className="field-hint">

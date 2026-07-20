@@ -13,6 +13,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { STANDARDS } from "./standards/generated";
 
 const AA_TEXT = 4.5;
 /** WCAG 2.2 non-text contrast, for UI indicators like the focus ring. */
@@ -69,6 +70,20 @@ function contrast(a: Rgb, b: Rgb): number {
   const [x, y] = [luminance(a), luminance(b)];
   return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
 }
+
+/**
+ * `color-mix(in srgb, a pct%, b)`.
+ *
+ * The `in srgb` keyword mixes the gamma-encoded channels directly — a plain
+ * linear interpolation of the 0–255 values — so this mirrors what the browser
+ * computes for the dark-scheme pill derivations in globals.css.
+ */
+function mixSrgb(a: Rgb, pct: number, b: Rgb): Rgb {
+  const f = pct / 100;
+  return a.map((av, i) => Math.round(av * f + b[i] * (1 - f))) as Rgb;
+}
+
+const WHITE: Rgb = [255, 255, 255];
 
 function colourOf(name: string, scheme: Scheme): Rgb {
   const t = tokens.get(name);
@@ -158,6 +173,42 @@ for (const scheme of ["light", "dark"] as Scheme[]) {
   }
 }
 
+// ---- Per-method colours ----------------------------------------------------
+//
+// Each assessment method ships its own light-mode fg/bg in the standard config,
+// injected as CSS custom properties — so it never passes through :root and is
+// invisible to the token cross-product above. A new standard could ship a
+// failing-contrast pill with the rest of the suite green. Check the shipped
+// colours directly, in both schemes, deriving the dark scheme exactly as
+// `.pill--data` in globals.css does.
+const darkSurface = colourOf("--surface", "dark");
+for (const std of Object.values(STANDARDS)) {
+  for (const method of Object.values(std.methods)) {
+    const bg = parseColour(method.colour.bg);
+    const fg = parseColour(method.colour.fg);
+    assert.ok(bg && fg, `method ${std.id}/${method.key} has non-colour swatch values`);
+
+    // Light: the fg sits directly on the bg fill.
+    const light = contrast(fg, bg);
+    if (light + 1e-9 < AA_TEXT) {
+      failures.push(
+        `  light: ${std.id}/${method.key} pill = ${light.toFixed(2)}:1 (needs ${AA_TEXT}) — method pill`,
+      );
+    }
+
+    // Dark: globals.css lightens the text (mix 45% into white) and tints the
+    // fill (mix 14% over the dark surface). Check that derived pair, not the raw.
+    const darkFill = mixSrgb(bg, 14, darkSurface);
+    const darkText = mixSrgb(fg, 45, WHITE);
+    const dark = contrast(darkText, darkFill);
+    if (dark + 1e-9 < AA_TEXT) {
+      failures.push(
+        `  dark: ${std.id}/${method.key} pill = ${dark.toFixed(2)}:1 (needs ${AA_TEXT}) — method pill (color-mix derived)`,
+      );
+    }
+  }
+}
+
 assert.equal(
   failures.length,
   0,
@@ -166,6 +217,11 @@ assert.equal(
     `are reused, so a pairing that fails here fails everywhere it is written.`,
 );
 
+const methodCount = Object.values(STANDARDS).reduce(
+  (n, s) => n + Object.keys(s.methods).length,
+  0,
+);
 console.log(
-  `contrast.test.ts: ok — ${pairs.length} pairings × 2 schemes, all ≥ AA`,
+  `contrast.test.ts: ok — ${pairs.length} token pairings × 2 schemes + ` +
+    `${methodCount} method pills (light + color-mix dark), all ≥ AA`,
 );

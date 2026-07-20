@@ -39,7 +39,7 @@ function EvidenceCard({ e, ksbId }: { e: Evidence; ksbId: string }) {
   return (
     <div className="card evidence-card">
       <div className="evidence-card__inner">
-        <div className={`evidence-card__icon type--${ti.tone}`}>{ti.icon}</div>
+        <div aria-hidden="true" className={`evidence-card__icon type--${ti.tone}`}>{ti.icon}</div>
         <div className="evidence-card__body">
           <div className="evidence-card__head">
             <span className="evidence-card__title">{e.title}</span>
@@ -289,7 +289,10 @@ export function KsbDetail({ ksbId }: { ksbId: string }) {
               const cov = n > 0;
               return (
                 <div key={p.id} className="card card--sm point-row">
-                  <span className={cov ? "point-row__tick point-row__tick--on" : "point-row__tick"}>
+                  <span
+                    aria-hidden="true"
+                    className={cov ? "point-row__tick point-row__tick--on" : "point-row__tick"}
+                  >
                     {cov ? "✓" : ""}
                   </span>
                   <span className="point-row__code">{p.id}</span>
