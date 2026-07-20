@@ -23,7 +23,7 @@ export function GithubMark({ size = 20, color = "currentColor", style }: IconPro
   );
 }
 
-export function Lock({ size = 16, color = "#71717a", strokeWidth = 2, style }: IconProps) {
+export function Lock({ size = 16, color = "var(--text-muted)", strokeWidth = 2, style }: IconProps) {
   return (
     <svg
       {...a11y}
@@ -62,7 +62,7 @@ export function LogOut({ size = 16, color = "currentColor", strokeWidth = 2, sty
   );
 }
 
-export function ChevronRight({ size = 17, color = "#d4d4d8", strokeWidth = 2, style }: IconProps) {
+export function ChevronRight({ size = 17, color = "var(--icon-faint)", strokeWidth = 2, style }: IconProps) {
   return (
     <svg
       {...a11y}
@@ -105,7 +105,7 @@ export function LinkIcon({ size = 14, color = "currentColor", strokeWidth = 2, s
   );
 }
 
-export function FileIcon({ size = 15, color = "#a1a1aa", strokeWidth = 2, style }: IconProps) {
+export function FileIcon({ size = 15, color = "var(--icon-muted)", strokeWidth = 2, style }: IconProps) {
   return (
     <svg {...a11y} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} style={style}>
       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -114,7 +114,7 @@ export function FileIcon({ size = 15, color = "#a1a1aa", strokeWidth = 2, style 
   );
 }
 
-export function FolderIcon({ size = 16, color = "#6366f1", style }: IconProps) {
+export function FolderIcon({ size = 16, color = "var(--accent-soft)", style }: IconProps) {
   return (
     <svg {...a11y} width={size} height={size} viewBox="0 0 24 24" fill={color} stroke="none" style={style}>
       <path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z" />
@@ -122,7 +122,7 @@ export function FolderIcon({ size = 16, color = "#6366f1", style }: IconProps) {
   );
 }
 
-export function UploadCloud({ size = 26, color = "#a1a1aa", strokeWidth = 1.7, style }: IconProps) {
+export function UploadCloud({ size = 26, color = "var(--icon-muted)", strokeWidth = 1.7, style }: IconProps) {
   return (
     <svg {...a11y} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} style={style}>
       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -148,7 +148,7 @@ export function Plus({ size = 16, color = "currentColor", strokeWidth = 2.4, sty
   );
 }
 
-export function CheckBadge({ size = 17, color = "#1d4ed8", strokeWidth = 2, style }: IconProps) {
+export function CheckBadge({ size = 17, color = "var(--info-icon)", strokeWidth = 2, style }: IconProps) {
   return (
     <svg {...a11y} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} style={style}>
       <path d="M9 11l3 3L22 4" />

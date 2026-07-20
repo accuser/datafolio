@@ -13,7 +13,7 @@ import {
   pointStatusKey,
   statusMeta,
 } from "@/lib/domain";
-import { InlineCode, LoadingState, Pill, SR_ONLY, mono } from "../ui";
+import { InlineCode, LoadingState, Pill } from "../ui";
 
 export function Coverage() {
   const { state } = useApp();
@@ -22,11 +22,9 @@ export function Coverage() {
   if (loading) return <LoadingState label="Loading the coverage matrix…" />;
 
   return (
-    <div style={{ padding: "28px 0 64px" }}>
-      <h1 style={{ fontSize: "1.375rem", fontWeight: 700, letterSpacing: "-0.01em", margin: "0 0 4px" }}>
-        Coverage matrix
-      </h1>
-      <p style={{ fontSize: "0.875rem", color: "#71717a", margin: "0 0 22px", maxWidth: 720, lineHeight: 1.55 }}>
+    <div className="screen screen--table">
+      <h1 className="screen-title">Coverage matrix</h1>
+      <p className="screen-intro screen-intro--wide">
         Generated from each folder&apos;s <InlineCode>index.md</InlineCode> front-matter by{" "}
         <InlineCode>scripts/build_coverage.py</InlineCode> on every push, and committed back as{" "}
         <InlineCode>COVERAGE.md</InlineCode>.
@@ -35,19 +33,13 @@ export function Coverage() {
       {/* The table is wider than a phone, so it scrolls. A scroll container has
           to be focusable or keyboard-only users can't pan it. */}
       <div
-        className="table-scroll"
         tabIndex={0}
         role="region"
         aria-label="Coverage matrix"
-        style={{
-          marginBottom: 28,
-          border: "1px solid #ececec",
-          borderRadius: 14,
-          background: "#fff",
-        }}
+        className="table-scroll cov-scroll"
       >
         <table className="cov-table">
-          <caption style={SR_ONLY}>
+          <caption className="sr-only">
             Every KSB and sub-point in the standard, with how it is assessed, how many
             evidence items it has, and its current status.
           </caption>
@@ -80,21 +72,14 @@ export function Coverage() {
                     <th scope="row">
                       <Link
                         href={`/ksb/${k.id}`}
-                        style={{
-                          display: "inline-block",
-                          padding: "3px 2px",
-                          fontSize: "0.75rem",
-                          fontWeight: 700,
-                          color: "#4f46e5",
-                          fontFamily: mono,
-                        }}
+                        className="cov-code"
                       >
                         {k.id}
                       </Link>
                     </th>
-                    <td style={{ color: "#3f3f46", lineHeight: 1.4 }}>{k.short}</td>
+                    <td className="cov-statement">{k.short}</td>
                     <td>
-                      <span style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                      <span className="cov-methods">
                         {methods.map((mm) => (
                           <Pill key={mm.key} bg={mm.bg} fg={mm.fg}>
                             {mm.abbr}
@@ -102,10 +87,10 @@ export function Coverage() {
                         ))}
                       </span>
                     </td>
-                    <td className="num" style={{ fontWeight: 600 }}>
+                    <td className="num cov-num--strong">
                       {n}
                     </td>
-                    <td className="num" style={{ fontFamily: mono }}>
+                    <td className="num mono">
                       {needed.length ? `${cov}/${needed.length}` : "—"}
                     </td>
                     <td>
@@ -125,12 +110,12 @@ export function Coverage() {
                     const psm = statusMeta(pointStatusKey(evidence, p.id));
                     return (
                       <tr key={p.id} className="subpoint">
-                        <th scope="row" style={{ fontFamily: mono, fontWeight: 400 }}>
+                        <th scope="row" className="mono">
                           {p.id}
                         </th>
-                        <td style={{ lineHeight: 1.4 }}>{p.text}</td>
+                        <td className="cov-subtext">{p.text}</td>
                         <td>
-                          <span style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                          <span className="cov-methods">
                             {pMethods.map((mm) => (
                               <Pill key={mm.key} bg={mm.bg} fg={mm.fg}>
                                 {mm.abbr}
@@ -146,7 +131,7 @@ export function Coverage() {
                               {psm.label}
                             </Pill>
                           ) : (
-                            <span style={{ fontSize: "0.75rem" }}>Not required</span>
+                            <span className="cov-notreq">Not required</span>
                           )}
                         </td>
                       </tr>
@@ -159,61 +144,36 @@ export function Coverage() {
         </table>
       </div>
 
-      <div className="grid-2" style={{ display: "grid", gap: 16 }}>
-        <div style={{ background: "#fff", border: "1px solid #ececec", borderRadius: 14, padding: "18px 20px" }}>
-          <div style={{ fontSize: "0.875rem", fontWeight: 700, marginBottom: 10 }}>Front-matter schema</div>
-          <div style={{ fontSize: "0.8125rem", color: "#52525b", lineHeight: 1.7 }}>
+      <div className="grid-2 coverage-panels">
+        <div className="card schema-card">
+          <div className="schema-card__title">Front-matter schema</div>
+          <div className="schema-card__body">
             <div>
               <SchemaCode>ksb</SchemaCode> · <SchemaCode>type</SchemaCode> ·{" "}
               <SchemaCode>title</SchemaCode> · <SchemaCode>methods[]</SchemaCode> ·{" "}
               <SchemaCode>status</SchemaCode>
             </div>
-            <div style={{ marginTop: 6 }}>
+            <div className="schema-card__row">
               <SchemaCode>subpoints[]</SchemaCode> —{" "}
-              <span style={{ color: "#71717a" }}>id, methods[], covered</span>
+              <span className="t-muted">id, methods[], covered</span>
             </div>
             <div>
               <SchemaCode>evidence[]</SchemaCode> —{" "}
-              <span style={{ color: "#71717a" }}>id, title, type, ref/file, maps[], status, date, feedback</span>
+              <span className="t-muted">id, title, type, ref/file, maps[], status, date, feedback</span>
             </div>
-            <div style={{ marginTop: 6 }}>
+            <div className="schema-card__row">
               <SchemaCode>updated</SchemaCode>
             </div>
           </div>
-          <div style={{ fontSize: "0.8125rem", color: "#71717a", marginTop: 12, lineHeight: 1.5 }}>
-            Open any folder&apos;s <span style={{ fontFamily: mono }}>index.md</span> in the Repository
+          <div className="schema-card__hint">
+            Open any folder&apos;s <span className="mono">index.md</span> in the Repository
             tab to preview the generated file.
           </div>
         </div>
 
-        <div
-          className="on-dark"
-          style={{ background: "#0f172a", borderRadius: 14, padding: "16px 18px", overflow: "auto" }}
-        >
-          <div
-            style={{
-              fontSize: "0.75rem",
-              color: "#94a3b8",
-              letterSpacing: "0.05em",
-              textTransform: "uppercase",
-              marginBottom: 8,
-              fontFamily: mono,
-            }}
-          >
-            scripts/build_coverage.py
-          </div>
-          <pre
-            tabIndex={0}
-            style={{
-              margin: 0,
-              fontFamily: mono,
-              fontSize: "0.75rem",
-              lineHeight: 1.6,
-              color: "#cbd5e1",
-              whiteSpace: "pre",
-              overflow: "auto",
-            }}
-          >
+        <div className="on-dark panel-dark code-panel">
+          <div className="code-panel__label">scripts/build_coverage.py</div>
+          <pre tabIndex={0} className="code-panel__code">
 {`for md in evidence/*/index.md:
     fm = parse_front_matter(md)
     rows.append({
@@ -232,5 +192,5 @@ write("COVERAGE.md", render_table(rows))`}
 }
 
 function SchemaCode({ children }: { children: React.ReactNode }) {
-  return <code style={{ fontFamily: mono, color: "#4338ca" }}>{children}</code>;
+  return <code className="schema-code">{children}</code>;
 }
