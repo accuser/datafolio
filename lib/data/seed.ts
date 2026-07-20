@@ -1,4 +1,4 @@
-import type { Evidence, UserProfile } from "../types";
+import type { Card, Evidence, UserProfile } from "../types";
 
 // Derived the same way the prototype derives them from the signed-in learner.
 export const SEED_USER: UserProfile = {
@@ -76,5 +76,44 @@ export const SEED_EVIDENCE: Evidence[] = [
     date: "28 Jun 2026",
     feedback:
       "Good start — add specific examples of feedback you received and how you acted on it.",
+  },
+];
+
+// Seed revision cards — what a GitHub-backed card store would read from
+// revision/*/cards.md. Small on purpose: starter cards are generated on demand
+// (see lib/cards.ts), so a learner's real deck starts empty until they ask for
+// one. These exist so mock mode shows both sources and both genres.
+export const SEED_CARDS: Card[] = [
+  {
+    id: "c-K4.2",
+    ksbIds: ["K4.2"],
+    front:
+      "Explain: Supervised, unsupervised and reinforcement learning, and the classes of problem each suits.",
+    back: "",
+    tags: ["ST0585", "K4"],
+    source: "seed",
+    created: "2 Jul 2026",
+    updated: "2 Jul 2026",
+  },
+  {
+    id: "c-learner-1",
+    ksbIds: ["K4.2"],
+    front: "Name three supervised algorithms and when you'd pick each.",
+    back: "Logistic regression — small, linearly separable, need interpretability.\nRandom forest — mixed feature types, non-linear, little tuning budget.\nGradient boosting — tabular, accuracy matters more than training cost.",
+    tags: ["ST0585", "K4"],
+    source: "learner",
+    created: "5 Jul 2026",
+    updated: "9 Jul 2026",
+  },
+  {
+    id: "c-B1",
+    ksbIds: ["B1"],
+    front:
+      "Be ready to discuss: Initiative and resourcefulness when solving problems.",
+    back: "The churn pipeline stalled on a schema change nobody had flagged — walk through spotting it in the failed run, patching the loader, and adding the contract test that would have caught it.",
+    tags: ["ST0585", "B1"],
+    source: "learner",
+    created: "11 Jul 2026",
+    updated: "11 Jul 2026",
   },
 ];
