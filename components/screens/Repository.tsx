@@ -73,7 +73,7 @@ export function Repository() {
                   </svg>
                   <FolderIcon size={16} />
                   <span className="folder-row__name">evidence/{k.id}/</span>
-                  <Pill bg={m.bg} fg={m.fg}>
+                  <Pill tone={m.tone}>
                     {m.label}
                   </Pill>
                   <span className="row__spacer" />

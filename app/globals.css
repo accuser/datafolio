@@ -76,6 +76,49 @@
   --info-icon: #1d4ed8;
   --info-text: #1e3a8a;
 
+  /* Text that sits on a filled control rather than on a surface. Named for what
+     it sits on, not for its colour — in dark mode the fills go light and these
+     go dark, so `var(--surface)` would have been exactly wrong. */
+  --on-accent: #fff;
+  --on-success: #fff;
+  --on-danger: #fff;
+  /* Always light: it sits on a panel that is dark in both schemes. */
+  --on-dark-panel: #fafafa;
+  /* A surface deliberately opposite to the page (skip link, GitHub button). */
+  --invert-bg: #18181b;
+  --invert-fg: #fff;
+
+  /* Status tones. Named pairings so a status keeps its meaning across schemes. */
+  --tone-neutral-bg: #f4f4f5;
+  --tone-neutral-fg: #52525b;
+  --tone-progress-bg: #fef3c7;
+  --tone-progress-fg: #92400e;
+  --tone-review-bg: #dbeafe;
+  --tone-review-fg: #1e40af;
+  --tone-approved-bg: #dcfce7;
+  --tone-approved-fg: #166534;
+  --tone-changes-bg: #ffedd5;
+  --tone-changes-fg: #9a3412;
+
+  /* Evidence types */
+  --type-github-bg: #e0e7ff;
+  --type-github-fg: #4338ca;
+  --type-reflection-bg: #dcfce7;
+  --type-reflection-fg: #15803d;
+  --type-upload-bg: #fef3c7;
+  --type-upload-fg: #b45309;
+
+  /* KSB categories. Each fg is the darkest step that clears 4.5:1 on its own
+     tint — the brighter 500-weights land at 3.5–4.0:1. */
+  --cat-knowledge-bg: #eef2ff;
+  --cat-knowledge-fg: #4338ca;
+  --cat-skill-bg: #ecfeff;
+  --cat-skill-fg: #0e7490;
+  --cat-behaviour-bg: #faf5ff;
+  --cat-behaviour-fg: #7e22ce;
+
+  --modal-backdrop: rgba(15, 23, 42, 0.55);
+
   /* Decorative icon defaults (icons.tsx prop defaults resolve to these). */
   --icon-muted: #a1a1aa;
   --icon-faint: #d4d4d8;
@@ -105,6 +148,134 @@
   --shadow-modal: 0 24px 60px rgba(0, 0, 0, 0.4);
   --shadow-raised: 0 1px 3px rgba(0, 0, 0, 0.08);
   --shadow-lift: 0 2px 10px var(--accent-shadow);
+
+  color-scheme: light;
+}
+
+/* ---- Dark scheme --------------------------------------------------------- */
+/* The same token list, re-valued. No component rule below this block is aware
+   of the colour scheme; everything downstream reads the tokens.
+   Two things do not simply invert:
+   - Filled controls (accent, success, danger) go LIGHT with dark text, so the
+     `--on-*` tokens flip with them.
+   - Panels that are dark in both schemes (code previews, the sign-in hero) get
+     lifted rather than darkened, or they vanish into the page. */
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+
+    /* Surfaces */
+    --surface: #18181b;
+    --surface-page: #0b0b0d;
+    --surface-sunken: #141417;
+    --surface-muted: #27272a;
+    --surface-hover: #202024;
+    --surface-hover-strong: #26262b;
+
+    /* Borders */
+    --border-faint: #1f1f23;
+    --border: #2a2a2f;
+    --border-strong: #3f3f46;
+    --border-dashed: #52525b;
+
+    /* Text — the light ramp reversed, so "muted" stays the quietest. */
+    --text: #fafafa;
+    --text-secondary: #e4e4e7;
+    --text-tertiary: #c9c9d0;
+    --text-muted: #a1a1aa;
+
+    /* Accent. The 400 weight reads as indigo on a dark ground where the 600
+       used in light mode goes muddy. */
+    --accent: #818cf8;
+    --accent-strong: #a5b4fc;
+    --accent-tint: #1e1b4b;
+    --accent-tint-alt: #2e1065;
+    --accent-ring: #6366f1;
+    --accent-selection: #3730a3;
+    --accent-shadow: rgba(129, 140, 248, 0.16);
+    --accent-soft: #818cf8;
+    --accent-deep: #c7d2fe;
+
+    /* Dark panels lift above the page instead of sinking below it. */
+    --dark-surface: #1e1e26;
+    --dark-surface-alt: #141419;
+    --dark-border: #2c2c38;
+
+    /* Filled controls invert: light fill, dark label. */
+    --on-accent: #12121a;
+    --on-success: #052e16;
+    --on-danger: #450a0a;
+    --invert-bg: #fafafa;
+    --invert-fg: #18181b;
+
+    /* Feedback */
+    --danger: #fca5a5;
+    --danger-strong: #f87171;
+    --danger-tint: #2a1416;
+    --danger-border: #7f1d1d;
+    --danger-text: #fca5a5;
+    --warn: #fbbf24;
+    --warn-tint: #2a2010;
+    --warn-border: #78350f;
+    --warn-text: #fcd34d;
+    --changes-tint: #2a1a10;
+    --changes-text: #fdba74;
+    --success: #4ade80;
+    --success-tint: #0f2418;
+    --success-text: #86efac;
+    --success-tint-strong: #14532d;
+    --info-tint: #12203a;
+    --info-border: #1e3a8a;
+    --info-icon-bg: #1e3a8a;
+    --info-icon: #93c5fd;
+    --info-text: #bfdbfe;
+
+    /* Status tones: deep ground, light label. */
+    --tone-neutral-bg: #27272a;
+    --tone-neutral-fg: #d4d4d8;
+    --tone-progress-bg: #422006;
+    --tone-progress-fg: #fcd34d;
+    --tone-review-bg: #172554;
+    --tone-review-fg: #93c5fd;
+    --tone-approved-bg: #052e16;
+    --tone-approved-fg: #86efac;
+    --tone-changes-bg: #431407;
+    --tone-changes-fg: #fdba74;
+
+    --type-github-bg: #1e1b4b;
+    --type-github-fg: #a5b4fc;
+    --type-reflection-bg: #052e16;
+    --type-reflection-fg: #86efac;
+    --type-upload-bg: #422006;
+    --type-upload-fg: #fcd34d;
+
+    --cat-knowledge-bg: #1e1b4b;
+    --cat-knowledge-fg: #a5b4fc;
+    --cat-skill-bg: #083344;
+    --cat-skill-fg: #67e8f9;
+    --cat-behaviour-bg: #2e1065;
+    --cat-behaviour-fg: #d8b4fe;
+
+    --modal-backdrop: rgba(0, 0, 0, 0.7);
+
+    --icon-muted: #a1a1aa;
+    --icon-faint: #52525b;
+    --md-badge-fg: #5eead4;
+    --md-badge-bg: #042f2e;
+
+    /* Progress segments brighten a step to hold up against the dark track. */
+    --seg-approved: #4ade80;
+    --seg-submitted: #60a5fa;
+    --seg-inprogress: #fbbf24;
+    --seg-notstarted: #3f3f46;
+
+    /* Shadows do almost nothing on a dark ground; lean on borders instead. */
+    --shadow-card: 0 4px 16px rgba(0, 0, 0, 0.4);
+    --shadow-menu: 0 8px 28px rgba(0, 0, 0, 0.55);
+    --shadow-raised: 0 1px 3px rgba(0, 0, 0, 0.5);
+  }
+
 }
 
 html,
@@ -247,6 +418,21 @@ a:hover {
   color: var(--pill-fg);
 }
 
+.pill--neutral  { --pill-bg: var(--tone-neutral-bg);  --pill-fg: var(--tone-neutral-fg); }
+.pill--progress { --pill-bg: var(--tone-progress-bg); --pill-fg: var(--tone-progress-fg); }
+.pill--review   { --pill-bg: var(--tone-review-bg);   --pill-fg: var(--tone-review-fg); }
+.pill--approved { --pill-bg: var(--tone-approved-bg); --pill-fg: var(--tone-approved-fg); }
+.pill--changes  { --pill-bg: var(--tone-changes-bg);  --pill-fg: var(--tone-changes-fg); }
+
+/* Evidence-type and category swatches use the same pairing mechanism. */
+.type--github     { --type-bg: var(--type-github-bg);     --type-fg: var(--type-github-fg); }
+.type--reflection { --type-bg: var(--type-reflection-bg); --type-fg: var(--type-reflection-fg); }
+.type--upload     { --type-bg: var(--type-upload-bg);     --type-fg: var(--type-upload-fg); }
+
+.cat--knowledge { --cat-bg: var(--cat-knowledge-bg); --cat-fg: var(--cat-knowledge-fg); }
+.cat--skill     { --cat-bg: var(--cat-skill-bg);     --cat-fg: var(--cat-skill-fg); }
+.cat--behaviour { --cat-bg: var(--cat-behaviour-bg); --cat-fg: var(--cat-behaviour-fg); }
+
 /* Filter chips. Selected state is read from aria-pressed rather than duplicated
    into a JS ternary, so the styling can't drift from what's announced. */
 .chip {
@@ -263,7 +449,7 @@ a:hover {
 .chip[aria-pressed="true"] {
   border-color: var(--accent);
   background: var(--accent);
-  color: var(--surface);
+  color: var(--on-accent);
 }
 .chip__count {
   opacity: 0.75;
@@ -303,7 +489,7 @@ a:hover {
 }
 .btn--primary {
   background: var(--accent);
-  color: var(--surface);
+  color: var(--on-accent);
 }
 .btn--secondary {
   background: var(--surface);
@@ -331,7 +517,7 @@ a:hover {
 }
 .btn--approve {
   background: var(--success);
-  color: var(--surface);
+  color: var(--on-success);
 }
 .btn--changes {
   background: var(--surface);
@@ -340,7 +526,7 @@ a:hover {
 }
 .btn--danger {
   background: var(--danger-strong);
-  color: var(--surface);
+  color: var(--on-danger);
 }
 .btn--danger-outline {
   background: var(--surface);
@@ -469,7 +655,7 @@ a:hover {
   height: 30px;
   border-radius: var(--radius-xs);
   background: var(--accent);
-  color: var(--surface);
+  color: var(--on-accent);
   font-weight: 700;
   font-size: 0.875rem;
 }
@@ -596,7 +782,7 @@ a:hover {
   height: 32px;
   border-radius: var(--radius-pill);
   background: var(--accent);
-  color: var(--surface);
+  color: var(--on-accent);
   font-size: 0.8125rem;
   font-weight: 600;
 }
@@ -1628,7 +1814,7 @@ a:hover {
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.55);
+  background: var(--modal-backdrop);
   z-index: 50;
 }
 .modal-layer {
@@ -1878,7 +2064,7 @@ a:hover {
   flex-direction: column;
   justify-content: space-between;
   background: var(--dark-surface-alt);
-  color: var(--surface-page);
+  color: var(--on-dark-panel);
 }
 .signin__brand {
   display: flex;
@@ -1886,6 +2072,7 @@ a:hover {
   gap: 12px;
 }
 .signin__brand-mark {
+  color: var(--on-accent);
   width: 34px;
   height: 34px;
   border-radius: 9px;
@@ -1937,7 +2124,7 @@ a:hover {
   display: block;
   font-size: 1.375rem;
   font-weight: 700;
-  color: var(--surface-page);
+  color: var(--on-dark-panel);
 }
 
 .signin__form-panel {
@@ -1971,8 +2158,8 @@ a:hover {
   align-items: center;
   justify-content: center;
   gap: 10px;
-  background: var(--dark-surface-alt);
-  color: var(--surface);
+  background: var(--invert-bg);
+  color: var(--invert-fg);
   border: none;
   border-radius: 10px;
   padding: 14px 18px;
@@ -2024,15 +2211,15 @@ a:hover {
   top: 0;
   z-index: 100;
   padding: 10px 16px;
-  background: var(--dark-surface-alt);
-  color: var(--surface);
+  background: var(--invert-bg);
+  color: var(--invert-fg);
   border-radius: 0 0 10px 0;
   font-size: 0.875rem;
   font-weight: 600;
 }
 .skip-link:focus {
   left: 0;
-  color: var(--surface);
+  color: var(--invert-fg);
 }
 
 /* ---- Coverage table ------------------------------------------------------ */
@@ -2193,5 +2380,26 @@ a:hover {
 @media (max-width: 560px) {
   .type-cards {
     flex-direction: column;
+  }
+}
+
+/* ---- Dark scheme, component overrides ------------------------------------ */
+/* These have to live at the end of the file: they compete with the component
+   rules above on specificity, so source order decides. The token block near the
+   top does not — custom properties cascade by inheritance, not by position. */
+
+@media (prefers-color-scheme: dark) {
+  /* Colours that arrive as data rather than tokens — each assessment method
+     carries its own light-mode pair in the standard's config — are adapted
+     rather than replaced, since the set isn't known ahead of time. */
+  .pill--data {
+    background: color-mix(in srgb, var(--pill-bg) 14%, var(--surface));
+    color: color-mix(in srgb, var(--pill-fg) 45%, #fff);
+  }
+  .method-card__title {
+    color: color-mix(in srgb, var(--method-fg) 45%, #fff);
+  }
+  .method-card__dot {
+    background: color-mix(in srgb, var(--method-fg) 45%, #fff);
   }
 }

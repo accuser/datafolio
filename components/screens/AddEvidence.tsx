@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useApp } from "@/lib/state";
 import { MAX_UPLOAD_MB } from "@/lib/data/uploads";
@@ -139,8 +139,7 @@ export function AddEvidence({ ksbId, editId }: { ksbId: string; editId?: string 
             >
               <div
                 aria-hidden="true"
-                className="type-card__icon"
-                style={{ "--type-bg": ti.bg, "--type-fg": ti.fg } as CSSProperties}
+                className={`type-card__icon type--${ti.tone}`}
               >
                 {ti.icon}
               </div>
