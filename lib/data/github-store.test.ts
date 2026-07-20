@@ -5,10 +5,12 @@
  * without touching GitHub. Run: `npx tsx lib/data/github-store.test.ts`.
  */
 import type { Octokit } from "@octokit/core";
-import { KSB_BY_ID } from "../ksbs";
+import { getStandard, ksbIndex } from "../standards";
 import { genMd } from "../domain";
 import type { Evidence } from "../types";
 import { createGitHubStore } from "./github-store";
+
+const KSB_BY_ID = ksbIndex(getStandard("st0585"));
 
 function assert(cond: unknown, msg: string): asserts cond {
   if (!cond) throw new Error("ASSERT FAILED: " + msg);
@@ -155,7 +157,11 @@ async function main() {
   const store = createGitHubStore({ octokit: fakeOctokit, owner: "lucy-ds", repo: "portfolio-evidence" });
 
   // --- load ---
-  const loaded = await store.load();
+  const { evidence: loaded, standardId } = await store.load();
+  assert(
+    standardId === "st0585",
+    `a repo with no datafolio.yml loads as st0585, got ${standardId}`,
+  );
   assert(loaded.length === 3, `load returns 3 items, got ${loaded.length}`);
   const a = loaded.find((e) => e.id === "a1")!;
   const b = loaded.find((e) => e.id === "b1")!;
@@ -181,7 +187,17 @@ async function main() {
   const k4Entry = addTree.tree.find((t) => t.path === "evidence/K4/index.md");
   assert(k4Entry?.content?.includes("id: n1"), "new item written into evidence/K4/index.md");
   assert(k4Entry?.content?.includes("id: a1"), "existing K4 item preserved in same file");
-  assert(/id: K4\.1\s+covered: true/.test(k4Entry!.content!), "K4.1 sub-point now covered");
+  // Sub-points now carry their own assessment methods between `id` and `covered`,
+  // so match within the K4.1 entry only (stop at the next `- id:`).
+  const k4point = (id: string, content: string) =>
+    new RegExp(`id: ${id.replace(".", "\\.")}\\n(?:(?!- id:)[\\s\\S])*?covered: (true|false)`)
+      .exec(content)?.[1];
+  assert(k4point("K4.1", k4Entry!.content!) === "true", "K4.1 sub-point now covered");
+  assert(k4point("K4.3", k4Entry!.content!) === "false", "unmapped K4.3 stays uncovered");
+  assert(
+    /id: K4\.1\n\s+methods:\n\s+- knowledge_test/.test(k4Entry!.content!),
+    "sub-point methods written from the standard, not inherited from the parent",
+  );
   assert(!addTree.tree.some((t) => t.path === "evidence/S4/index.md"), "unaffected S4 folder not rewritten");
 
   // --- update: approve a1 with feedback ---

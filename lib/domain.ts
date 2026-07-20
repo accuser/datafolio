@@ -1,14 +1,17 @@
 import type { CSSProperties } from "react";
 import { dump } from "js-yaml";
 import type {
-  Category,
   Evidence,
   EvidenceStatus,
   EvidenceType,
-  Ksb,
   KsbStatusKey,
-  RouteKey,
 } from "./types";
+import type {
+  Category,
+  Ksb,
+  MethodKey,
+  Standard,
+} from "./standards";
 
 // ---- Evidence ↔ KSB matching (by root code) -------------------------------
 
@@ -63,31 +66,50 @@ export function evMeta(status: EvidenceStatus): Meta {
   }[status];
 }
 
-export interface RouteMeta extends Meta {
+export interface MethodMeta extends Meta {
+  key: MethodKey;
+  abbr: string;
   note: string;
+  collectsEvidence: boolean;
 }
 
-export function routeMeta(route: RouteKey): RouteMeta {
+/** Presentation metadata for one assessment method of a standard. */
+export function methodMeta(standard: Standard, key: MethodKey): MethodMeta {
+  const m = standard.methods[key];
+  if (!m) {
+    // A KSB referencing an undeclared method can't happen via the parser, but a
+    // legacy `route` value read from an old index.md can reach here.
+    return {
+      key,
+      label: key,
+      abbr: key,
+      note: "",
+      collectsEvidence: false,
+      bg: "#f4f4f5",
+      fg: "#71717a",
+    };
+  }
   return {
-    portfolio: {
-      label: "Portfolio",
-      bg: "#eef2ff",
-      fg: "#4338ca",
-      note: "Gathered through e-portfolio work and professional discussion with your coach.",
-    },
-    project: {
-      label: "Workplace project",
-      bg: "#f0fdfa",
-      fg: "#0f766e",
-      note: "Evidenced through your work-based Data Science project and report.",
-    },
-    both: {
-      label: "Portfolio + project",
-      bg: "#fffbeb",
-      fg: "#b45309",
-      note: "Evidenced through both coach-supported portfolio work and your workplace project.",
-    },
-  }[route];
+    key: m.key,
+    label: m.label,
+    abbr: m.abbr,
+    note: m.note,
+    collectsEvidence: m.collectsEvidence,
+    bg: m.colour.bg,
+    fg: m.colour.fg,
+  };
+}
+
+/** All method metadata for a KSB, in the standard's declared order. */
+export function ksbMethods(standard: Standard, k: Ksb): MethodMeta[] {
+  return k.methods.map((key) => methodMeta(standard, key));
+}
+
+/** Combined label for a KSB assessed by several methods, e.g. "PD + Report". */
+export function methodsLabel(standard: Standard, k: Ksb): string {
+  return ksbMethods(standard, k)
+    .map((m) => m.abbr)
+    .join(" + ");
 }
 
 export interface TypeInfo {
@@ -201,14 +223,17 @@ export function renderIndexMd(
   // scalar), not reconstructed from the Markdown body.
   const fm: Record<string, unknown> = {
     ksb: k.id,
-    type: k.cat,
-    title: k.title,
-    route: k.route,
+    type: k.category,
+    title: k.statement,
+    // Replaces the old scalar `route`. Sub-points carry their own mapping, so
+    // the per-point methods are written alongside `covered` below.
+    methods: k.methods,
     status: smap[sk],
   };
   if (k.points) {
     fm.subpoints = k.points.map((p) => ({
       id: p.id,
+      methods: p.methods,
       covered: evForPoint(coverageEvidence, p.id).length > 0,
     }));
   }
@@ -237,7 +262,7 @@ export function renderIndexMd(
   const L: string[] = [];
   L.push("# " + k.id + " — " + k.short);
   L.push("");
-  L.push("> " + k.title);
+  L.push("> " + k.statement);
   L.push("");
   if (!ev.length) L.push("_No evidence yet._");
   ev.forEach((e) => {

@@ -6,9 +6,9 @@ export type Role = "learner" | "coach";
 
 export type View = "signin" | "dashboard" | "ksb" | "add" | "repo" | "coverage";
 
-export type Category = "Knowledge" | "Skill" | "Behaviour";
-
-export type RouteKey = "portfolio" | "project" | "both";
+// Category, Ksb and SubPoint now belong to the occupational standard rather than
+// the app — see lib/standards. Import them from there.
+export type { Category, Ksb, SubPoint } from "./standards/types";
 
 export type EvidenceType = "github" | "reflection" | "upload";
 
@@ -17,23 +17,6 @@ export type EvidenceStatus = "Draft" | "Submitted" | "Approved" | "Changes";
 
 /** Derived KSB roll-up status (never stored twice — computed from evidence). */
 export type KsbStatusKey = "notstarted" | "inprogress" | "submitted" | "approved";
-
-export interface SubPoint {
-  id: string;
-  text: string;
-}
-
-export interface Ksb {
-  id: string;
-  cat: Category;
-  route: RouteKey;
-  /** The standard's full statement. */
-  title: string;
-  /** Short human-readable name for tables and headers. */
-  short: string;
-  /** Only K3, K4, K5 carry sub-points. */
-  points?: SubPoint[];
-}
 
 export interface Evidence {
   id: string;

@@ -1,18 +1,37 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
-import { KSBS } from "../ksbs";
-import { todayLabel } from "../domain";
+import { rootOf, todayLabel } from "../domain";
+import { ksbIndex, validKsbIds, type Standard } from "../standards";
 import type { Evidence, EvidenceStatus, EvidenceType } from "../types";
 import { MAX_UPLOAD_BYTES, MAX_UPLOAD_MB, base64Bytes, sanitizeFileName } from "./uploads";
 
 // Server-side validation for POST /api/evidence. The client is untrusted: it
 // supplies `title`/`type`/`ksbIds`/`status`/`id`/`fileName` verbatim, so every
 // field is checked here before anything is committed to the learner's repo.
+//
+// Which ids are valid depends on the portfolio's standard, so the caller resolves
+// it (from the repo's datafolio.yml) and passes it in.
 
-/** Every id an item may legitimately map to: KSB codes plus sub-point ids. */
-const VALID_KSB_IDS: ReadonlySet<string> = new Set(
-  KSBS.flatMap((k) => [k.id, ...(k.points ?? []).map((p) => p.id)]),
-);
+/**
+ * Filter a client-supplied id list to those this standard actually assesses by a
+ * method that collects evidence.
+ *
+ * Sub-points are checked against their own methods, not the parent's: K3.1 is
+ * knowledge-test only even though K3 is also professional discussion.
+ */
+function acceptableIds(standard: Standard, raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  const valid = validKsbIds(standard);
+  const byId = ksbIndex(standard);
+  return raw.filter((x): x is string => {
+    if (typeof x !== "string" || !valid.has(x)) return false;
+    const parent = byId[rootOf(x)];
+    if (!parent) return false;
+    const point = parent.points?.find((p) => p.id === x);
+    const methods = point ? point.methods : parent.methods;
+    return methods.some((m) => standard.methods[m]?.collectsEvidence);
+  });
+}
 
 const TITLE_MAX = 200;
 const URL_MAX = 500;
@@ -45,7 +64,10 @@ function str(v: unknown): string {
  * assigned server-side, so a learner cannot shadow an existing id or POST a
  * born-Approved item; the upload filename is sanitised and size-capped.
  */
-export function validateNewEvidence(body: unknown): ValidatedEvidence {
+export function validateNewEvidence(
+  body: unknown,
+  standard: Standard,
+): ValidatedEvidence {
   const b = (body ?? {}) as RawBody;
   const raw = b.item;
   if (!raw || typeof raw !== "object") {
@@ -64,9 +86,7 @@ export function validateNewEvidence(body: unknown): ValidatedEvidence {
     return { ok: false, error: "Invalid evidence type" };
   }
 
-  const ksbIds = Array.isArray(r.ksbIds)
-    ? r.ksbIds.filter((x): x is string => typeof x === "string" && VALID_KSB_IDS.has(x))
-    : [];
+  const ksbIds = acceptableIds(standard, r.ksbIds);
   if (!ksbIds.length) {
     return { ok: false, error: "Map the evidence to at least one KSB or sub-point" };
   }
@@ -128,7 +148,7 @@ const CONTENT_FIELDS = ["title", "url", "note", "ksbIds"] as const;
  */
 export function validateEvidencePatch(
   body: unknown,
-  { isOwner }: { isOwner: boolean },
+  { isOwner, standard }: { isOwner: boolean; standard: Standard },
 ): ValidatedPatch {
   const raw = (body as { patch?: unknown } | null)?.patch;
   if (!raw || typeof raw !== "object") {
@@ -159,9 +179,7 @@ export function validateEvidencePatch(
     patch.feedback = str(r.feedback).slice(0, FEEDBACK_MAX);
   }
   if ("ksbIds" in r) {
-    const ksbIds = Array.isArray(r.ksbIds)
-      ? r.ksbIds.filter((x): x is string => typeof x === "string" && VALID_KSB_IDS.has(x))
-      : [];
+    const ksbIds = acceptableIds(standard, r.ksbIds);
     if (!ksbIds.length) {
       return { ok: false, error: "Map the evidence to at least one KSB or sub-point" };
     }

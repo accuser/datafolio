@@ -1,14 +1,15 @@
 "use client";
 
 import { useState, type CSSProperties } from "react";
+import { notFound } from "next/navigation";
 import { useApp } from "@/lib/state";
-import { KSB_BY_ID, KSBS } from "@/lib/ksbs";
+import { collectsEvidence, ksbIndex } from "@/lib/standards";
 import {
   evFor,
   evForPoint,
   evMeta,
   ksbStatusKey,
-  routeMeta,
+  ksbMethods,
   statusMeta,
   typeInfo,
 } from "@/lib/domain";
@@ -322,13 +323,25 @@ function cardActionStyle(
 
 export function KsbDetail({ ksbId }: { ksbId: string }) {
   const { state, actions } = useApp();
-  const { evidence, role } = state;
-  const sel = KSB_BY_ID[ksbId] || KSBS[0];
+  const { evidence, role, standard } = state;
+  // An id that isn't in this portfolio's standard is a 404, not K1. Falling back
+  // to the first KSB would silently mask a bad link or a mis-mapped standard.
+  const sel = ksbIndex(standard)[ksbId];
   const isLearner = role === "learner";
+
+  // Wait for the standard to arrive before deciding: on first paint state holds
+  // the default standard, so a valid code from another standard would 404.
+  if (!sel) {
+    if (state.loading) return null;
+    notFound();
+  }
 
   const sk = ksbStatusKey(evidence, sel.id);
   const m = statusMeta(sk);
-  const rm = routeMeta(sel.route);
+  const methods = ksbMethods(standard, sel);
+  // A KSB assessed only by methods that collect no evidence (the knowledge test)
+  // has nothing for the learner to submit, so don't offer to add any.
+  const collectsHere = collectsEvidence(standard, sel);
   const pts = sel.points || [];
   const coveredN = pts.filter((p) => evForPoint(evidence, p.id).length).length;
   const ev = evFor(evidence, sel.id);
@@ -388,11 +401,13 @@ export function KsbDetail({ ksbId }: { ksbId: string }) {
                 textTransform: "uppercase",
               }}
             >
-              {sel.cat}
+              {sel.category}
             </span>
-            <Pill bg={rm.bg} fg={rm.fg}>
-              {rm.label}
-            </Pill>
+            {methods.map((mm) => (
+              <Pill key={mm.key} bg={mm.bg} fg={mm.fg}>
+                {mm.label}
+              </Pill>
+            ))}
             <Pill bg={m.bg} fg={m.fg}>
               {m.label}
             </Pill>
@@ -407,7 +422,7 @@ export function KsbDetail({ ksbId }: { ksbId: string }) {
               textWrap: "pretty",
             }}
           >
-            {sel.title}
+            {sel.statement}
           </h1>
         </div>
       </div>
@@ -435,7 +450,7 @@ export function KsbDetail({ ksbId }: { ksbId: string }) {
           >
             How it&apos;s gathered
           </div>
-          <div style={{ fontSize: 13.5, color: "#3f3f46", lineHeight: 1.5 }}>{rm.note}</div>
+          <div style={{ fontSize: 13.5, color: "#3f3f46", lineHeight: 1.5 }}>{methods.map((mm) => mm.note).join(" ")}</div>
         </div>
         <HoverDiv
           onClick={() => actions.openFolderView(sel.id)}
@@ -558,7 +573,7 @@ export function KsbDetail({ ksbId }: { ksbId: string }) {
           Evidence{" "}
           <span style={{ color: "#a1a1aa", fontWeight: 500 }}>{ev.length ? `· ${ev.length}` : ""}</span>
         </h2>
-        {isLearner && (
+        {isLearner && collectsHere && (
           <button
             onClick={() => actions.openAdd(sel.id)}
             style={{
@@ -593,11 +608,21 @@ export function KsbDetail({ ksbId }: { ksbId: string }) {
           }}
         >
           <div style={{ fontSize: 15, fontWeight: 600, color: "#71717a", marginBottom: 4 }}>
-            No evidence yet
+            {collectsHere ? "No evidence yet" : "No evidence needed"}
           </div>
           <div style={{ fontSize: 13.5 }}>
-            Link a GitHub artefact, write a reflection, or upload a file to start evidencing this{" "}
-            {sel.cat}.
+            {collectsHere ? (
+              <>
+                Link a GitHub artefact, write a reflection, or upload a file to start evidencing
+                this {sel.category}.
+              </>
+            ) : (
+              <>
+                This {sel.category} is assessed by{" "}
+                {methods.map((mm) => mm.label.toLowerCase()).join(" and ")} rather than through
+                your portfolio, so there is nothing to submit here.
+              </>
+            )}
           </div>
         </div>
       ) : (

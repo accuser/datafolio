@@ -28,8 +28,12 @@ export interface SessionInfo {
 export function createHttpStore(): EvidenceStore {
   return {
     async load() {
-      const { evidence } = await api<{ evidence: Evidence[] }>("/api/evidence");
-      return evidence;
+      const { evidence, standardId, manifestWarning } = await api<{
+        evidence: Evidence[];
+        standardId: string;
+        manifestWarning?: string;
+      }>("/api/evidence");
+      return { evidence, standardId, ...(manifestWarning ? { manifestWarning } : {}) };
     },
     async addEvidence(item, opts) {
       const { evidence } = await api<{ evidence: Evidence[] }>("/api/evidence", {

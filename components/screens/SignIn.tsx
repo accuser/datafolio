@@ -2,8 +2,14 @@
 
 import { useApp } from "@/lib/state";
 import { GithubMark, Lock } from "../icons";
+import { STANDARDS, STANDARD_IDS, validKsbIds } from "@/lib/standards";
 
 export function SignIn() {
+  // Pre-auth: we don't know the learner's standard yet. With a single programme
+  // registered, name it; with several, stay neutral rather than claim one.
+  const only =
+    STANDARD_IDS.length === 1 ? STANDARDS[STANDARD_IDS[0]] : null;
+
   const { actions } = useApp();
   return (
     <div className="signin-grid" style={{ minHeight: "100vh", display: "grid" }}>
@@ -51,7 +57,7 @@ export function SignIn() {
               marginBottom: 18,
             }}
           >
-            Level 6 Data Scientist · ST0585
+            {only ? `Level ${only.level} ${only.title} · ${only.reference}` : "Apprenticeship portfolio evidence"}
           </div>
           <h1
             style={{
@@ -83,9 +89,11 @@ export function SignIn() {
         <div style={{ display: "flex", gap: 28, fontSize: 13, color: "#a1a1aa" }}>
           <div>
             <span style={{ display: "block", fontSize: 22, fontWeight: 700, color: "#fafafa" }}>
-              19
+              {only ? only.ksbs.length : STANDARD_IDS.length}
             </span>
-            KSBs · 30 points
+            {only
+              ? `KSBs · ${validKsbIds(only).size} points`
+              : `standards supported`}
           </div>
           <div>
             <span style={{ display: "block", fontSize: 22, fontWeight: 700, color: "#fafafa" }}>

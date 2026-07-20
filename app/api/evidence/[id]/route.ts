@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { canWrite } from "@/lib/github/app";
 import { resolveRepoContext } from "@/lib/github/request-context";
-import { createGitHubStore } from "@/lib/data/github-store";
+import { createGitHubStore, resolveStandard } from "@/lib/data/github-store";
 import { storeErrorResponse } from "@/lib/data/error-response";
 import { validateEvidencePatch } from "@/lib/data/validation";
 
@@ -26,7 +26,11 @@ export async function PATCH(
   // write rules (a learner may not set coach feedback; editing content downgrades
   // status) are enforced in validateEvidencePatch given this flag.
   const isOwner = ctx.login.toLowerCase() === ctx.owner.toLowerCase();
-  const valid = validateEvidencePatch(await request.json().catch(() => null), { isOwner });
+  const standard = await resolveStandard(ctx);
+  const valid = validateEvidencePatch(await request.json().catch(() => null), {
+    isOwner,
+    standard,
+  });
   if (!valid.ok) {
     return NextResponse.json({ error: valid.error }, { status: valid.status ?? 400 });
   }

@@ -2,7 +2,6 @@
 
 import type { CSSProperties } from "react";
 import { useApp } from "@/lib/state";
-import { KSBS } from "@/lib/ksbs";
 import { evFor, ksbStatusKey, statusMeta } from "@/lib/domain";
 import { InlineCode, Pill, mono } from "../ui";
 import { HoverDiv } from "../Hover";
@@ -20,9 +19,9 @@ const FILE_ROW: CSSProperties = {
 
 export function Repository() {
   const { state, user, actions } = useApp();
-  const { evidence, openFolders } = state;
+  const { evidence, openFolders, standard } = state;
 
-  const withEv = KSBS.filter((k) => evFor(evidence, k.id).length);
+  const withEv = standard.ksbs.filter((k) => evFor(evidence, k.id).length);
 
   return (
     <div style={{ padding: "28px 0 64px" }}>

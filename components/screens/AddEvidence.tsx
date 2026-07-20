@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, type CSSProperties } from "react";
 import { useApp } from "@/lib/state";
-import { KSBS } from "@/lib/ksbs";
 import { rootOf, typeInfo } from "@/lib/domain";
 import type { EvidenceType } from "@/lib/types";
 import { mono } from "../ui";
@@ -35,6 +34,7 @@ const TYPE_CARDS: { key: EvidenceType; label: string; desc: string }[] = [
 export function AddEvidence({ ksbId, editId }: { ksbId: string; editId?: string }) {
   const { state, actions } = useApp();
   const form = state.form;
+  const standard = state.standard;
 
   // Build the form from the route once (per add/edit target). For an edit we
   // wait until the target item has loaded, so a deep link / refresh still works.
@@ -75,14 +75,20 @@ export function AddEvidence({ ksbId, editId }: { ksbId: string; editId?: string 
       : "e.g. Feature engineering notebook";
 
   // Untagged KSBs and (indented) their sub-points, for the mapping <select>.
+  // Only those assessed by a method that collects evidence are offerable — a
+  // knowledge-test-only KSB has nothing for the learner to submit.
+  const collects = (methods: string[]) =>
+    methods.some((mk) => standard.methods[mk]?.collectsEvidence);
+
   const options: { id: string; label: string }[] = [];
-  KSBS.forEach((k) => {
-    if (!form.ksbIds.includes(k.id)) options.push({ id: k.id, label: `${k.id} — ${k.short}` });
+  standard.ksbs.forEach((k) => {
+    if (collects(k.methods) && !form.ksbIds.includes(k.id))
+      options.push({ id: k.id, label: `${k.id} — ${k.short}` });
     (k.points || []).forEach((p) => {
-      if (!form.ksbIds.includes(p.id))
+      if (collects(p.methods) && !form.ksbIds.includes(p.id))
         options.push({
           id: p.id,
-          label: `   ${p.id} — ${p.text.slice(0, 52)}${p.text.length > 52 ? "…" : ""}`,
+          label: `   ${p.id} — ${p.text.slice(0, 52)}${p.text.length > 52 ? "…" : ""}`,
         });
     });
   });

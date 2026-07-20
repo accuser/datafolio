@@ -1,10 +1,11 @@
 import "server-only";
 import type { Octokit } from "@octokit/core";
-import { KSB_BY_ID } from "../ksbs";
 import { renderIndexMd, rootOf } from "../domain";
+import { getStandard, ksbIndex, type Ksb, type Standard } from "../standards";
+import { MANIFEST_PATH, readManifest } from "../standards/manifest";
 import { parseIndexMd } from "../github/frontmatter";
 import { sanitizeFileName } from "./uploads";
-import type { AddOptions } from "./store";
+import type { AddOptions, StoreLoad } from "./store";
 import type { Evidence } from "../types";
 
 // Server-side evidence store backed by a learner's private GitHub repo. Reads
@@ -19,9 +20,16 @@ export interface GitHubStoreContext {
 
 const INDEX_RE = /^evidence\/([^/]+)\/index\.md$/;
 
-/** The single folder an item is physically stored in (its primary KSB). */
+/**
+ * The single folder an item is physically stored in (its primary KSB).
+ *
+ * An item always has at least one mapping — validation rejects an empty list —
+ * so the empty case is unreachable in practice. It returns "" rather than a
+ * guessed KSB code so an unmapped item is filtered out downstream instead of
+ * being silently filed under whichever KSB happens to be first.
+ */
 function primaryRoot(item: Evidence): string {
-  return item.ksbIds.length ? rootOf(item.ksbIds[0]) : "K1";
+  return item.ksbIds.length ? rootOf(item.ksbIds[0]) : "";
 }
 
 /** Items primary to a given KSB folder (each item lives in exactly one folder). */
@@ -31,10 +39,11 @@ function primaryItems(all: Evidence[], ksbId: string): Evidence[] {
 
 /** Every KSB folder an item touches — its primary folder plus each other KSB it
  *  maps to (whose sub-point coverage / derived status changes). */
-function affectedFolders(item: Evidence): string[] {
+function affectedFolders(item: Evidence, byId: Record<string, Ksb>): string[] {
   const roots = new Set(item.ksbIds.map(rootOf));
-  roots.add(primaryRoot(item));
-  return [...roots].filter((id) => KSB_BY_ID[id]);
+  const primary = primaryRoot(item);
+  if (primary) roots.add(primary);
+  return [...roots].filter((id) => byId[id]);
 }
 
 function dedupById(items: Evidence[]): Evidence[] {
@@ -100,6 +109,36 @@ async function withConflictRetry<T>(fn: () => Promise<T>): Promise<T> {
   }
 }
 
+/**
+ * Resolve just the standard a repo follows, without loading its evidence.
+ *
+ * Write routes need this to validate a KSB mapping before they touch the store,
+ * so it reads datafolio.yml directly (one call, absent → the default standard)
+ * rather than paying for a full tree walk.
+ */
+export async function resolveStandard(
+  ctx: GitHubStoreContext,
+): Promise<Standard> {
+  const { octokit, owner, repo } = ctx;
+  try {
+    const { data } = await octokit.request(
+      "GET /repos/{owner}/{repo}/contents/{path}",
+      { owner, repo, path: MANIFEST_PATH },
+    );
+    const content =
+      typeof data === "object" && data !== null && "content" in data
+        ? String((data as { content?: unknown }).content ?? "")
+        : "";
+    const text = content
+      ? Buffer.from(content, "base64").toString("utf8")
+      : null;
+    return getStandard(readManifest(text).standardId);
+  } catch {
+    // No manifest (404) or unreadable — an ST0585 portfolio, as before.
+    return getStandard(null);
+  }
+}
+
 export function createGitHubStore(ctx: GitHubStoreContext) {
   const { octokit, owner, repo } = ctx;
 
@@ -108,9 +147,21 @@ export function createGitHubStore(ctx: GitHubStoreContext) {
     return data.default_branch;
   }
 
+  async function readBlob(sha: string): Promise<string> {
+    const { data: blob } = await octokit.request(
+      "GET /repos/{owner}/{repo}/git/blobs/{file_sha}",
+      { owner, repo, file_sha: sha },
+    );
+    return Buffer.from(blob.content, "base64").toString("utf8");
+  }
+
   async function loadAll(): Promise<{
     evidence: Evidence[];
     branch: string;
+    /** The standard this portfolio follows, per its datafolio.yml. */
+    standard: Standard;
+    /** Set when the manifest named a standard that could not be used. */
+    manifestWarning?: string;
     /** Every blob path in the tree → its sha, so a writer can spot a name that
      *  would collide with an existing file, a remap can move an uploaded file by
      *  referencing its existing blob (no re-upload), and a delete can skip paths
@@ -126,27 +177,35 @@ export function createGitHubStore(ctx: GitHubStoreContext) {
     for (const t of tree.tree) {
       if (t.type === "blob" && t.path && t.sha) blobShas.set(t.path, t.sha);
     }
+    // The manifest is read from the same tree listing, so resolving the standard
+    // costs one extra blob fetch only when the file is actually present.
+    const manifestSha = blobShas.get(MANIFEST_PATH);
+    const manifest = readManifest(
+      manifestSha ? await readBlob(manifestSha) : null,
+    );
+    const standard = getStandard(manifest.standardId);
+
     const indexFiles = tree.tree.filter(
       (t) => t.type === "blob" && t.path && t.sha && INDEX_RE.test(t.path),
     );
     const folders = await Promise.all(
-      indexFiles.map(async (f) => {
-        const { data: blob } = await octokit.request(
-          "GET /repos/{owner}/{repo}/git/blobs/{file_sha}",
-          { owner, repo, file_sha: f.sha! },
-        );
-        const md = Buffer.from(blob.content, "base64").toString("utf8");
-        return parseIndexMd(md);
-      }),
+      indexFiles.map(async (f) => parseIndexMd(await readBlob(f.sha!))),
     );
     const evidence = dedupById(folders.flatMap((p) => p.evidence));
-    return { evidence, branch, blobShas };
+    return {
+      evidence,
+      branch,
+      standard,
+      ...(manifest.warning ? { manifestWarning: manifest.warning } : {}),
+      blobShas,
+    };
   }
 
   /** Atomically commit the regenerated index.md of each affected folder (plus any
    *  uploaded file blobs) as a single commit. */
   async function commit(
     branch: string,
+    standard: Standard,
     ksbIds: string[],
     all: Evidence[],
     message: string,
@@ -173,14 +232,17 @@ export function createGitHubStore(ctx: GitHubStoreContext) {
       type: "blob";
       content?: string;
       sha?: string | null;
-    }[] = ksbIds
-      .filter((id) => KSB_BY_ID[id])
-      .map((id) => ({
-        path: `evidence/${id}/index.md`,
-        mode: "100644",
-        type: "blob",
-        content: renderIndexMd(KSB_BY_ID[id], primaryItems(all, id), all),
-      }));
+    }[] = (() => {
+      const byId = ksbIndex(standard);
+      return ksbIds
+        .filter((id) => byId[id])
+        .map((id) => ({
+          path: `evidence/${id}/index.md`,
+          mode: "100644" as const,
+          type: "blob" as const,
+          content: renderIndexMd(byId[id], primaryItems(all, id), all),
+        }));
+    })();
 
     for (const up of uploads) {
       const { data: blob } = await octokit.request(
@@ -219,9 +281,13 @@ export function createGitHubStore(ctx: GitHubStoreContext) {
   }
 
   return {
-    async load(): Promise<Evidence[]> {
-      const { evidence } = await loadAll();
-      return evidence;
+    async load(): Promise<StoreLoad> {
+      const { evidence, standard, manifestWarning } = await loadAll();
+      return {
+        evidence,
+        standardId: standard.id,
+        ...(manifestWarning ? { manifestWarning } : {}),
+      };
     },
 
     async addEvidence(item: Evidence, opts: AddOptions = {}): Promise<Evidence[]> {
@@ -232,7 +298,8 @@ export function createGitHubStore(ctx: GitHubStoreContext) {
         item = { ...item, fileName: sanitizeFileName(item.fileName) };
       }
       return withConflictRetry(async () => {
-        const { evidence: current, branch, blobShas } = await loadAll();
+        const { evidence: current, branch, standard, blobShas } = await loadAll();
+        const byId = ksbIndex(standard);
         const uploads: { path: string; contentBase64: string }[] = [];
         if (item.type === "upload" && item.fileName && opts.fileContentBase64) {
           // De-dupe against files already in the folder so a same-named upload
@@ -247,14 +314,22 @@ export function createGitHubStore(ctx: GitHubStoreContext) {
           });
         }
         const all = [item, ...current];
-        await commit(branch, affectedFolders(item), all, `Add evidence: ${item.title}`, uploads);
+        await commit(
+          branch,
+          standard,
+          affectedFolders(item, byId),
+          all,
+          `Add evidence: ${item.title}`,
+          uploads,
+        );
         return all;
       });
     },
 
     async updateEvidence(id: string, patch: Partial<Evidence>): Promise<Evidence[]> {
       return withConflictRetry(async () => {
-        const { evidence: current, branch, blobShas } = await loadAll();
+        const { evidence: current, branch, standard, blobShas } = await loadAll();
+        const byId = ksbIndex(standard);
         const target = current.find((e) => e.id === id);
         if (!target) throw new Error(`Evidence ${id} not found`);
         let updated: Evidence = { ...target, ...patch };
@@ -284,10 +359,14 @@ export function createGitHubStore(ctx: GitHubStoreContext) {
         // Regenerate the item's folders AND any it used to map to — otherwise a
         // remap leaves a stale copy in the old folder's index.md forever.
         const folders = [
-          ...new Set([...affectedFolders(target), ...affectedFolders(updated)]),
+          ...new Set([
+            ...affectedFolders(target, byId),
+            ...affectedFolders(updated, byId),
+          ]),
         ];
         await commit(
           branch,
+          standard,
           folders,
           all,
           `Review evidence: ${updated.title} → ${updated.status}`,
@@ -301,7 +380,8 @@ export function createGitHubStore(ctx: GitHubStoreContext) {
 
     async deleteEvidence(id: string): Promise<Evidence[]> {
       return withConflictRetry(async () => {
-        const { evidence: current, branch, blobShas } = await loadAll();
+        const { evidence: current, branch, standard, blobShas } = await loadAll();
+        const byId = ksbIndex(standard);
         const target = current.find((e) => e.id === id);
         if (!target) throw new Error(`Evidence ${id} not found`);
         const all = current.filter((e) => e.id !== id);
@@ -315,7 +395,8 @@ export function createGitHubStore(ctx: GitHubStoreContext) {
         const deletions = filePath && blobShas.has(filePath) ? [filePath] : [];
         await commit(
           branch,
-          affectedFolders(target),
+          standard,
+          affectedFolders(target, byId),
           all,
           `Delete evidence: ${target.title}`,
           [],

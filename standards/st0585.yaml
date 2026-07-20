@@ -1,0 +1,290 @@
+# Data Scientist (integrated degree), Level 6 — ST0585 / AP01
+#
+# KSB statements and the assessment-method mapping are transcribed verbatim from
+# Annex A of the published assessment plan:
+# https://skillsengland.education.gov.uk/media/wasakwhs/st0585_data-scientist-integrated-degree_l6_ap-for-publication_241025.pdf
+#
+# Contains public sector information licensed under the Open Government Licence v3.0.
+#
+# `short` values are DataFolio's own labels for tables and headers — they are not
+# part of the standard and may be reworded freely.
+
+id: st0585
+reference: ST0585/AP01
+title: Data Scientist (integrated degree)
+level: 6
+published: 2025-10-24
+
+assessment_methods:
+  professional_discussion:
+    label: Professional discussion
+    abbr: PD
+    note: >-
+      Explored in a professional discussion with an independent assessor,
+      underpinned by the evidence in your portfolio.
+    # Learners gather portfolio evidence against KSBs assessed this way.
+    collects_evidence: true
+    colour: { bg: "#eef2ff", fg: "#4338ca" }
+
+  report:
+    label: Report
+    abbr: Report
+    note: >-
+      Evidenced through the report on your work-based Data Science project.
+    collects_evidence: true
+    colour: { bg: "#f0fdfa", fg: "#0f766e" }
+
+  knowledge_test:
+    label: Knowledge test
+    abbr: KT
+    note: >-
+      Assessed by examination at end-point assessment. No portfolio evidence is
+      required for this method.
+    # Set to true to start collecting evidence against knowledge-test KSBs.
+    collects_evidence: false
+    colour: { bg: "#f5f3ff", fg: "#6d28d9" }
+
+ksbs:
+  # ---------------------------------------------------------------- Knowledge
+  - id: K1
+    category: Knowledge
+    short: Context of Data Science
+    methods: [professional_discussion]
+    statement: >-
+      The context of Data Science and the Data Science community in relation to
+      computer science, statistics and software engineering. How differing
+      schools of thought in these disciplines have driven new approaches to data
+      systems.
+
+  - id: K2
+    category: Knowledge
+    short: Governance, ethics & bias
+    methods: [professional_discussion]
+    statement: >-
+      How Data Science operates within the context of data governance, data
+      security, and communications. How Data Science can be applied to improve an
+      organisation's processes, operations and outputs. How data and analysis may
+      exhibit biases and prejudice. How ethics and compliance affect Data Science
+      work, and the impact of international regulations (including the General
+      Data Protection Regulation.)
+
+  - id: K3
+    category: Knowledge
+    short: Data platforms
+    methods: [professional_discussion, knowledge_test]
+    statement: >-
+      How data can be used systematically, through an awareness of key platforms
+      for data and analysis in an organisation, including:
+    points:
+      - id: K3.1
+        methods: [knowledge_test]
+        text: >-
+          Data processing and storage, including on-premise and cloud
+          technologies.
+      - id: K3.2
+        methods: [knowledge_test]
+        text: >-
+          Database systems including relational, data warehousing & online
+          analytical processing, "NoSQL" and real-time approaches; the pros and
+          cons of each approach.
+      - id: K3.3
+        methods: [professional_discussion]
+        text: >-
+          Data-driven decision making and the good use of evidence and analytics
+          in making choices and decisions.
+
+  - id: K4
+    category: Knowledge
+    short: Analytical algorithms
+    methods: [knowledge_test]
+    statement: >-
+      How to design, implement and optimise analytical algorithms – as prototypes
+      and at production scale – using:
+    points:
+      - id: K4.1
+        methods: [knowledge_test]
+        text: Statistical and mathematical models and methods.
+      - id: K4.2
+        methods: [knowledge_test]
+        text: >-
+          Advanced and predictive analytics, machine learning and artificial
+          intelligence techniques, simulations, optimisation, and automation.
+      - id: K4.3
+        methods: [knowledge_test]
+        text: >-
+          Applications such as computer vision and Natural Language Processing.
+      - id: K4.4
+        methods: [knowledge_test]
+        text: >-
+          An awareness of the computing and organisational resource constraints
+          and trade-offs involved in selecting models, algorithms and tools.
+      - id: K4.5
+        methods: [knowledge_test]
+        text: >-
+          Development standards, including programming practice, testing, source
+          control.
+
+  - id: K5
+    category: Knowledge
+    short: The data landscape
+    methods: [professional_discussion, knowledge_test]
+    statement: >-
+      The data landscape: how to critically analyse, interpret and evaluate
+      complex information from diverse datasets:
+    points:
+      - id: K5.1
+        methods: [knowledge_test]
+        text: >-
+          Sources of data including but not exclusive to files, operational
+          systems, databases, web services, open data, government data, news and
+          social media.
+      - id: K5.2
+        methods: [knowledge_test]
+        text: >-
+          Data formats, structures and data delivery methods including
+          "unstructured" data.
+      - id: K5.3
+        methods: [professional_discussion]
+        text: Common patterns in real-world data.
+
+  # ------------------------------------------------------------------- Skills
+  - id: S1
+    category: Skill
+    short: Problem framing & method
+    methods: [report]
+    statement: >-
+      Identify and clarify problems an organisation faces, and reformulate them
+      into Data Science problems. Devise solutions and make decisions in context
+      by seeking feedback from stakeholders. Apply scientific methods through
+      experiment design, measurement, hypothesis testing and delivery of results.
+      Collaborate with colleagues to gather requirements.
+
+  - id: S2
+    category: Skill
+    short: Data engineering
+    methods: [report]
+    statement: >-
+      Perform data engineering: create and handle datasets for analysis. Use
+      tools and techniques to source, access, explore, profile, pipeline,
+      combine, transform and store data, and apply governance (quality control,
+      security, privacy) to data.
+
+  - id: S3
+    category: Skill
+    short: Programming & reproducibility
+    methods: [report]
+    statement: >-
+      Identify and use an appropriate range of programming languages and tools
+      for data manipulation, analysis, visualisation, and system integration.
+      Select appropriate data structures and algorithms for the problem. Develop
+      reproducible analysis and robust code, working in accordance with software
+      development standards, including security, accessibility, code quality and
+      version control.
+
+  - id: S4
+    category: Skill
+    short: Modelling & validation
+    methods: [report]
+    statement: >-
+      Use analysis and models to inform and improve organisational outcomes,
+      building models and validating results with statistical testing: perform
+      statistical analysis, correlation vs causation, feature selection and
+      engineering, machine learning, optimisation, and simulations, using the
+      appropriate techniques for the problem.
+
+  - id: S5
+    category: Skill
+    short: Implementing solutions
+    methods: [report]
+    statement: >-
+      Implement data solutions, using relevant software engineering
+      architectures and design patterns. Evaluate Cloud vs. on-premise
+      deployment. Determine the implicit and explicit value of data. Assess value
+      for money and Return on Investment. Scale a system up/out. Evaluate
+      emerging trends and new approaches. Compare the pros and cons of software
+      applications and techniques.
+
+  - id: S6
+    category: Skill
+    short: Communication & storytelling
+    methods: [professional_discussion, report]
+    statement: >-
+      Find, present, communicate and disseminate outputs effectively and with
+      high impact through creative storytelling, tailoring the message for the
+      audience. Use the best medium for each audience, such as technical writing,
+      reporting and dashboards. Visualise data to tell compelling and actionable
+      narratives. Make recommendations to decision makers to contribute towards
+      the achievement of organisation goals.
+
+  - id: S7
+    category: Skill
+    short: Collaborative relationships
+    methods: [professional_discussion]
+    statement: >-
+      Develop and maintain collaborative relationships at strategic and
+      operational levels, using methods of organisational empathy (human,
+      organisation and technical) and build relationships through active
+      listening and trust development.
+
+  - id: S8
+    category: Skill
+    short: Project delivery
+    methods: [report]
+    statement: >-
+      Use project delivery techniques and tools appropriate to their Data Science
+      project and organisation. Plan, organise and manage resources to
+      successfully run a small Data Science project, achieve organisational goals
+      and enable effective change.
+
+  # --------------------------------------------------------------- Behaviours
+  - id: B1
+    category: Behaviour
+    short: Inquisitive approach
+    methods: [professional_discussion]
+    statement: >-
+      An inquisitive approach: the curiosity to explore new questions,
+      opportunities, data, and techniques; tenacity to improve methods and
+      maximise insights; and relentless creativity in their approach to
+      solutions.
+
+  - id: B2
+    category: Behaviour
+    short: Empathy & engagement
+    methods: [professional_discussion]
+    statement: >-
+      Empathy and positive engagement to enable working and collaborating in
+      multidisciplinary teams, championing and highlighting ethics and diversity
+      in data work.
+
+  - id: B3
+    category: Behaviour
+    short: Adaptability
+    methods: [professional_discussion]
+    statement: >-
+      Adaptability and dynamism when responding to varied tasks and
+      organisational timescales, and pragmatism in the face of real-world
+      scenarios.
+
+  - id: B4
+    category: Behaviour
+    short: Organisational context
+    methods: [professional_discussion, report]
+    statement: Consideration of problems in the context of organisation goals.
+
+  - id: B5
+    category: Behaviour
+    short: Scientific integrity
+    methods: [report]
+    statement: >-
+      An impartial, scientific, hypothesis-driven approach to work, rigorous data
+      analysis methods, and integrity in presenting data and conclusions in a
+      truthful and appropriate manner.
+
+  - id: B6
+    category: Behaviour
+    short: Continuous development
+    methods: [professional_discussion]
+    statement: >-
+      A commitment to keeping up to date with current thinking and maintaining
+      personal development. Including collaborating with the data science
+      community.

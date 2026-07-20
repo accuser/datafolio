@@ -15,6 +15,7 @@ import { createMockStore, type EvidenceStore } from "./data/store";
 import { createHttpStore, fetchSession, selectPortfolio } from "./data/http-store";
 import { MAX_UPLOAD_BYTES, MAX_UPLOAD_MB } from "./data/uploads";
 import { SEED_EVIDENCE, SEED_USER } from "./data/seed";
+import { DEFAULT_STANDARD_ID, getStandard, type Standard } from "./standards";
 import type {
   Evidence,
   EvidenceForm,
@@ -30,7 +31,8 @@ export type StatusFilter =
   | "inprogress"
   | "approved"
   | "notstarted";
-export type RouteFilter = "all" | "portfolio" | "project";
+/** "all", or an assessment-method key from the active standard. */
+export type RouteFilter = string;
 
 /** 'github' drives the app off the backend proxy (real repos); anything else
  *  uses the in-memory mock so the UX demo runs with no configuration. */
@@ -58,7 +60,12 @@ interface AppState {
   submitting: boolean;
   user: UserProfile;
   filter: StatusFilter;
+  /** "all", or a method key — which assessment method to narrow the KSB list to. */
   routeFilter: RouteFilter;
+  /** The occupational standard this portfolio follows. */
+  standard: Standard;
+  /** Set when the repo's datafolio.yml named a standard that could not be used. */
+  manifestWarning: string | null;
   form: EvidenceForm | null;
   reviewComments: Record<string, string>;
   openFolders: Record<string, boolean>;
@@ -79,6 +86,8 @@ const initialState: AppState = {
   user: SEED_USER,
   filter: "all",
   routeFilter: "all",
+  standard: getStandard(DEFAULT_STANDARD_ID),
+  manifestWarning: null,
   form: null,
   reviewComments: {},
   openFolders: {},
@@ -458,8 +467,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
             target: session.target ?? null,
           },
         });
-        const evidence = await storeRef.current.load();
-        if (!cancelled) dispatch({ type: "SET_EVIDENCE", evidence });
+        const { evidence, standardId, manifestWarning } =
+          await storeRef.current.load();
+        if (!cancelled) {
+          dispatch({ type: "SET_EVIDENCE", evidence });
+          dispatch({
+            type: "PATCH",
+            patch: {
+              standard: getStandard(standardId),
+              manifestWarning: manifestWarning ?? null,
+            },
+          });
+        }
       } catch {
         // Session/load failed — stay on the sign-in screen.
       } finally {
