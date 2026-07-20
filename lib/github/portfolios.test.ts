@@ -171,7 +171,7 @@ async function main() {
       () => fetchUserPortfolios("tok", "alice", REPO),
       stub as unknown as typeof fetch,
     );
-    assert(result.length === 50, "roster capped at MAX_PORTFOLIOS");
+    assert(result.length === 30, "roster capped at MAX_PORTFOLIOS");
     assert(result[0].owner === "alice" && result[0].role === "learner", "own portfolio survives the cap, first");
   }
 

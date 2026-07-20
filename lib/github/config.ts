@@ -31,8 +31,24 @@ function normalisePrivateKey(raw: string): string {
   return Buffer.from(trimmed, "base64").toString("utf8");
 }
 
-/** Read + validate the GitHub config, or return null if not fully configured. */
-export function getGitHubConfig(): GitHubConfig | null {
+const NOT_SET =
+  "GitHub App is not configured. Set GITHUB_APP_ID, GITHUB_APP_PRIVATE_KEY, " +
+  "GITHUB_APP_CLIENT_ID, GITHUB_APP_CLIENT_SECRET and SESSION_SECRET. " +
+  "See docs/github-app.md.";
+
+/**
+ * Why the config is unusable, separated from *whether* it is.
+ *
+ * Absent env vars are the ordinary mock-mode case; a present-but-invalid value
+ * is a deployment mistake. Both leave the app without GitHub, but only the
+ * second is worth shouting about — so the reason is carried rather than
+ * collapsed into a bare null.
+ */
+type ConfigResult =
+  | { ok: true; config: GitHubConfig }
+  | { ok: false; reason: string; misconfigured: boolean };
+
+function readConfig(): ConfigResult {
   const appId = process.env.GITHUB_APP_ID;
   const privateKeyRaw = process.env.GITHUB_APP_PRIVATE_KEY;
   const clientId = process.env.GITHUB_APP_CLIENT_ID;
@@ -40,37 +56,60 @@ export function getGitHubConfig(): GitHubConfig | null {
   const sessionSecret = process.env.SESSION_SECRET;
 
   if (!appId || !privateKeyRaw || !clientId || !clientSecret || !sessionSecret) {
-    return null;
+    return { ok: false, reason: NOT_SET, misconfigured: false };
   }
   if (sessionSecret.length < 32) {
-    throw new Error("SESSION_SECRET must be at least 32 characters.");
+    return {
+      ok: false,
+      reason: "SESSION_SECRET must be at least 32 characters.",
+      misconfigured: true,
+    };
   }
 
   return {
-    appId,
-    privateKey: normalisePrivateKey(privateKeyRaw),
-    clientId,
-    clientSecret,
-    repoName: process.env.DATAFOLIO_REPO_NAME || "portfolio-evidence",
-    baseUrl: (process.env.APP_BASE_URL || "http://localhost:3000").replace(/\/$/, ""),
-    sessionSecret,
+    ok: true,
+    config: {
+      appId,
+      privateKey: normalisePrivateKey(privateKeyRaw),
+      clientId,
+      clientSecret,
+      repoName: process.env.DATAFOLIO_REPO_NAME || "portfolio-evidence",
+      baseUrl: (process.env.APP_BASE_URL || "http://localhost:3000").replace(/\/$/, ""),
+      sessionSecret,
+    },
   };
 }
 
-/** True when the server has everything needed to talk to GitHub. */
+/** Read + validate the GitHub config, or return null if not usable. */
+export function getGitHubConfig(): GitHubConfig | null {
+  const res = readConfig();
+  return res.ok ? res.config : null;
+}
+
+/** So a misconfiguration is reported once at startup, not once per request. */
+let warned = false;
+
+/**
+ * True when the server has everything needed to talk to GitHub.
+ *
+ * Returns `false` for an invalid value rather than throwing: this is the guard
+ * four routes use to decide between GitHub mode and the mock store, and a
+ * throwing guard turned a bad SESSION_SECRET into an uncaught 500 on every
+ * request instead of the documented fallback. A misconfiguration is still
+ * loud — it just goes to the log rather than to every user's browser.
+ */
 export function isGitHubConfigured(): boolean {
-  return getGitHubConfig() !== null;
+  const res = readConfig();
+  if (!res.ok && res.misconfigured && !warned) {
+    warned = true;
+    console.error(`[datafolio] GitHub App disabled — ${res.reason}`);
+  }
+  return res.ok;
 }
 
 /** Like getGitHubConfig but throws — use in code paths that require GitHub. */
 export function requireGitHubConfig(): GitHubConfig {
-  const cfg = getGitHubConfig();
-  if (!cfg) {
-    throw new Error(
-      "GitHub App is not configured. Set GITHUB_APP_ID, GITHUB_APP_PRIVATE_KEY, " +
-        "GITHUB_APP_CLIENT_ID, GITHUB_APP_CLIENT_SECRET and SESSION_SECRET. " +
-        "See docs/github-app.md.",
-    );
-  }
-  return cfg;
+  const res = readConfig();
+  if (!res.ok) throw new Error(res.reason);
+  return res.config;
 }

@@ -18,7 +18,17 @@ const MAX_PAGES = 10;
 // provider-scale case the collaborator model doesn't target; truncating keeps
 // the learner's own portfolio (sorted first) and the alphabetically-first
 // reviewed repos rather than risking an oversized cookie.
-const MAX_PORTFOLIOS = 50;
+//
+// 50 did not fit — it sealed to ~5.5KB — and browsers drop an oversized cookie
+// silently, so a coach with a large roster completed OAuth and landed back
+// signed out with no error anywhere.
+//
+// No fixed cap can guarantee the fit, because an entry's size depends on the
+// login's length: 30 portfolios seal to ~3.5KB with 15-character logins but
+// ~4.5KB with 39-character ones (GitHub's maximum). This number is therefore
+// only a sane bound on enumeration; `fitToCookie` measures the actual sealed
+// payload at sign-in and is what guarantees the cookie survives.
+const MAX_PORTFOLIOS = 30;
 
 interface Installation {
   id: number;
