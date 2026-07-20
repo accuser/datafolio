@@ -26,7 +26,8 @@
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
     "cf:typegen": "wrangler types --env-interface CloudflareEnv",
-    "test:session": "tsx --conditions=react-server lib/session.test.ts"
+    "test:session": "tsx --conditions=react-server lib/session.test.ts",
+    "dev:mock": "NEXT_PUBLIC_DATAFOLIO_BACKEND=mock next dev --port 3100"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.10",

@@ -30,7 +30,10 @@ export function Repository() {
       <div className="repo-tree">
         <div className="repo-tree__header">
           <GithubMark size={14} color="currentColor" />
-          {user.login}/{user.repo}
+          {/* The owner is whose repo is open, not who is signed in — for a
+              reviewer those differ, and pairing their own login with the
+              learner's repo name rendered a path that doesn't exist. */}
+          {state.target?.owner ?? user.login}/{state.target?.repo ?? user.repo}
         </div>
 
         <div className="repo-tree__body">

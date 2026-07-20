@@ -2506,3 +2506,192 @@ a:hover {
 .revision-callout__btn {
   white-space: nowrap;
 }
+
+/* ── Mobile portfolio bar ────────────────────────────────────────────────────
+   The header's portfolio chip is hidden below 768px, which left a reviewer on a
+   phone with no way to see or change whose portfolio they were about to approve
+   evidence in. This bar fills exactly that gap, so it exists only where the chip
+   doesn't. */
+.portfolio-bar {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .portfolio-bar {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.8125rem;
+  }
+  .portfolio-bar__current {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    color: var(--text-muted);
+  }
+  .portfolio-bar__label {
+    flex-shrink: 0;
+  }
+  /* The owner is the safety-critical part, so it keeps full contrast and
+     weight while the surrounding label recedes. */
+  .portfolio-bar__owner {
+    font-weight: 600;
+    color: var(--text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .portfolio-bar__switch {
+    margin-left: auto;
+    flex-shrink: 0;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    border-radius: 7px;
+    padding: 4px 10px;
+    font-family: inherit;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--text);
+    cursor: pointer;
+  }
+  .portfolio-bar__switch:disabled {
+    cursor: default;
+    opacity: 0.6;
+  }
+  .portfolio-bar__list {
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 0;
+    left: 0;
+    list-style: none;
+    margin: 0;
+    padding: 6px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: var(--shadow-menu);
+    z-index: 60;
+  }
+  .portfolio-bar__item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    text-align: left;
+    border: none;
+    background: transparent;
+    border-radius: 7px;
+    padding: 10px 8px;
+    font-family: inherit;
+    font-size: 0.8125rem;
+    color: var(--text);
+    cursor: pointer;
+  }
+  .portfolio-bar__item[aria-current="true"] {
+    background: var(--accent-tint);
+  }
+  .portfolio-bar__check {
+    width: 16px;
+    display: flex;
+    justify-content: center;
+    color: var(--accent);
+    flex-shrink: 0;
+  }
+  .portfolio-bar__item-owner {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .portfolio-bar__item-role {
+    color: var(--text-muted);
+    flex-shrink: 0;
+  }
+}
+
+/* ── Session check + failed load ─────────────────────────────────────────────
+   Both stand in for a screen we must not draw: one because we don't yet know
+   who the user is, the other because we have no portfolio data and rendering
+   the empty state would read as "your evidence is gone". */
+.session-check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 100dvh;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+.session-check__spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: datafolio-spin 0.7s linear infinite;
+}
+@keyframes datafolio-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .session-check__spinner {
+    animation-duration: 2.4s;
+  }
+}
+
+.load-failed {
+  max-width: 34rem;
+  margin: 64px auto;
+  text-align: center;
+}
+.load-failed__title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0 0 10px;
+}
+.load-failed__body {
+  color: var(--text-muted);
+  margin: 0 0 8px;
+}
+.load-failed__detail {
+  color: var(--text-muted);
+  font-family: var(--font-jetbrains-mono), monospace;
+  font-size: 0.8125rem;
+  margin: 0 0 20px;
+  word-break: break-word;
+}
+
+/* A dead ?edit= link — the item was deleted since the URL was created. */
+.form-missing {
+  max-width: 30rem;
+  margin: 64px auto;
+  text-align: center;
+}
+.form-missing__title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0 0 8px;
+}
+.form-missing__body {
+  color: var(--text-muted);
+  margin: 0 0 20px;
+}
+
+/* Session check failed — distinct from "signed out", and said so. */
+.signin__notice {
+  border: 1px solid var(--warn-border, var(--border));
+  background: var(--warn-tint, var(--surface-muted));
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin: 0 0 14px;
+  font-size: 0.8125rem;
+  color: var(--text);
+}

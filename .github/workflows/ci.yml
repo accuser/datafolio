@@ -18,3 +18,6 @@ jobs:
       - run: npm run lint
       - run: npx tsc --noEmit
       - run: npm test
+      # The build catches App-Router / RSC boundary mistakes that lint, tsc and
+      # the unit tests all pass straight over.
+      - run: npm run build
