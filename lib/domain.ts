@@ -54,6 +54,21 @@ export function collectingPoints(standard: Standard, k: Ksb): SubPoint[] {
   );
 }
 
+/**
+ * Sub-points a learner can make revision cards against.
+ *
+ * Assessment methods are declared per sub-point, so a mixed KSB can be part
+ * cardable. In ST0585 it never is — every sub-pointed KSB is knowledge test or
+ * professional discussion throughout, so this filters nothing today. It exists
+ * because the granularity is real in the model, and a standard with report
+ * sub-points under a discussed KSB would seed cards for artefacts otherwise.
+ */
+export function cardablePoints(standard: Standard, k: Ksb): SubPoint[] {
+  return (k.points ?? []).filter((p) =>
+    p.methods.some((mk) => standard.methods[mk]?.supportsCards),
+  );
+}
+
 /** Derived sub-point status. Same rule as `ksbStatusKey`, but matched exactly:
  *  a sub-point is only evidenced by items that name it, not by its siblings. */
 export function pointStatusKey(evidence: Evidence[], pid: string): KsbStatusKey {

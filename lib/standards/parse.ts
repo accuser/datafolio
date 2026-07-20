@@ -84,12 +84,17 @@ export function parseStandard(yamlText: string, source: string): Standard {
     if (typeof collects !== "boolean")
       fail(`${p}.collects_evidence`, "must be true or false");
 
+    const cards = req(m, "supports_cards", p);
+    if (typeof cards !== "boolean")
+      fail(`${p}.supports_cards`, "must be true or false");
+
     methods[key] = {
       key,
       label: str(req(m, "label", p), `${p}.label`),
       abbr: str(req(m, "abbr", p), `${p}.abbr`),
       note: str(req(m, "note", p), `${p}.note`),
       collectsEvidence: collects as boolean,
+      supportsCards: cards as boolean,
       colour,
     };
   }

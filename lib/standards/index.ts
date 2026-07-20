@@ -69,3 +69,18 @@ export function collectingMethods(standard: Standard): AssessmentMethod[] {
 export function collectsEvidence(standard: Standard, ksb: Ksb): boolean {
   return ksb.methods.some((m) => standard.methods[m]?.collectsEvidence);
 }
+
+/** Methods whose KSBs are worth making revision cards for. */
+export function cardableMethods(standard: Standard): AssessmentMethod[] {
+  return Object.values(standard.methods).filter((m) => m.supportsCards);
+}
+
+/**
+ * Whether a KSB can carry revision cards. True for the examined and discussed
+ * routes and false for report-only KSBs, so this deliberately does not track
+ * `collectsEvidence`: a knowledge-test KSB collects nothing yet is the most
+ * card-worthy thing in the standard.
+ */
+export function cardable(standard: Standard, ksb: Ksb): boolean {
+  return ksb.methods.some((m) => standard.methods[m]?.supportsCards);
+}

@@ -25,6 +25,7 @@ export const STANDARDS: Record<string, Standard> = {
       "abbr": "PD",
       "note": "Explored in a professional discussion with an independent assessor, underpinned by the evidence in your portfolio.",
       "collectsEvidence": true,
+      "supportsCards": true,
       "colour": {
         "bg": "#eef2ff",
         "fg": "#4338ca"
@@ -36,6 +37,7 @@ export const STANDARDS: Record<string, Standard> = {
       "abbr": "Report",
       "note": "Evidenced through the report on your work-based Data Science project.",
       "collectsEvidence": true,
+      "supportsCards": false,
       "colour": {
         "bg": "#f0fdfa",
         "fg": "#0f766e"
@@ -47,6 +49,7 @@ export const STANDARDS: Record<string, Standard> = {
       "abbr": "KT",
       "note": "Assessed by examination at end-point assessment. No portfolio evidence is required for this method.",
       "collectsEvidence": false,
+      "supportsCards": true,
       "colour": {
         "bg": "#f5f3ff",
         "fg": "#6d28d9"

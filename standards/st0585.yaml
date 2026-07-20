@@ -24,6 +24,9 @@ assessment_methods:
       underpinned by the evidence in your portfolio.
     # Learners gather portfolio evidence against KSBs assessed this way.
     collects_evidence: true
+    # Cards here are rehearsal, not recall: prompts to help the learner talk
+    # about their own evidence fluently in the discussion.
+    supports_cards: true
     colour: { bg: "#eef2ff", fg: "#4338ca" }
 
   report:
@@ -32,6 +35,8 @@ assessment_methods:
     note: >-
       Evidenced through the report on your work-based Data Science project.
     collects_evidence: true
+    # The report is written, not recalled or discussed — nothing to drill.
+    supports_cards: false
     colour: { bg: "#f0fdfa", fg: "#0f766e" }
 
   knowledge_test:
@@ -42,6 +47,8 @@ assessment_methods:
       required for this method.
     # Set to true to start collecting evidence against knowledge-test KSBs.
     collects_evidence: false
+    # Examined KSBs collect nothing, but they are exactly what learners revise.
+    supports_cards: true
     colour: { bg: "#f5f3ff", fg: "#6d28d9" }
 
 ksbs:
