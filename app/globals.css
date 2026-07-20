@@ -2331,3 +2331,98 @@ a:hover {
   );
 }
 
+
+/* ---- Revision cards ------------------------------------------------------ */
+
+.revision-head__actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.revision-intro {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin: -6px 0 16px;
+  max-width: 68ch;
+}
+
+.revision-card {
+  padding: 16px 18px;
+}
+.revision-card__front {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  line-height: 1.45;
+}
+.revision-card__back {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border);
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+.revision-card__back--empty {
+  color: var(--text-muted);
+  font-style: italic;
+}
+.revision-card__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+.revision-card__tags {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.revision-card__actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.revision-card__source {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 2px 7px;
+}
+.revision-card__source--seed {
+  color: var(--accent-strong);
+  border-color: var(--accent-tint);
+  background: var(--accent-tint);
+}
+
+.revision-editor {
+  padding: 16px 18px;
+  margin-bottom: 12px;
+}
+.revision-editor__label {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 5px;
+}
+.revision-editor__input {
+  width: 100%;
+  margin-bottom: 12px;
+  resize: vertical;
+}
+.revision-editor__actions {
+  display: flex;
+  gap: 8px;
+}
