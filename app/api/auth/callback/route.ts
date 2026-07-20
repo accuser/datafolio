@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { getGitHubConfig } from "@/lib/github/config";
 import { fetchUserPortfolios, pickDefaultTarget } from "@/lib/github/portfolios";
-import { getSession } from "@/lib/session";
+import { fitToCookie, getSession, isValidOAuthState } from "@/lib/session";
 
 // Complete the OAuth round-trip: verify state, exchange the code for a
 // user-to-server token, read the user's identity, enumerate the portfolios they
@@ -17,10 +17,16 @@ export async function GET(req: NextRequest) {
   const session = await getSession();
   const code = req.nextUrl.searchParams.get("code");
   const state = req.nextUrl.searchParams.get("state");
-  const fail = (reason: string) =>
-    NextResponse.redirect(`${cfg.baseUrl}/?auth=${encodeURIComponent(reason)}`);
+  // Any exit from here on is a dead sign-in attempt, so the state dies with it:
+  // leaving it behind left a used-or-rejected state replayable for as long as
+  // the session survived.
+  const fail = async (reason: string) => {
+    session.oauthState = undefined;
+    await session.save();
+    return NextResponse.redirect(`${cfg.baseUrl}/?auth=${encodeURIComponent(reason)}`);
+  };
 
-  if (!code || !state || !session.oauthState || state !== session.oauthState) {
+  if (!code || !isValidOAuthState(session.oauthState, state)) {
     return fail("state");
   }
 
@@ -35,7 +41,7 @@ export async function GET(req: NextRequest) {
     }),
   });
   const tokenJson = (await tokenRes.json()) as { access_token?: string };
-  if (!tokenJson.access_token) return fail("token");
+  if (!tokenJson.access_token) return await fail("token");
 
   const userRes = await fetch("https://api.github.com/user", {
     headers: {
@@ -44,7 +50,7 @@ export async function GET(req: NextRequest) {
       "User-Agent": "DataFolio",
     },
   });
-  if (!userRes.ok) return fail("user");
+  if (!userRes.ok) return await fail("user");
   const u = (await userRes.json()) as {
     login: string;
     name: string | null;
@@ -74,7 +80,14 @@ export async function GET(req: NextRequest) {
     );
   }
   session.oauthState = undefined;
+
+  // The roster's length cap is a guess at what fits; this is the measurement.
+  // An oversized cookie is dropped by the browser without an error, which would
+  // land the user back on the sign-in screen with no way to tell why.
+  const dropped = await fitToCookie(session, cfg.sessionSecret);
   await session.save();
 
-  return NextResponse.redirect(`${cfg.baseUrl}/`);
+  const landing = new URL(`${cfg.baseUrl}/`);
+  if (dropped > 0) landing.searchParams.set("portfolios", `truncated-${dropped}`);
+  return NextResponse.redirect(landing.toString());
 }
