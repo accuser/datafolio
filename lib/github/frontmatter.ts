@@ -17,13 +17,41 @@ export interface ParsedFolder {
   ksb: string;
   type: string;
   title: string;
-  route: string;
+  /**
+   * Assessment method keys. Files written before standards were configurable
+   * carry a single `route:` scalar instead; those are mapped onto the ST0585
+   * method keys so old folders keep parsing. See `methodsFromFrontMatter`.
+   */
+  methods: string[];
   /** Repo roll-up status string, verbatim: not-started | in-progress | submitted | approved. */
   status: string;
-  subpoints: { id: string; covered: boolean }[];
+  subpoints: { id: string; methods: string[]; covered: boolean }[];
   /** Domain Evidence items, in front-matter order. */
   evidence: Evidence[];
   updated: string;
+}
+
+/**
+ * The legacy `route:` scalar, mapped to method keys.
+ *
+ * `portfolio` meant "portfolio work and professional discussion" — the two were
+ * welded together — so it maps to professional discussion alone. Nothing reads
+ * these values to make decisions (the standard is the authority on how a KSB is
+ * assessed); they exist so an un-migrated file still round-trips.
+ */
+const LEGACY_ROUTES: Record<string, string[]> = {
+  portfolio: ["professional_discussion"],
+  project: ["report"],
+  both: ["professional_discussion", "report"],
+};
+
+function methodsFromFrontMatter(fm: {
+  methods?: unknown;
+  route?: unknown;
+}): string[] {
+  if (Array.isArray(fm.methods)) return fm.methods.map((m) => String(m));
+  const route = String(fm.route ?? "").toLowerCase();
+  return LEGACY_ROUTES[route] ?? [];
 }
 
 // ---- Small converters (exported — handy for callers/tests) -----------------
@@ -115,6 +143,8 @@ interface RawFrontMatter {
   ksb?: unknown;
   type?: unknown;
   title?: unknown;
+  methods?: unknown;
+  /** Legacy: superseded by `methods`. Still read so old folders keep parsing. */
   route?: unknown;
   status?: unknown;
   subpoints?: unknown;
@@ -163,17 +193,20 @@ export function parseIndexMd(md: string): ParsedFolder {
   });
 
   const subpoints = Array.isArray(fm.subpoints)
-    ? (fm.subpoints as { id?: unknown; covered?: unknown }[]).map((s) => ({
-        id: String(s.id),
-        covered: Boolean(s.covered),
-      }))
+    ? (fm.subpoints as { id?: unknown; methods?: unknown; covered?: unknown }[]).map(
+        (s) => ({
+          id: String(s.id),
+          methods: Array.isArray(s.methods) ? s.methods.map((m) => String(m)) : [],
+          covered: Boolean(s.covered),
+        }),
+      )
     : [];
 
   return {
     ksb: String(fm.ksb ?? ""),
     type: String(fm.type ?? ""),
     title: String(fm.title ?? ""),
-    route: String(fm.route ?? ""),
+    methods: methodsFromFrontMatter(fm),
     status: String(fm.status ?? ""),
     subpoints,
     evidence,

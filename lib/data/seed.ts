@@ -13,7 +13,7 @@ export const SEED_USER: UserProfile = {
 export const SEED_EVIDENCE: Evidence[] = [
   {
     id: "e1",
-    ksbIds: ["S3", "K4.5"],
+    ksbIds: ["S3", "K3.3"],
     type: "github",
     title: "Reproducible ETL pipeline (PR #42)",
     url: "github.com/lucy-ds/portfolio-evidence/pull/42",
@@ -24,7 +24,7 @@ export const SEED_EVIDENCE: Evidence[] = [
   },
   {
     id: "e2",
-    ksbIds: ["S4", "K4.2"],
+    ksbIds: ["S4", "K5.3"],
     type: "github",
     title: "Customer churn model with statistical validation",
     url: "github.com/lucy-ds/portfolio-evidence/blob/main/models/churn.ipynb",

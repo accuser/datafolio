@@ -1,3 +1,4 @@
+import { DEFAULT_STANDARD_ID } from "../standards";
 import type { Evidence } from "../types";
 
 /**
@@ -20,9 +21,21 @@ export interface AddOptions {
   fileContentBase64?: string;
 }
 
+/**
+ * A load carries the portfolio's standard alongside its evidence: which KSBs
+ * exist, and how each is assessed, is a property of the repo (its datafolio.yml)
+ * rather than of the app.
+ */
+export interface StoreLoad {
+  evidence: Evidence[];
+  standardId: string;
+  /** Set when the repo's manifest named a standard that could not be used. */
+  manifestWarning?: string;
+}
+
 export interface EvidenceStore {
-  /** Read all evidence for the signed-in learner's repo. */
-  load(): Promise<Evidence[]>;
+  /** Read all evidence for the signed-in learner's repo, plus its standard. */
+  load(): Promise<StoreLoad>;
   /** Commit a new evidence item; resolves to the updated collection. */
   addEvidence(item: Evidence, opts?: AddOptions): Promise<Evidence[]>;
   /** Patch an existing item (coach review / edits); resolves to the collection. */
@@ -31,11 +44,14 @@ export interface EvidenceStore {
   deleteEvidence(id: string): Promise<Evidence[]>;
 }
 
-export function createMockStore(seed: Evidence[]): EvidenceStore {
+export function createMockStore(
+  seed: Evidence[],
+  standardId = DEFAULT_STANDARD_ID,
+): EvidenceStore {
   let items: Evidence[] = seed.map((e) => ({ ...e }));
   return {
     async load() {
-      return items;
+      return { evidence: items, standardId };
     },
     async addEvidence(item) {
       // Mock mode has no repo; file bytes are ignored.

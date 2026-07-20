@@ -4,16 +4,18 @@
 // Run from the datafolio project root:
 //   npx tsx lib/github/frontmatter.roundtrip.ts
 
+import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { genMd } from "../domain";
-import { KSB_BY_ID } from "../ksbs";
+import { getStandard, ksbIndex } from "../standards";
 import type { Evidence } from "../types";
 import { parseIndexMd } from "./frontmatter";
 
 // ---- Sample: a KSB WITH sub-points (K4) + 3 evidence items ------------------
 
+const KSB_BY_ID = ksbIndex(getStandard("st0585"));
 const ksb = KSB_BY_ID["K4"];
 
 const sample: Evidence[] = [
@@ -125,6 +127,43 @@ if (template.evidence.length !== 0) {
 }
 if (template.subpoints.length !== 0) {
   throw new Error(`template subpoints: expected none, got ${template.subpoints.length}`);
+}
+
+
+// ---- Legacy `route:` folders still parse -----------------------------------
+// Folders committed before standards were configurable carry a single `route:`
+// scalar instead of a `methods:` list. They must keep loading untouched.
+{
+  const legacy = [
+    "---",
+    "ksb: K1",
+    "type: Knowledge",
+    "title: The context of Data Science.",
+    "route: portfolio",
+    "status: not-started",
+    "evidence: []",
+    "updated: 2026-01-01",
+    "---",
+    "",
+    "# K1",
+  ].join("\n");
+  const p = parseIndexMd(legacy);
+  assert.deepEqual(
+    p.methods,
+    ["professional_discussion"],
+    "legacy route: portfolio maps to professional discussion",
+  );
+  assert.deepEqual(
+    parseIndexMd(legacy.replace("route: portfolio", "route: both")).methods,
+    ["professional_discussion", "report"],
+    "legacy route: both maps to both methods",
+  );
+  assert.deepEqual(
+    parseIndexMd(legacy.replace("route: portfolio", "route: project")).methods,
+    ["report"],
+    "legacy route: project maps to report",
+  );
+  console.log("LEGACY ROUTE OK");
 }
 
 console.log("ROUND-TRIP OK");

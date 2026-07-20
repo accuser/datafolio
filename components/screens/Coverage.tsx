@@ -1,8 +1,7 @@
 "use client";
 
 import { useApp } from "@/lib/state";
-import { KSBS } from "@/lib/ksbs";
-import { evFor, evForPoint, ksbStatusKey, routeMeta, statusMeta } from "@/lib/domain";
+import { evFor, evForPoint, ksbMethods, ksbStatusKey, statusMeta } from "@/lib/domain";
 import { InlineCode, Pill, mono } from "../ui";
 import { HoverDiv } from "../Hover";
 
@@ -10,7 +9,7 @@ const GRID = "64px 1fr 150px 90px 110px 150px";
 
 export function Coverage() {
   const { state, actions } = useApp();
-  const { evidence } = state;
+  const { evidence, standard } = state;
 
   return (
     <div style={{ padding: "28px 0 64px" }}>
@@ -49,15 +48,15 @@ export function Coverage() {
         >
           <div>KSB</div>
           <div>Statement</div>
-          <div>Route</div>
+          <div>Assessed by</div>
           <div style={{ textAlign: "center" }}>Evidence</div>
           <div style={{ textAlign: "center" }}>Sub-pts</div>
           <div>Status</div>
         </div>
 
-        {KSBS.map((k) => {
+        {standard.ksbs.map((k) => {
           const m = statusMeta(ksbStatusKey(evidence, k.id));
-          const rm = routeMeta(k.route);
+          const methods = ksbMethods(standard, k);
           const n = evFor(evidence, k.id).length;
           const pts = k.points || [];
           const cov = pts.filter((p) => evForPoint(evidence, p.id).length).length;
@@ -83,10 +82,12 @@ export function Coverage() {
                 </span>
               </div>
               <div style={{ color: "#3f3f46", paddingRight: 14, lineHeight: 1.4 }}>{k.short}</div>
-              <div>
-                <Pill bg={rm.bg} fg={rm.fg}>
-                  {rm.label}
-                </Pill>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                {methods.map((mm) => (
+                  <Pill key={mm.key} bg={mm.bg} fg={mm.fg}>
+                    {mm.abbr}
+                  </Pill>
+                ))}
               </div>
               <div style={{ textAlign: "center", color: "#52525b", fontWeight: 600 }}>{n}</div>
               <div style={{ textAlign: "center", color: "#52525b", fontFamily: mono }}>
@@ -109,12 +110,12 @@ export function Coverage() {
           <div style={{ fontSize: 13, color: "#52525b", lineHeight: 1.7 }}>
             <div>
               <SchemaCode>ksb</SchemaCode> · <SchemaCode>type</SchemaCode> ·{" "}
-              <SchemaCode>title</SchemaCode> · <SchemaCode>route</SchemaCode> ·{" "}
+              <SchemaCode>title</SchemaCode> · <SchemaCode>methods[]</SchemaCode> ·{" "}
               <SchemaCode>status</SchemaCode>
             </div>
             <div style={{ marginTop: 6 }}>
               <SchemaCode>subpoints[]</SchemaCode> —{" "}
-              <span style={{ color: "#71717a" }}>id, covered</span>
+              <span style={{ color: "#71717a" }}>id, methods[], covered</span>
             </div>
             <div>
               <SchemaCode>evidence[]</SchemaCode> —{" "}
@@ -157,7 +158,7 @@ export function Coverage() {
     fm = parse_front_matter(md)
     rows.append({
         "ksb": fm["ksb"],
-        "route": fm["route"],
+        "methods": fm["methods"],
         "status": fm["status"],
         "evidence": len(fm["evidence"]),
         "subpoints": covered_ratio(fm),

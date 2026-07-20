@@ -2,7 +2,7 @@
 
 import { Dialog, DialogBackdrop, DialogPanel } from "@headlessui/react";
 import { useApp } from "@/lib/state";
-import { KSB_BY_ID } from "@/lib/ksbs";
+import { ksbIndex } from "@/lib/standards";
 import { genMd } from "@/lib/domain";
 import { mono } from "./ui";
 import { FileIcon } from "./icons";
@@ -11,7 +11,7 @@ export function MdPreview() {
   const { state, actions } = useApp();
   const kid = state.mdPreviewKid;
   const open = !!kid;
-  const ksb = kid ? KSB_BY_ID[kid] : undefined;
+  const ksb = kid ? ksbIndex(state.standard)[kid] : undefined;
   const path = kid ? `evidence/${kid}/index.md` : "";
   const text = ksb ? genMd(state.evidence, ksb) : "";
 

@@ -2,12 +2,11 @@
 
 import type { CSSProperties } from "react";
 import { useApp, type RouteFilter, type StatusFilter } from "@/lib/state";
-import { KSBS } from "@/lib/ksbs";
 import {
   categoryMeta,
   evFor,
   ksbStatusKey,
-  routeMeta,
+  ksbMethods,
   statusMeta,
 } from "@/lib/domain";
 import type { Category } from "@/lib/types";
@@ -55,8 +54,9 @@ function routeChip(active: boolean): CSSProperties {
 
 export function Dashboard() {
   const { state, user, actions } = useApp();
-  const { evidence, filter, routeFilter, role } = state;
+  const { evidence, filter, routeFilter, role, standard } = state;
   const isCoach = role === "coach";
+  const KSBS = standard.ksbs;
 
   const keys = KSBS.map((k) => ksbStatusKey(evidence, k.id));
   const total = KSBS.length;
@@ -74,21 +74,25 @@ export function Dashboard() {
     { key: "approved", label: "Approved", count: approved },
     { key: "notstarted", label: "Not started", count: notstarted },
   ];
+  // One chip per assessment method the standard declares, so a standard with a
+  // different set of methods gets the right filters with no code change.
   const routeFilters: { key: RouteFilter; label: string }[] = [
-    { key: "all", label: "All routes" },
-    { key: "portfolio", label: "Portfolio" },
-    { key: "project", label: "Workplace project" },
+    { key: "all", label: "All methods" },
+    ...Object.values(standard.methods).map((m) => ({
+      key: m.key,
+      label: m.label,
+    })),
   ];
 
-  const matchRoute = (route: string) =>
-    routeFilter === "all" || route === routeFilter || route === "both";
+  const matchRoute = (methods: string[]) =>
+    routeFilter === "all" || methods.includes(routeFilter);
 
   const cats: Category[] = ["Knowledge", "Skill", "Behaviour"];
   const groups = cats
     .map((cat) => {
       const meta = categoryMeta(cat);
-      const all = KSBS.filter((k) => k.cat === cat);
-      let items = all.filter((k) => matchRoute(k.route));
+      const all = KSBS.filter((k) => k.category === cat);
+      let items = all.filter((k) => matchRoute(k.methods));
       if (filter !== "all") items = items.filter((k) => ksbStatusKey(evidence, k.id) === filter);
       return { meta, all, items };
     })
@@ -203,42 +207,33 @@ export function Dashboard() {
           marginBottom: 28,
         }}
       >
-        <div style={{ ...CARD, borderRadius: 14, padding: "16px 18px" }}>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              fontSize: 13.5,
-              fontWeight: 600,
-              color: "#3730a3",
-            }}
-          >
-            <span style={{ width: 9, height: 9, borderRadius: 9999, background: "#6366f1" }} />
-            Coach-supported portfolio
+        {Object.values(standard.methods).map((mm) => (
+          <div key={mm.key} style={{ ...CARD, borderRadius: 14, padding: "16px 18px" }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                fontSize: 13.5,
+                fontWeight: 600,
+                color: mm.colour.fg,
+              }}
+            >
+              <span
+                style={{
+                  width: 9,
+                  height: 9,
+                  borderRadius: 9999,
+                  background: mm.colour.fg,
+                }}
+              />
+              {mm.label}
+            </div>
+            <div style={{ fontSize: 13, color: "#71717a", marginTop: 5, lineHeight: 1.5 }}>
+              {mm.note}
+            </div>
           </div>
-          <div style={{ fontSize: 13, color: "#71717a", marginTop: 5, lineHeight: 1.5 }}>
-            KSBs gathered through e-portfolio work and professional discussion with your coach.
-          </div>
-        </div>
-        <div style={{ ...CARD, borderRadius: 14, padding: "16px 18px" }}>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              fontSize: 13.5,
-              fontWeight: 600,
-              color: "#0f766e",
-            }}
-          >
-            <span style={{ width: 9, height: 9, borderRadius: 9999, background: "#14b8a6" }} />
-            Workplace project
-          </div>
-          <div style={{ fontSize: 13, color: "#71717a", marginTop: 5, lineHeight: 1.5 }}>
-            KSBs evidenced through your work-based Data Science project and report.
-          </div>
-        </div>
+        ))}
       </div>
 
       {/* Filters */}
@@ -298,7 +293,7 @@ export function Dashboard() {
             {g.items.map((k) => {
               const sk = ksbStatusKey(evidence, k.id);
               const m = statusMeta(sk);
-              const rm = routeMeta(k.route);
+              const methods = ksbMethods(standard, k);
               const n = evFor(evidence, k.id).length;
               return (
                 <HoverDiv
@@ -336,11 +331,13 @@ export function Dashboard() {
                     {k.id}
                   </span>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 14, lineHeight: 1.45, color: "#3f3f46" }}>{k.title}</div>
+                    <div style={{ fontSize: 14, lineHeight: 1.45, color: "#3f3f46" }}>{k.statement}</div>
                     <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 6 }}>
-                      <Pill bg={rm.bg} fg={rm.fg}>
-                        {rm.label}
-                      </Pill>
+                      {methods.map((m) => (
+                        <Pill key={m.key} bg={m.bg} fg={m.fg}>
+                          {m.label}
+                        </Pill>
+                      ))}
                       {k.points && (
                         <span style={{ fontSize: 12, color: "#a1a1aa" }}>
                           {k.points.length} sub-points
