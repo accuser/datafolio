@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { useApp } from "@/lib/state";
 import { collectsEvidence, ksbIndex } from "@/lib/standards";
@@ -29,6 +30,12 @@ function EvidenceCard({ e, ksbId }: { e: Evidence; ksbId: string }) {
   const isCoach = state.role === "coach";
   const isLearner = state.role === "learner";
   const [confirmDelete, setConfirmDelete] = useState(false);
+  // Asking to confirm replaces the Delete button, which would otherwise drop
+  // focus to <body> and strand keyboard users mid-action.
+  const confirmRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (confirmDelete) confirmRef.current?.focus();
+  }, [confirmDelete]);
   const em = evMeta(e.status);
   const ti = typeInfo(e.type);
   const showReview = isCoach && e.status === "Submitted";
@@ -47,7 +54,7 @@ function EvidenceCard({ e, ksbId }: { e: Evidence; ksbId: string }) {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            fontSize: 16,
+            fontSize: "1rem",
             fontWeight: 700,
             flexShrink: 0,
           }}
@@ -64,12 +71,12 @@ function EvidenceCard({ e, ksbId }: { e: Evidence; ksbId: string }) {
               marginBottom: 3,
             }}
           >
-            <span style={{ fontSize: 15, fontWeight: 600, lineHeight: 1.3 }}>{e.title}</span>
+            <span style={{ fontSize: "0.9375rem", fontWeight: 600, lineHeight: 1.3 }}>{e.title}</span>
             <Pill bg={em.bg} fg={em.fg}>
               {em.label}
             </Pill>
           </div>
-          <div style={{ fontSize: 12.5, color: "#a1a1aa", fontFamily: mono }}>
+          <div style={{ fontSize: "0.8125rem", color: "#71717a", fontFamily: mono }}>
             {ti.label} · {e.date}
           </div>
 
@@ -82,7 +89,7 @@ function EvidenceCard({ e, ksbId }: { e: Evidence; ksbId: string }) {
                 display: "inline-flex",
                 alignItems: "center",
                 gap: 6,
-                fontSize: 13,
+                fontSize: "0.8125rem",
                 marginTop: 9,
                 wordBreak: "break-all",
               }}
@@ -98,7 +105,7 @@ function EvidenceCard({ e, ksbId }: { e: Evidence; ksbId: string }) {
                 display: "inline-flex",
                 alignItems: "center",
                 gap: 8,
-                fontSize: 13,
+                fontSize: "0.8125rem",
                 marginTop: 9,
                 background: "#f4f4f5",
                 borderRadius: 8,
@@ -115,7 +122,7 @@ function EvidenceCard({ e, ksbId }: { e: Evidence; ksbId: string }) {
           {e.type === "reflection" && e.note && (
             <p
               style={{
-                fontSize: 13.5,
+                fontSize: "0.875rem",
                 lineHeight: 1.6,
                 color: "#52525b",
                 margin: "10px 0 0",
@@ -138,7 +145,7 @@ function EvidenceCard({ e, ksbId }: { e: Evidence; ksbId: string }) {
             >
               <div
                 style={{
-                  fontSize: 11.5,
+                  fontSize: "0.75rem",
                   fontWeight: 700,
                   letterSpacing: "0.03em",
                   textTransform: "uppercase",
@@ -148,7 +155,7 @@ function EvidenceCard({ e, ksbId }: { e: Evidence; ksbId: string }) {
               >
                 Coach feedback
               </div>
-              <div style={{ fontSize: 13.5, lineHeight: 1.55 }}>{e.feedback}</div>
+              <div style={{ fontSize: "0.875rem", lineHeight: 1.55 }}>{e.feedback}</div>
             </div>
           )}
 
@@ -165,7 +172,7 @@ function EvidenceCard({ e, ksbId }: { e: Evidence; ksbId: string }) {
                   border: "1px solid #e4e4e7",
                   borderRadius: 9,
                   padding: "10px 12px",
-                  fontSize: 13.5,
+                  fontSize: "0.875rem",
                   fontFamily: "inherit",
                   resize: "vertical",
                   color: "#18181b",
@@ -184,7 +191,7 @@ function EvidenceCard({ e, ksbId }: { e: Evidence; ksbId: string }) {
                     border: "none",
                     borderRadius: 8,
                     padding: "9px 15px",
-                    fontSize: 13.5,
+                    fontSize: "0.875rem",
                     fontWeight: 600,
                     fontFamily: "inherit",
                     cursor: state.submitting ? "default" : "pointer",
@@ -203,7 +210,7 @@ function EvidenceCard({ e, ksbId }: { e: Evidence; ksbId: string }) {
                     border: "1px solid #fcd34d",
                     borderRadius: 8,
                     padding: "9px 15px",
-                    fontSize: 13.5,
+                    fontSize: "0.875rem",
                     fontWeight: 600,
                     fontFamily: "inherit",
                     cursor: state.submitting ? "default" : "pointer",
@@ -221,9 +228,9 @@ function EvidenceCard({ e, ksbId }: { e: Evidence; ksbId: string }) {
               <span
                 key={t}
                 style={{
-                  fontSize: 11.5,
+                  fontSize: "0.75rem",
                   fontWeight: 600,
-                  color: "#6366f1",
+                  color: "#4338ca",
                   background: "#eef2ff",
                   borderRadius: 6,
                   padding: "3px 8px",
@@ -256,20 +263,29 @@ function EvidenceCard({ e, ksbId }: { e: Evidence; ksbId: string }) {
                 </button>
               )}
               {!confirmDelete && (
-                <button
-                  onClick={() => actions.openEdit(ksbId, e.id)}
-                  disabled={state.submitting}
-                  style={cardActionStyle("#fff", "#3f3f46", state.submitting, "#e4e4e7")}
+                <Link
+                  href={`/ksb/${ksbId}/add?edit=${encodeURIComponent(e.id)}`}
+                  style={{
+                    ...cardActionStyle("#fff", "#3f3f46", false, "#e4e4e7"),
+                    display: "inline-flex",
+                    alignItems: "center",
+                    textDecoration: "none",
+                  }}
                 >
                   Edit
-                </button>
+                </Link>
               )}
               {confirmDelete ? (
                 <>
-                  <span style={{ alignSelf: "center", fontSize: 13, color: "#71717a" }}>
+                  <span
+                    role="alert"
+                    style={{ alignSelf: "center", fontSize: "0.8125rem", color: "#71717a" }}
+                  >
                     Delete this item?
                   </span>
                   <button
+                    ref={confirmRef}
+                    type="button"
                     onClick={() => actions.deleteEvidence(e.id)}
                     disabled={state.submitting}
                     style={cardActionStyle("#dc2626", "#fff", state.submitting)}
@@ -277,6 +293,7 @@ function EvidenceCard({ e, ksbId }: { e: Evidence; ksbId: string }) {
                     {state.submitting ? "Deleting…" : "Confirm delete"}
                   </button>
                   <button
+                    type="button"
                     onClick={() => setConfirmDelete(false)}
                     disabled={state.submitting}
                     style={cardActionStyle("#fff", "#3f3f46", state.submitting, "#e4e4e7")}
@@ -286,6 +303,7 @@ function EvidenceCard({ e, ksbId }: { e: Evidence; ksbId: string }) {
                 </>
               ) : (
                 <button
+                  type="button"
                   onClick={() => setConfirmDelete(true)}
                   disabled={state.submitting}
                   style={cardActionStyle("#fff", "#b91c1c", state.submitting, "#fecaca")}
@@ -314,7 +332,7 @@ function cardActionStyle(
     border: border ? `1px solid ${border}` : "none",
     borderRadius: 8,
     padding: "7px 13px",
-    fontSize: 13,
+    fontSize: "0.8125rem",
     fontWeight: 600,
     fontFamily: "inherit",
     cursor: disabled ? "default" : "pointer",
@@ -323,7 +341,7 @@ function cardActionStyle(
 }
 
 export function KsbDetail({ ksbId }: { ksbId: string }) {
-  const { state, actions } = useApp();
+  const { state } = useApp();
   const { evidence, role, standard } = state;
   // An id that isn't in this portfolio's standard is a 404, not K1. Falling back
   // to the first KSB would silently mask a bad link or a mis-mapped standard.
@@ -350,8 +368,8 @@ export function KsbDetail({ ksbId }: { ksbId: string }) {
 
   return (
     <div style={{ padding: "26px 0 64px" }}>
-      <button
-        onClick={actions.goDashboard}
+      <Link
+        href="/"
         style={{
           display: "inline-flex",
           alignItems: "center",
@@ -359,23 +377,24 @@ export function KsbDetail({ ksbId }: { ksbId: string }) {
           background: "none",
           border: "none",
           color: "#71717a",
-          fontSize: 13.5,
+          fontSize: "0.875rem",
           fontFamily: "inherit",
           cursor: "pointer",
-          padding: 0,
-          marginBottom: 22,
+          padding: "4px 2px",
+          marginBottom: 18,
+          textDecoration: "none",
         }}
       >
         <ChevronLeft size={15} />
         All KSBs
-      </button>
+      </Link>
 
       <div style={{ display: "flex", alignItems: "flex-start", gap: 18, marginBottom: 18 }}>
         <span
           style={{
-            fontSize: 15,
+            fontSize: "0.9375rem",
             fontWeight: 700,
-            color: "#4f46e5",
+            color: "#4338ca",
             background: "#eef2ff",
             borderRadius: 10,
             padding: "9px 13px",
@@ -396,9 +415,9 @@ export function KsbDetail({ ksbId }: { ksbId: string }) {
           >
             <span
               style={{
-                fontSize: 12.5,
+                fontSize: "0.8125rem",
                 fontWeight: 600,
-                color: "#a1a1aa",
+                color: "#71717a",
                 letterSpacing: "0.04em",
                 textTransform: "uppercase",
               }}
@@ -416,7 +435,7 @@ export function KsbDetail({ ksbId }: { ksbId: string }) {
           </div>
           <h1
             style={{
-              fontSize: 22,
+              fontSize: "1.375rem",
               fontWeight: 700,
               lineHeight: 1.35,
               letterSpacing: "-0.01em",
@@ -442,20 +461,20 @@ export function KsbDetail({ ksbId }: { ksbId: string }) {
         >
           <div
             style={{
-              fontSize: 11.5,
+              fontSize: "0.75rem",
               fontWeight: 700,
               letterSpacing: "0.03em",
               textTransform: "uppercase",
-              color: "#a1a1aa",
+              color: "#71717a",
               marginBottom: 4,
             }}
           >
             How it&apos;s gathered
           </div>
-          <div style={{ fontSize: 13.5, color: "#3f3f46", lineHeight: 1.5 }}>{methods.map((mm) => mm.note).join(" ")}</div>
+          <div style={{ fontSize: "0.875rem", color: "#3f3f46", lineHeight: 1.5 }}>{methods.map((mm) => mm.note).join(" ")}</div>
         </div>
         <HoverDiv
-          onClick={() => actions.openFolderView(sel.id)}
+          href={`/repository?open=${sel.id}`}
           ariaLabel={`Open the evidence/${sel.id} folder in the repository`}
           style={{
             minWidth: 260,
@@ -468,11 +487,11 @@ export function KsbDetail({ ksbId }: { ksbId: string }) {
         >
           <div
             style={{
-              fontSize: 11.5,
+              fontSize: "0.75rem",
               fontWeight: 700,
               letterSpacing: "0.03em",
               textTransform: "uppercase",
-              color: "#a1a1aa",
+              color: "#71717a",
               marginBottom: 5,
             }}
           >
@@ -484,7 +503,7 @@ export function KsbDetail({ ksbId }: { ksbId: string }) {
               alignItems: "center",
               gap: 8,
               fontFamily: mono,
-              fontSize: 13,
+              fontSize: "0.8125rem",
               color: "#4f46e5",
             }}
           >
@@ -497,9 +516,9 @@ export function KsbDetail({ ksbId }: { ksbId: string }) {
       {/* sub-points */}
       {pts.length > 0 && (
         <div style={{ marginTop: 24 }}>
-          <h2 style={{ fontSize: 15, fontWeight: 700, margin: "0 0 12px" }}>
+          <h2 style={{ fontSize: "0.9375rem", fontWeight: 700, margin: "0 0 12px" }}>
             Sub-points{" "}
-            <span style={{ color: "#a1a1aa", fontWeight: 500 }}>
+            <span style={{ color: "#71717a", fontWeight: 500 }}>
               {neededPts.length
                 ? ` — ${coveredN}/${neededPts.length} covered`
                 : " — none require portfolio evidence"}
@@ -529,7 +548,7 @@ export function KsbDetail({ ksbId }: { ksbId: string }) {
                       display: "inline-flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      fontSize: 12,
+                      fontSize: "0.75rem",
                       fontWeight: 700,
                       flexShrink: 0,
                       background: cov ? "#dcfce7" : "#f4f4f5",
@@ -541,7 +560,7 @@ export function KsbDetail({ ksbId }: { ksbId: string }) {
                   </span>
                   <span
                     style={{
-                      fontSize: 12,
+                      fontSize: "0.75rem",
                       fontWeight: 700,
                       color: "#4f46e5",
                       fontFamily: mono,
@@ -550,10 +569,10 @@ export function KsbDetail({ ksbId }: { ksbId: string }) {
                   >
                     {p.id}
                   </span>
-                  <span style={{ flex: 1, fontSize: 13.5, color: "#3f3f46", lineHeight: 1.45 }}>
+                  <span style={{ flex: 1, fontSize: "0.875rem", color: "#3f3f46", lineHeight: 1.45 }}>
                     {p.text}
                   </span>
-                  <span style={{ fontSize: 12, color: "#a1a1aa", whiteSpace: "nowrap" }}>
+                  <span style={{ fontSize: "0.75rem", color: "#71717a", whiteSpace: "nowrap" }}>
                     {n === 0 ? "—" : `${n} item${n === 1 ? "" : "s"}`}
                   </span>
                 </div>
@@ -573,13 +592,13 @@ export function KsbDetail({ ksbId }: { ksbId: string }) {
           margin: "30px 0 16px",
         }}
       >
-        <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>
+        <h2 style={{ fontSize: "1rem", fontWeight: 700, margin: 0 }}>
           Evidence{" "}
-          <span style={{ color: "#a1a1aa", fontWeight: 500 }}>{ev.length ? `· ${ev.length}` : ""}</span>
+          <span style={{ color: "#71717a", fontWeight: 500 }}>{ev.length ? `· ${ev.length}` : ""}</span>
         </h2>
         {isLearner && collectsHere && (
-          <button
-            onClick={() => actions.openAdd(sel.id)}
+          <Link
+            href={`/ksb/${sel.id}/add`}
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -589,15 +608,17 @@ export function KsbDetail({ ksbId }: { ksbId: string }) {
               border: "none",
               borderRadius: 9,
               padding: "10px 16px",
-              fontSize: 14,
+              fontSize: "0.875rem",
               fontWeight: 600,
               fontFamily: "inherit",
               cursor: "pointer",
+              textDecoration: "none",
+              whiteSpace: "nowrap",
             }}
           >
             <Plus size={16} />
             Add evidence
-          </button>
+          </Link>
         )}
       </div>
 
@@ -608,13 +629,13 @@ export function KsbDetail({ ksbId }: { ksbId: string }) {
             borderRadius: 14,
             padding: 40,
             textAlign: "center",
-            color: "#a1a1aa",
+            color: "#71717a",
           }}
         >
-          <div style={{ fontSize: 15, fontWeight: 600, color: "#71717a", marginBottom: 4 }}>
+          <div style={{ fontSize: "0.9375rem", fontWeight: 600, color: "#71717a", marginBottom: 4 }}>
             {collectsHere ? "No evidence yet" : "No evidence needed"}
           </div>
-          <div style={{ fontSize: 13.5 }}>
+          <div style={{ fontSize: "0.875rem" }}>
             {collectsHere ? (
               <>
                 Link a GitHub artefact, write a reflection, or upload a file to start evidencing

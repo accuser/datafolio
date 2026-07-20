@@ -75,7 +75,7 @@ export interface Meta {
 
 export function statusMeta(key: KsbStatusKey): Meta {
   return {
-    notstarted: { label: "Not started", bg: "#f4f4f5", fg: "#71717a" },
+    notstarted: { label: "Not started", bg: "#f4f4f5", fg: "#52525b" },
     inprogress: { label: "In progress", bg: "#fef3c7", fg: "#92400e" },
     submitted: { label: "Awaiting review", bg: "#dbeafe", fg: "#1e40af" },
     approved: { label: "Approved", bg: "#dcfce7", fg: "#166534" },
@@ -84,7 +84,7 @@ export function statusMeta(key: KsbStatusKey): Meta {
 
 export function evMeta(status: EvidenceStatus): Meta {
   return {
-    Draft: { label: "Draft", bg: "#f4f4f5", fg: "#71717a" },
+    Draft: { label: "Draft", bg: "#f4f4f5", fg: "#52525b" },
     Submitted: { label: "Awaiting review", bg: "#dbeafe", fg: "#1e40af" },
     Approved: { label: "Approved", bg: "#dcfce7", fg: "#166534" },
     Changes: { label: "Changes requested", bg: "#ffedd5", fg: "#9a3412" },
@@ -166,9 +166,11 @@ export interface CategoryMeta {
 
 export function categoryMeta(cat: Category): CategoryMeta {
   return {
-    Knowledge: { name: "Knowledge", letter: "K", fg: "#4f46e5", bg: "#eef2ff" },
-    Skill: { name: "Skills", letter: "S", fg: "#0891b2", bg: "#ecfeff" },
-    Behaviour: { name: "Behaviours", letter: "B", fg: "#9333ea", bg: "#faf5ff" },
+    // Each fg is the darkest step that clears 4.5:1 on its own tinted bg — the
+    // brighter 500-weights (#4f46e5 / #0891b2 / #9333ea) land at 3.5–4.0:1.
+    Knowledge: { name: "Knowledge", letter: "K", fg: "#4338ca", bg: "#eef2ff" },
+    Skill: { name: "Skills", letter: "S", fg: "#0e7490", bg: "#ecfeff" },
+    Behaviour: { name: "Behaviours", letter: "B", fg: "#7e22ce", bg: "#faf5ff" },
   }[cat];
 }
 
@@ -179,7 +181,7 @@ export function pill(bg: string, fg: string): CSSProperties {
     alignItems: "center",
     padding: "3px 10px",
     borderRadius: 9999,
-    fontSize: 12,
+    fontSize: "0.75rem",
     fontWeight: 600,
     lineHeight: 1.3,
     background: bg,

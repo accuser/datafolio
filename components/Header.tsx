@@ -1,20 +1,25 @@
 "use client";
 
 import { type CSSProperties, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BACKEND_MODE, useApp } from "@/lib/state";
 import { Check, GithubMark, Lock, LogOut } from "./icons";
 
 function navTab(active: boolean): CSSProperties {
   return {
+    display: "inline-flex",
+    alignItems: "center",
     border: "none",
     background: active ? "#eef2ff" : "transparent",
-    color: active ? "#4f46e5" : "#71717a",
+    // #71717a only clears 4.4:1 on the #f4f4f5-adjacent chrome; #52525b passes.
+    color: active ? "#4f46e5" : "#52525b",
     borderRadius: 8,
-    padding: "7px 13px",
-    fontSize: 13.5,
+    padding: "8px 13px",
+    fontSize: "0.875rem",
     fontWeight: 600,
     fontFamily: "inherit",
+    textDecoration: "none",
     cursor: "pointer",
   };
 }
@@ -23,13 +28,13 @@ function roleTab(active: boolean): CSSProperties {
   return {
     border: "none",
     borderRadius: 7,
-    padding: "6px 14px",
-    fontSize: 13,
+    padding: "7px 14px",
+    fontSize: "0.8125rem",
     fontWeight: 600,
     fontFamily: "inherit",
     cursor: "pointer",
     background: active ? "#fff" : "transparent",
-    color: active ? "#18181b" : "#71717a",
+    color: active ? "#18181b" : "#52525b",
     boxShadow: active ? "0 1px 3px rgba(0,0,0,.08)" : "none",
   };
 }
@@ -89,7 +94,7 @@ function PortfolioChip() {
     padding: "5px 10px",
     background: "#f4f4f5",
     borderRadius: 8,
-    fontSize: 12.5,
+    fontSize: "0.8125rem",
     color: "#52525b",
     whiteSpace: "nowrap",
   };
@@ -146,11 +151,11 @@ function PortfolioChip() {
         >
           <div
             style={{
-              fontSize: 11,
+              fontSize: "0.75rem",
               fontWeight: 600,
               letterSpacing: "0.04em",
               textTransform: "uppercase",
-              color: "#a1a1aa",
+              color: "#71717a",
               padding: "6px 8px 4px",
             }}
           >
@@ -178,7 +183,7 @@ function PortfolioChip() {
                   borderRadius: 7,
                   padding: "8px 8px",
                   fontFamily: "inherit",
-                  fontSize: 13,
+                  fontSize: "0.8125rem",
                   color: "#18181b",
                   cursor: "pointer",
                 }}
@@ -197,7 +202,7 @@ function PortfolioChip() {
                 <span style={{ flex: 1, fontWeight: 600 }}>{p.owner}</span>
                 <span
                   style={{
-                    fontSize: 11,
+                    fontSize: "0.75rem",
                     fontWeight: 600,
                     color: p.role === "learner" ? "#4f46e5" : "#71717a",
                     background: p.role === "learner" ? "#eef2ff" : "#f4f4f5",
@@ -237,9 +242,8 @@ export function Header() {
         borderBottom: "1px solid #ececec",
       }}
     >
-      <button
-        type="button"
-        onClick={actions.goDashboard}
+      <Link
+        href="/"
         aria-label="DataFolio home"
         style={{
           display: "flex",
@@ -251,6 +255,7 @@ export function Header() {
           padding: 0,
           font: "inherit",
           color: "inherit",
+          textDecoration: "none",
         }}
       >
         <span
@@ -264,27 +269,30 @@ export function Header() {
             alignItems: "center",
             justifyContent: "center",
             fontWeight: 700,
-            fontSize: 14,
+            fontSize: "0.875rem",
             color: "#fff",
           }}
         >
           D
         </span>
-        <span style={{ fontWeight: 600, fontSize: 15, letterSpacing: "-0.01em" }}>
+        <span style={{ fontWeight: 600, fontSize: "0.9375rem", letterSpacing: "-0.01em" }}>
           DataFolio
         </span>
-      </button>
+      </Link>
 
-      <nav style={{ display: "flex", gap: 2, marginLeft: 14 }}>
-        <button style={navTab(overviewActive)} onClick={actions.goDashboard}>
+      {/* Real links, so these can be opened in a new tab, previewed on hover and
+          copied from the context menu — and announced as links, with the active
+          one marked by aria-current rather than by its tint alone. */}
+      <nav aria-label="Main" style={{ display: "flex", gap: 2, marginLeft: 14 }}>
+        <Link href="/" style={navTab(overviewActive)} aria-current={overviewActive ? "page" : undefined}>
           Overview
-        </button>
-        <button style={navTab(repoActive)} onClick={actions.openRepo}>
+        </Link>
+        <Link href="/repository" style={navTab(repoActive)} aria-current={repoActive ? "page" : undefined}>
           Repository
-        </button>
-        <button style={navTab(coverageActive)} onClick={actions.openCoverage}>
+        </Link>
+        <Link href="/coverage" style={navTab(coverageActive)} aria-current={coverageActive ? "page" : undefined}>
           Coverage
-        </button>
+        </Link>
       </nav>
 
       <div style={{ flex: 1 }} />
@@ -302,7 +310,7 @@ export function Header() {
             padding: "6px 14px",
             borderRadius: 8,
             background: "#f4f4f5",
-            fontSize: 13,
+            fontSize: "0.8125rem",
             fontWeight: 600,
             color: "#52525b",
             textTransform: "capitalize",
@@ -312,19 +320,31 @@ export function Header() {
         </div>
       ) : (
         <div
+          role="group"
+          aria-label="Demo role"
           style={{
             display: "flex",
             background: "#f4f4f5",
             borderRadius: 9,
             padding: 3,
-            fontSize: 13,
+            fontSize: "0.8125rem",
             fontWeight: 500,
           }}
         >
-          <button style={roleTab(role === "learner")} onClick={() => actions.setRole("learner")}>
+          <button
+            type="button"
+            aria-pressed={role === "learner"}
+            style={roleTab(role === "learner")}
+            onClick={() => actions.setRole("learner")}
+          >
             Learner
           </button>
-          <button style={roleTab(role === "coach")} onClick={() => actions.setRole("coach")}>
+          <button
+            type="button"
+            aria-pressed={role === "coach"}
+            style={roleTab(role === "coach")}
+            onClick={() => actions.setRole("coach")}
+          >
             Coach
           </button>
         </div>
@@ -341,17 +361,18 @@ export function Header() {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            fontSize: 12.5,
+            fontSize: "0.8125rem",
             fontWeight: 600,
           }}
         >
           {user.initials}
         </div>
         <div style={{ lineHeight: 1.2 }}>
-          <div style={{ fontSize: 13, fontWeight: 600 }}>{user.name}</div>
-          <div style={{ fontSize: 11.5, color: "#a1a1aa" }}>@{user.login}</div>
+          <div style={{ fontSize: "0.8125rem", fontWeight: 600 }}>{user.name}</div>
+          <div style={{ fontSize: "0.75rem", color: "#71717a" }}>@{user.login}</div>
         </div>
         <button
+          type="button"
           onClick={actions.signOut}
           title="Sign out"
           aria-label="Sign out"

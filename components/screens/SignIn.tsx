@@ -36,12 +36,12 @@ export function SignIn() {
               alignItems: "center",
               justifyContent: "center",
               fontWeight: 700,
-              fontSize: 16,
+              fontSize: "1rem",
             }}
           >
             D
           </div>
-          <span style={{ fontWeight: 600, fontSize: 16, letterSpacing: "-0.01em" }}>
+          <span style={{ fontWeight: 600, fontSize: "1rem", letterSpacing: "-0.01em" }}>
             DataFolio
           </span>
         </div>
@@ -49,7 +49,7 @@ export function SignIn() {
         <div style={{ maxWidth: 460 }}>
           <div
             style={{
-              fontSize: 13,
+              fontSize: "0.8125rem",
               fontWeight: 600,
               letterSpacing: "0.08em",
               textTransform: "uppercase",
@@ -61,7 +61,7 @@ export function SignIn() {
           </div>
           <h1
             style={{
-              fontSize: 40,
+              fontSize: "2.5rem",
               lineHeight: 1.1,
               fontWeight: 700,
               letterSpacing: "-0.02em",
@@ -73,7 +73,7 @@ export function SignIn() {
           </h1>
           <p
             style={{
-              fontSize: 17,
+              fontSize: "1.0625rem",
               lineHeight: 1.6,
               color: "#d4d4d8",
               margin: 0,
@@ -86,9 +86,9 @@ export function SignIn() {
           </p>
         </div>
 
-        <div style={{ display: "flex", gap: 28, fontSize: 13, color: "#a1a1aa" }}>
+        <div style={{ display: "flex", gap: 28, fontSize: "0.8125rem", color: "#a1a1aa" }}>
           <div>
-            <span style={{ display: "block", fontSize: 22, fontWeight: 700, color: "#fafafa" }}>
+            <span style={{ display: "block", fontSize: "1.375rem", fontWeight: 700, color: "#fafafa" }}>
               {only ? only.ksbs.length : STANDARD_IDS.length}
             </span>
             {only
@@ -96,13 +96,13 @@ export function SignIn() {
               : `standards supported`}
           </div>
           <div>
-            <span style={{ display: "block", fontSize: 22, fontWeight: 700, color: "#fafafa" }}>
+            <span style={{ display: "block", fontSize: "1.375rem", fontWeight: 700, color: "#fafafa" }}>
               3
             </span>
             evidence types
           </div>
           <div>
-            <span style={{ display: "block", fontSize: 22, fontWeight: 700, color: "#fafafa" }}>
+            <span style={{ display: "block", fontSize: "1.375rem", fontWeight: 700, color: "#fafafa" }}>
               Private
             </span>
             your repo, your data
@@ -113,10 +113,10 @@ export function SignIn() {
       {/* Right panel */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 40 }}>
         <div style={{ width: "100%", maxWidth: 380 }}>
-          <h2 style={{ fontSize: 24, fontWeight: 700, letterSpacing: "-0.01em", margin: "0 0 8px" }}>
+          <h2 style={{ fontSize: "1.5rem", fontWeight: 700, letterSpacing: "-0.01em", margin: "0 0 8px" }}>
             Sign in
           </h2>
-          <p style={{ fontSize: 15, color: "#71717a", margin: "0 0 28px", lineHeight: 1.5 }}>
+          <p style={{ fontSize: "0.9375rem", color: "#71717a", margin: "0 0 28px", lineHeight: 1.5 }}>
             Use your GitHub account. Your evidence is stored in{" "}
             <strong style={{ color: "#3f3f46" }}>your own private repository</strong> — we
             never hold a copy.
@@ -134,7 +134,7 @@ export function SignIn() {
               border: "none",
               borderRadius: 10,
               padding: "14px 18px",
-              fontSize: 15,
+              fontSize: "0.9375rem",
               fontWeight: 600,
               fontFamily: "inherit",
               cursor: "pointer",
@@ -152,7 +152,7 @@ export function SignIn() {
               padding: "12px 14px",
               background: "#f4f4f5",
               borderRadius: 10,
-              fontSize: 13,
+              fontSize: "0.8125rem",
               color: "#52525b",
               lineHeight: 1.5,
             }}
@@ -163,7 +163,8 @@ export function SignIn() {
               access any time in GitHub settings.
             </span>
           </div>
-          <p style={{ fontSize: 13, color: "#a1a1aa", margin: "24px 0 0", textAlign: "center" }}>
+          {/* On white, unlike the #a1a1aa used on the dark hero panel. */}
+          <p style={{ fontSize: "0.8125rem", color: "#71717a", margin: "24px 0 0", textAlign: "center" }}>
             New to the programme? Fork the{" "}
             <a
               href="https://github.com/accuser/datafolio-template"

@@ -31,6 +31,7 @@ export function MdPreview() {
       >
         <DialogPanel
           aria-label={path ? `Preview of ${path}` : "File preview"}
+          className="on-dark"
           style={{
             width: "100%",
             maxWidth: 720,
@@ -52,12 +53,12 @@ export function MdPreview() {
               borderBottom: "1px solid #1e293b",
             }}
           >
-            <FileIcon size={15} color="#64748b" />
-            <span style={{ fontFamily: mono, fontSize: 13, color: "#e2e8f0" }}>{path}</span>
+            <FileIcon size={15} color="#94a3b8" />
+            <span style={{ fontFamily: mono, fontSize: "0.8125rem", color: "#e2e8f0" }}>{path}</span>
             <span
               style={{
-                fontSize: 11,
-                color: "#64748b",
+                fontSize: "0.75rem",
+                color: "#94a3b8",
                 background: "#1e293b",
                 borderRadius: 6,
                 padding: "2px 8px",
@@ -73,7 +74,7 @@ export function MdPreview() {
                 background: "none",
                 border: "none",
                 color: "#94a3b8",
-                fontSize: 20,
+                fontSize: "1.25rem",
                 lineHeight: 1,
                 cursor: "pointer",
                 fontFamily: "inherit",
@@ -82,13 +83,16 @@ export function MdPreview() {
               ×
             </button>
           </div>
+          {/* Long lines scroll horizontally; a scroll container that can't take
+              focus is unreachable for keyboard-only users. */}
           <pre
+            tabIndex={0}
             style={{
               margin: 0,
               padding: "18px 20px",
               overflow: "auto",
               fontFamily: mono,
-              fontSize: 12.5,
+              fontSize: "0.8125rem",
               lineHeight: 1.65,
               color: "#cbd5e1",
               whiteSpace: "pre",

@@ -13,7 +13,7 @@ import {
   statusMeta,
 } from "@/lib/domain";
 import type { Category } from "@/lib/types";
-import { Pill } from "../ui";
+import { LoadingState, Pill, SR_ONLY } from "../ui";
 import { ChevronRight, CheckBadge } from "../icons";
 import { HoverDiv } from "../Hover";
 
@@ -35,7 +35,7 @@ function statusChip(active: boolean): CSSProperties {
     color: active ? "#fff" : "#52525b",
     borderRadius: 9999,
     padding: "7px 14px",
-    fontSize: 13,
+    fontSize: "0.8125rem",
     fontWeight: 500,
     fontFamily: "inherit",
   };
@@ -49,7 +49,7 @@ function routeChip(active: boolean): CSSProperties {
     color: active ? "#3730a3" : "#71717a",
     borderRadius: 9999,
     padding: "7px 13px",
-    fontSize: 12.5,
+    fontSize: "0.8125rem",
     fontWeight: 600,
     fontFamily: "inherit",
   };
@@ -57,7 +57,7 @@ function routeChip(active: boolean): CSSProperties {
 
 export function Dashboard() {
   const { state, user, actions } = useApp();
-  const { evidence, filter, routeFilter, role, standard } = state;
+  const { evidence, filter, routeFilter, role, standard, loading } = state;
   const isCoach = role === "coach";
   const KSBS = standard.ksbs;
   // Which KSBs have their sub-points expanded. Sub-points are assessed
@@ -94,6 +94,7 @@ export function Dashboard() {
   const matchRoute = (methods: string[]) =>
     routeFilter === "all" || methods.includes(routeFilter);
 
+  const filtering = filter !== "all" || routeFilter !== "all";
   const cats: Category[] = ["Knowledge", "Skill", "Behaviour"];
   const groups = cats
     .map((cat) => {
@@ -104,6 +105,8 @@ export function Dashboard() {
       return { meta, all, items };
     })
     .filter((g) => g.items.length > 0);
+
+  const shown = groups.reduce((n, g) => n + g.items.length, 0);
 
   const bar = (n: number, bg: string): CSSProperties => ({
     width: (n / total) * 100 + "%",
@@ -118,13 +121,15 @@ export function Dashboard() {
     { label: "Not started", count: notstarted, color: "#d4d4d8" },
   ];
 
+  if (loading) return <LoadingState label="Loading your portfolio…" />;
+
   return (
     <div style={{ padding: "32px 0 64px" }}>
       <div style={{ marginBottom: 24 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: "#a1a1aa", letterSpacing: "0.03em" }}>
+        <div style={{ fontSize: "0.8125rem", fontWeight: 600, color: "#71717a", letterSpacing: "0.03em" }}>
           {isCoach ? "Coach view" : "Your portfolio"}
         </div>
-        <h1 style={{ fontSize: 28, fontWeight: 700, letterSpacing: "-0.02em", margin: "4px 0 0" }}>
+        <h1 style={{ fontSize: "1.75rem", fontWeight: 700, letterSpacing: "-0.02em", margin: "4px 0 0" }}>
           {isCoach ? "Review evidence" : `Welcome back, ${user.name.split(" ")[0]}`}
         </h1>
       </div>
@@ -156,7 +161,7 @@ export function Dashboard() {
           >
             <CheckBadge size={17} color="#1d4ed8" />
           </div>
-          <div style={{ fontSize: 14, color: "#1e3a8a" }}>
+          <div style={{ fontSize: "0.875rem", color: "#1e3a8a" }}>
             <strong>{awaitingReview} evidence item(s)</strong> awaiting your review across the
             portfolio.
           </div>
@@ -173,8 +178,8 @@ export function Dashboard() {
             marginBottom: 16,
           }}
         >
-          <div style={{ fontSize: 15, fontWeight: 600 }}>Overall progress</div>
-          <div style={{ fontSize: 13, color: "#71717a" }}>
+          <div style={{ fontSize: "0.9375rem", fontWeight: 600 }}>Overall progress</div>
+          <div style={{ fontSize: "0.8125rem", color: "#71717a" }}>
             <strong style={{ color: "#18181b" }}>{approved}</strong>
             {` of ${total} KSBs evidenced & approved`}
           </div>
@@ -196,7 +201,7 @@ export function Dashboard() {
           {legend.map((l) => (
             <div
               key={l.label}
-              style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 13, color: "#52525b" }}
+              style={{ display: "flex", alignItems: "center", gap: 7, fontSize: "0.8125rem", color: "#52525b" }}
             >
               <span style={dot(l.color)} />
               {l.label} <strong style={{ color: "#18181b" }}>{l.count}</strong>
@@ -221,7 +226,7 @@ export function Dashboard() {
                 display: "flex",
                 alignItems: "center",
                 gap: 8,
-                fontSize: 13.5,
+                fontSize: "0.875rem",
                 fontWeight: 600,
                 color: mm.colour.fg,
               }}
@@ -236,7 +241,7 @@ export function Dashboard() {
               />
               {mm.label}
             </div>
-            <div style={{ fontSize: 13, color: "#71717a", marginTop: 5, lineHeight: 1.5 }}>
+            <div style={{ fontSize: "0.8125rem", color: "#71717a", marginTop: 5, lineHeight: 1.5 }}>
               {mm.note}
             </div>
           </div>
@@ -254,14 +259,25 @@ export function Dashboard() {
         }}
       >
         {statusFilters.map((f) => (
-          <button key={f.key} style={statusChip(filter === f.key)} onClick={() => actions.setFilter(f.key)}>
-            {f.label} <span style={{ opacity: 0.6 }}>{f.count}</span>
+          <button
+            key={f.key}
+            type="button"
+            aria-pressed={filter === f.key}
+            style={statusChip(filter === f.key)}
+            onClick={() => actions.setFilter(f.key)}
+          >
+            {f.label} <span style={{ opacity: 0.75 }}>{f.count}</span>
           </button>
         ))}
-        <span style={{ width: 1, height: 22, background: "#e4e4e7", margin: "0 4px" }} />
+        <span
+          aria-hidden="true"
+          style={{ width: 1, height: 22, background: "#e4e4e7", margin: "0 4px" }}
+        />
         {routeFilters.map((r) => (
           <button
             key={r.key}
+            type="button"
+            aria-pressed={routeFilter === r.key}
             style={routeChip(routeFilter === r.key)}
             onClick={() => actions.setRouteFilter(r.key)}
           >
@@ -270,7 +286,63 @@ export function Dashboard() {
         ))}
       </div>
 
+      {/* Filtering swaps the list out with no visual transition, so announce the
+          new result count for anyone not watching the page. */}
+      <p aria-live="polite" style={SR_ONLY}>
+        {filtering
+          ? `${shown} of ${total} KSBs match the current filters.`
+          : `Showing all ${total} KSBs.`}
+      </p>
+
       {/* KSB groups */}
+      {/* Every group can filter down to nothing; without this the page would end
+          at the chips with no explanation and read as broken. */}
+      {!loading && groups.length === 0 && (
+        <div
+          style={{
+            border: "1.5px dashed #e4e4e7",
+            borderRadius: 14,
+            padding: 40,
+            textAlign: "center",
+          }}
+        >
+          <div style={{ fontSize: "0.9375rem", fontWeight: 600, color: "#3f3f46", marginBottom: 4 }}>
+            No KSBs match these filters
+          </div>
+          <div style={{ fontSize: "0.875rem", color: "#71717a", marginBottom: 16 }}>
+            Nothing is both{" "}
+            <strong style={{ fontWeight: 600 }}>
+              {statusFilters.find((f) => f.key === filter)?.label.toLowerCase()}
+            </strong>{" "}
+            and assessed by{" "}
+            <strong style={{ fontWeight: 600 }}>
+              {routeFilters.find((r) => r.key === routeFilter)?.label.toLowerCase()}
+            </strong>
+            .
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              actions.setFilter("all");
+              actions.setRouteFilter("all");
+            }}
+            style={{
+              background: "#4f46e5",
+              color: "#fff",
+              border: "none",
+              borderRadius: 9,
+              padding: "9px 16px",
+              fontSize: "0.875rem",
+              fontWeight: 600,
+              fontFamily: "inherit",
+              cursor: "pointer",
+            }}
+          >
+            Clear filters
+          </button>
+        </div>
+      )}
+
       {groups.map((g) => (
         <div key={g.meta.name} style={{ marginBottom: 34 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
@@ -285,15 +357,21 @@ export function Dashboard() {
                 background: g.meta.bg,
                 color: g.meta.fg,
                 fontWeight: 700,
-                fontSize: 13,
+                fontSize: "0.8125rem",
               }}
             >
               {g.meta.letter}
             </span>
-            <h2 style={{ fontSize: 15, fontWeight: 700, letterSpacing: "-0.01em", margin: 0 }}>
+            <h2 style={{ fontSize: "0.9375rem", fontWeight: 700, letterSpacing: "-0.01em", margin: 0 }}>
               {g.meta.name}
             </h2>
-            <span style={{ fontSize: 13, color: "#a1a1aa" }}>{g.all.length} KSBs</span>
+            {/* Under a filter the group shows a subset, so count what's on
+                screen — "8 KSBs" above a single row reads as a bug. */}
+            <span style={{ fontSize: "0.8125rem", color: "#71717a" }}>
+              {filtering
+                ? `${g.items.length} of ${g.all.length} KSBs`
+                : `${g.all.length} KSBs`}
+            </span>
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -305,7 +383,7 @@ export function Dashboard() {
               return (
                 <div key={k.id}>
                 <HoverDiv
-                  onClick={() => actions.openKsb(k.id)}
+                  href={`/ksb/${k.id}`}
                   style={{
                     display: "flex",
                     alignItems: "center",
@@ -324,9 +402,9 @@ export function Dashboard() {
                 >
                   <span
                     style={{
-                      fontSize: 12.5,
+                      fontSize: "0.8125rem",
                       fontWeight: 700,
-                      color: "#4f46e5",
+                      color: "#4338ca",
                       background: "#eef2ff",
                       borderRadius: 7,
                       padding: "5px 9px",
@@ -338,7 +416,7 @@ export function Dashboard() {
                     {k.id}
                   </span>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 14, lineHeight: 1.45, color: "#3f3f46" }}>{k.statement}</div>
+                    <div style={{ fontSize: "0.875rem", lineHeight: 1.45, color: "#3f3f46" }}>{k.statement}</div>
                     <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 6 }}>
                       {methods.map((m) => (
                         <Pill key={m.key} bg={m.bg} fg={m.fg}>
@@ -346,13 +424,13 @@ export function Dashboard() {
                         </Pill>
                       ))}
                       {k.points && (
-                        <span style={{ fontSize: 12, color: "#a1a1aa", whiteSpace: "nowrap" }}>
+                        <span style={{ fontSize: "0.75rem", color: "#71717a", whiteSpace: "nowrap" }}>
                           {k.points.length} sub-points
                         </span>
                       )}
                     </div>
                   </div>
-                  <span style={{ fontSize: 12.5, color: "#a1a1aa", whiteSpace: "nowrap" }}>
+                  <span style={{ fontSize: "0.8125rem", color: "#71717a", whiteSpace: "nowrap" }}>
                     {n === 0 ? "No evidence" : `${n} ${n === 1 ? "item" : "items"}`}
                   </span>
                   <Pill bg={m.bg} fg={m.fg}>
@@ -364,6 +442,7 @@ export function Dashboard() {
                   <button
                     type="button"
                     aria-expanded={!!expanded[k.id]}
+                    aria-controls={`subpoints-${k.id}`}
                     onClick={() => setExpanded((x) => ({ ...x, [k.id]: !x[k.id] }))}
                     style={{
                       display: "inline-flex",
@@ -372,8 +451,9 @@ export function Dashboard() {
                       margin: "4px 0 0 30px",
                       background: "none",
                       border: "none",
-                      padding: "2px 0",
-                      fontSize: 12,
+                      padding: "4px 2px",
+                      minHeight: 24,
+                      fontSize: "0.75rem",
                       fontFamily: "inherit",
                       color: "#71717a",
                       cursor: "pointer",
@@ -395,6 +475,7 @@ export function Dashboard() {
                 )}
                 {k.points && expanded[k.id] && (
                   <div
+                    id={`subpoints-${k.id}`}
                     style={{
                       margin: "2px 0 6px 30px",
                       borderLeft: "2px solid #ececec",
@@ -423,9 +504,9 @@ export function Dashboard() {
                         >
                           <span
                             style={{
-                              fontSize: 11.5,
+                              fontSize: "0.75rem",
                               fontWeight: 700,
-                              color: "#6366f1",
+                              color: "#4338ca",
                               minWidth: 42,
                               flexShrink: 0,
                             }}
@@ -436,7 +517,7 @@ export function Dashboard() {
                             style={{
                               flex: 1,
                               minWidth: 0,
-                              fontSize: 12.5,
+                              fontSize: "0.8125rem",
                               color: "#52525b",
                               lineHeight: 1.4,
                             }}
@@ -454,8 +535,8 @@ export function Dashboard() {
                             <>
                               <span
                                 style={{
-                                  fontSize: 12,
-                                  color: "#a1a1aa",
+                                  fontSize: "0.75rem",
+                                  color: "#71717a",
                                   whiteSpace: "nowrap",
                                   minWidth: 58,
                                   textAlign: "right",
@@ -470,8 +551,8 @@ export function Dashboard() {
                           ) : (
                             <span
                               style={{
-                                fontSize: 12,
-                                color: "#a1a1aa",
+                                fontSize: "0.75rem",
+                                color: "#71717a",
                                 whiteSpace: "nowrap",
                               }}
                             >

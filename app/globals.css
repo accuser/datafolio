@@ -88,3 +88,146 @@ a:hover {
 ::selection {
   background: #e0e7ff;
 }
+
+/* ---- Focus --------------------------------------------------------------- */
+/* The UA default ring is amber, which all but disappears on the indigo and
+   near-black surfaces this UI uses. One designed ring for every control, with a
+   white outer halo so it stays visible on dark backgrounds too. */
+
+:focus-visible {
+  outline: 2px solid #4f46e5;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* On dark panels (sign-in hero, md preview, commit preview) invert it. */
+.on-dark :focus-visible,
+.on-dark:focus-visible {
+  outline-color: #a5b4fc;
+}
+
+/* ---- Skip link ----------------------------------------------------------- */
+
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 100;
+  padding: 10px 16px;
+  background: #18181b;
+  color: #fff;
+  border-radius: 0 0 10px 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.skip-link:focus {
+  left: 0;
+  color: #fff;
+}
+
+/* ---- Coverage table ------------------------------------------------------ */
+/* A real <table> so the six columns are announced with their headers; the
+   styling below replaces what the old div grid did inline. */
+
+.cov-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 680px;
+  background: #fff;
+  font-size: 0.8125rem;
+}
+.cov-table th,
+.cov-table td {
+  text-align: left;
+  vertical-align: middle;
+  padding: 12px 10px;
+  border-bottom: 1px solid #f4f4f5;
+  font-weight: 400;
+}
+.cov-table th:first-child,
+.cov-table td:first-child {
+  padding-left: 18px;
+}
+.cov-table th:last-child,
+.cov-table td:last-child {
+  padding-right: 18px;
+}
+.cov-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #fafafa;
+  border-bottom: 1px solid #ececec;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #71717a;
+  padding-top: 11px;
+  padding-bottom: 11px;
+}
+.cov-table .num {
+  text-align: center;
+  width: 90px;
+  color: #52525b;
+}
+/* Keep the "Assessed by" heading on one line. */
+.cov-table th:nth-child(3),
+.cov-table td:nth-child(3) {
+  min-width: 116px;
+}
+.cov-table tbody tr:hover {
+  background: #fafafa;
+}
+/* Sub-point rows sit visually inside their parent KSB. */
+.cov-table tr.subpoint {
+  background: #fcfcfc;
+}
+.cov-table tr.subpoint:hover {
+  background: #f7f7f8;
+}
+.cov-table tr.subpoint th:first-child {
+  padding-left: 34px;
+}
+.cov-table tr.subpoint th,
+.cov-table tr.subpoint td {
+  padding-top: 9px;
+  padding-bottom: 9px;
+  font-size: 0.8125rem;
+  color: #71717a;
+}
+
+/* ---- Upload dropzone ----------------------------------------------------- */
+/* The file input is visually hidden but must stay focusable (display:none would
+   drop it out of the tab order entirely), so the label shows its focus ring. */
+
+.dropzone:focus-within {
+  outline: 2px solid #4f46e5;
+  outline-offset: 2px;
+}
+.dropzone input[type="file"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ---- Motion -------------------------------------------------------------- */
+
+@keyframes df-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

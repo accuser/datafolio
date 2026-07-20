@@ -1,9 +1,11 @@
 "use client";
 
 import type { CSSProperties } from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useApp } from "@/lib/state";
 import { evFor, ksbStatusKey, statusMeta } from "@/lib/domain";
-import { InlineCode, Pill, mono } from "../ui";
+import { InlineCode, LoadingState, Pill, mono } from "../ui";
 import { HoverDiv } from "../Hover";
 import { FileIcon, FolderIcon, GithubMark } from "../icons";
 
@@ -12,23 +14,29 @@ const FILE_ROW: CSSProperties = {
   alignItems: "center",
   gap: 9,
   padding: "8px 18px",
-  fontSize: 13,
+  fontSize: "0.8125rem",
   color: "#52525b",
   fontFamily: mono,
 };
 
 export function Repository() {
   const { state, user, actions } = useApp();
-  const { evidence, openFolders, standard } = state;
+  const { evidence, openFolders, standard, loading } = state;
+  // `?open=K1` lets other screens link straight to an expanded folder, so the
+  // "Repository folder" card is a real link rather than a state-then-navigate
+  // button. Toggling from here still wins, hence the explicit `false` check.
+  const linkedOpen = useSearchParams().get("open");
 
   const withEv = standard.ksbs.filter((k) => evFor(evidence, k.id).length);
 
+  if (loading) return <LoadingState label="Loading the repository…" />;
+
   return (
     <div style={{ padding: "28px 0 64px" }}>
-      <h1 style={{ fontSize: 22, fontWeight: 700, letterSpacing: "-0.01em", margin: "0 0 4px" }}>
+      <h1 style={{ fontSize: "1.375rem", fontWeight: 700, letterSpacing: "-0.01em", margin: "0 0 4px" }}>
         Repository
       </h1>
-      <p style={{ fontSize: 14, color: "#71717a", margin: "0 0 22px" }}>
+      <p style={{ fontSize: "0.875rem", color: "#71717a", margin: "0 0 22px" }}>
         Every evidence item is committed to a folder for its KSB. Uploaded files sit alongside an{" "}
         <InlineCode>index.md</InlineCode> that logs each entry.
       </p>
@@ -43,7 +51,7 @@ export function Repository() {
             background: "#fafafa",
             borderBottom: "1px solid #ececec",
             fontFamily: mono,
-            fontSize: 12.5,
+            fontSize: "0.8125rem",
             color: "#52525b",
           }}
         >
@@ -58,12 +66,12 @@ export function Repository() {
               alignItems: "center",
               gap: 10,
               padding: "9px 18px",
-              fontSize: 13.5,
+              fontSize: "0.875rem",
               color: "#3f3f46",
             }}
           >
             <FileIcon size={15} />
-            README.md <span style={{ color: "#a1a1aa" }}>— portfolio overview &amp; KSB index</span>
+            README.md <span style={{ color: "#71717a" }}>— portfolio overview &amp; KSB index</span>
           </div>
           <div
             style={{
@@ -71,7 +79,7 @@ export function Repository() {
               alignItems: "center",
               gap: 10,
               padding: "9px 18px",
-              fontSize: 13.5,
+              fontSize: "0.875rem",
               fontWeight: 600,
               color: "#18181b",
             }}
@@ -83,20 +91,20 @@ export function Repository() {
           {withEv.map((k) => {
             const items = evFor(evidence, k.id);
             const m = statusMeta(ksbStatusKey(evidence, k.id));
-            const open = !!openFolders[k.id];
+            const open = openFolders[k.id] ?? linkedOpen === k.id;
             const uploads = items.filter((e) => e.type === "upload");
             const fileCount = 1 + uploads.length;
             return (
               <div key={k.id}>
                 <HoverDiv
-                  onClick={() => actions.toggleFolder(k.id)}
+                  onClick={() => actions.setFolderOpen(k.id, !open)}
                   ariaLabel={`${open ? "Collapse" : "Expand"} the evidence/${k.id} folder`}
                   style={{
                     display: "flex",
                     alignItems: "center",
                     gap: 10,
                     padding: "9px 18px 9px 40px",
-                    fontSize: 13.5,
+                    fontSize: "0.875rem",
                     cursor: "pointer",
                   }}
                   hoverStyle={{ background: "#fafafa" }}
@@ -108,7 +116,7 @@ export function Repository() {
                     height={12}
                     viewBox="0 0 24 24"
                     fill="none"
-                    stroke="#a1a1aa"
+                    stroke="#71717a"
                     strokeWidth={2.4}
                     style={{
                       transform: open ? "rotate(90deg)" : "none",
@@ -124,7 +132,7 @@ export function Repository() {
                     {m.label}
                   </Pill>
                   <span style={{ flex: 1 }} />
-                  <span style={{ fontSize: 12, color: "#a1a1aa" }}>
+                  <span style={{ fontSize: "0.75rem", color: "#71717a" }}>
                     {fileCount} file{fileCount === 1 ? "" : "s"}
                   </span>
                 </HoverDiv>
@@ -139,7 +147,7 @@ export function Repository() {
                     >
                       <span
                         style={{
-                          fontSize: 10,
+                          fontSize: "0.6875rem",
                           fontWeight: 700,
                           color: "#0f766e",
                           background: "#f0fdfa",
@@ -150,11 +158,11 @@ export function Repository() {
                         M↓
                       </span>
                       index.md
-                      <span style={{ fontFamily: "var(--font-inter)", color: "#a1a1aa", fontSize: 12 }}>
+                      <span style={{ fontFamily: "var(--font-inter)", color: "#71717a", fontSize: "0.75rem" }}>
                         — {items.length} entr{items.length === 1 ? "y" : "ies"}
                       </span>
                       <span style={{ flex: 1 }} />
-                      <span style={{ fontFamily: "var(--font-inter)", color: "#4f46e5", fontSize: 12 }}>
+                      <span style={{ fontFamily: "var(--font-inter)", color: "#4f46e5", fontSize: "0.75rem" }}>
                         view →
                       </span>
                     </HoverDiv>
@@ -163,7 +171,7 @@ export function Repository() {
                       <div key={u.id} style={FILE_ROW}>
                         <span
                           style={{
-                            fontSize: 11,
+                            fontSize: "0.75rem",
                             color: "#b45309",
                             background: "#fffbeb",
                             borderRadius: 4,
@@ -177,22 +185,19 @@ export function Repository() {
                     ))}
 
                     <div style={{ padding: "8px 18px 12px" }}>
-                      <button
-                        type="button"
-                        onClick={() => actions.openKsb(k.id)}
+                      <Link
+                        href={`/ksb/${k.id}`}
                         style={{
-                          background: "none",
-                          border: "none",
-                          padding: 0,
+                          display: "inline-block",
+                          padding: "3px 2px",
                           color: "#4f46e5",
-                          fontSize: 12.5,
+                          fontSize: "0.8125rem",
                           fontFamily: "inherit",
-                          cursor: "pointer",
                           textDecoration: "underline",
                         }}
                       >
                         Open evidence/{k.id} in DataFolio →
-                      </button>
+                      </Link>
                     </div>
                   </div>
                 )}
@@ -201,7 +206,7 @@ export function Repository() {
           })}
 
           {withEv.length === 0 && (
-            <div style={{ padding: "20px 40px", fontSize: 13, color: "#a1a1aa" }}>
+            <div style={{ padding: "20px 40px", fontSize: "0.8125rem", color: "#71717a" }}>
               No evidence committed yet — add your first item from any KSB.
             </div>
           )}
