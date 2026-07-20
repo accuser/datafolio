@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BACKEND_MODE, useApp } from "@/lib/state";
+import { ThemeToggle } from "./ThemeToggle";
 import { Check, GithubMark, Lock, LogOut } from "./icons";
 
 // A caret that points down, rotating up when the menu is open.
@@ -165,6 +166,8 @@ export function Header() {
       <div className="row__spacer" />
 
       <PortfolioChip />
+
+      <ThemeToggle />
 
       {/* The role toggle is a demo affordance for mock mode. In GitHub mode the
           role is derived from real repo access (owner = learner, collaborator =

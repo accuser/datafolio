@@ -10,45 +10,50 @@
 
 /* ---- Design tokens ------------------------------------------------------- */
 /* Every colour in the UI resolves through one of these. Nothing below this
-   block, and nothing in the components, hard-codes a hex value — which is what
-   makes a dark palette a matter of overriding this one list.
+   block, and nothing in the components, hard-codes a hex value.
+   Each token carries both schemes as `light-dark(light, dark)`; which side
+   applies is decided by `color-scheme` on :root. There is no second palette to
+   keep in sync, and no scheme rule that has to out-specify another.
    Text tokens are ordered light-to-dark; each passes WCAG AA on --surface. */
 
 :root {
+  /* Follows the OS on its own — no attribute, no JavaScript — which is why the
+     server-rendered HTML can never flash the wrong scheme. */
+  color-scheme: light dark;
   /* Surfaces */
-  --surface: #fff;
-  --surface-page: #fafafa;
-  --surface-sunken: #fcfcfc;
-  --surface-muted: #f4f4f5;
-  --surface-hover: #fafafa;
-  --surface-hover-strong: #f7f7f8;
+  --surface: light-dark(#fff, #18181b);
+  --surface-page: light-dark(#fafafa, #0b0b0d);
+  --surface-sunken: light-dark(#fcfcfc, #141417);
+  --surface-muted: light-dark(#f4f4f5, #27272a);
+  --surface-hover: light-dark(#fafafa, #202024);
+  --surface-hover-strong: light-dark(#f7f7f8, #26262b);
 
   /* Borders, weakest first */
-  --border-faint: #f4f4f5;
-  --border: #ececec;
-  --border-strong: #e4e4e7;
-  --border-dashed: #d4d4d8;
+  --border-faint: light-dark(#f4f4f5, #1f1f23);
+  --border: light-dark(#ececec, #2a2a2f);
+  --border-strong: light-dark(#e4e4e7, #3f3f46);
+  --border-dashed: light-dark(#d4d4d8, #52525b);
 
   /* Text */
-  --text: #18181b;
-  --text-secondary: #3f3f46;
-  --text-tertiary: #52525b;
-  --text-muted: #71717a;
+  --text: light-dark(#18181b, #fafafa);
+  --text-secondary: light-dark(#3f3f46, #e4e4e7);
+  --text-tertiary: light-dark(#52525b, #c9c9d0);
+  --text-muted: light-dark(#71717a, #a1a1aa);
 
   /* Accent (indigo) */
-  --accent: #4f46e5;
-  --accent-strong: #4338ca;
-  --accent-tint: #eef2ff;
-  --accent-tint-alt: #f5f3ff;
-  --accent-ring: #c7d2fe;
+  --accent: light-dark(#4f46e5, #818cf8);
+  --accent-strong: light-dark(#4338ca, #a5b4fc);
+  --accent-tint: light-dark(#eef2ff, #1e1b4b);
+  --accent-tint-alt: light-dark(#f5f3ff, #2e1065);
+  --accent-ring: light-dark(#c7d2fe, #6366f1);
   --accent-on-dark: #a5b4fc;
-  --accent-selection: #e0e7ff;
-  --accent-shadow: rgba(79, 70, 229, 0.07);
+  --accent-selection: light-dark(#e0e7ff, #3730a3);
+  --accent-shadow: light-dark(rgba(79, 70, 229, 0.07), rgba(129, 140, 248, 0.16));
 
   /* Dark panels (code/markdown previews, sign-in hero) */
-  --dark-surface: #0f172a;
-  --dark-surface-alt: #18181b;
-  --dark-border: #1e293b;
+  --dark-surface: light-dark(#0f172a, #1e1e26);
+  --dark-surface-alt: light-dark(#18181b, #141419);
+  --dark-border: light-dark(#1e293b, #2c2c38);
   --dark-text: #cbd5e1;
   --dark-text-strong: #e2e8f0;
   --dark-text-muted: #94a3b8;
@@ -56,83 +61,83 @@
   --dark-hero-muted: #a1a1aa;
 
   /* Feedback tones. Each pairs a tint with a foreground that clears AA on it. */
-  --danger: #b91c1c;
-  --danger-strong: #dc2626;
-  --danger-tint: #fef2f2;
-  --danger-border: #fecaca;
-  --danger-text: #991b1b;
-  --warn: #b45309;
-  --warn-tint: #fffbeb;
-  --warn-border: #fcd34d;
-  --warn-text: #854d0e;
-  --changes-tint: #fff7ed;
-  --changes-text: #9a3412;
-  --success: #16a34a;
-  --success-tint: #f0fdf4;
-  --success-text: #166534;
-  --info-tint: #eff6ff;
-  --info-border: #bfdbfe;
-  --info-icon-bg: #dbeafe;
-  --info-icon: #1d4ed8;
-  --info-text: #1e3a8a;
+  --danger: light-dark(#b91c1c, #fca5a5);
+  --danger-strong: light-dark(#dc2626, #f87171);
+  --danger-tint: light-dark(#fef2f2, #2a1416);
+  --danger-border: light-dark(#fecaca, #7f1d1d);
+  --danger-text: light-dark(#991b1b, #fca5a5);
+  --warn: light-dark(#b45309, #fbbf24);
+  --warn-tint: light-dark(#fffbeb, #2a2010);
+  --warn-border: light-dark(#fcd34d, #78350f);
+  --warn-text: light-dark(#854d0e, #fcd34d);
+  --changes-tint: light-dark(#fff7ed, #2a1a10);
+  --changes-text: light-dark(#9a3412, #fdba74);
+  --success: light-dark(#16a34a, #4ade80);
+  --success-tint: light-dark(#f0fdf4, #0f2418);
+  --success-text: light-dark(#166534, #86efac);
+  --info-tint: light-dark(#eff6ff, #12203a);
+  --info-border: light-dark(#bfdbfe, #1e3a8a);
+  --info-icon-bg: light-dark(#dbeafe, #1e3a8a);
+  --info-icon: light-dark(#1d4ed8, #93c5fd);
+  --info-text: light-dark(#1e3a8a, #bfdbfe);
 
   /* Text that sits on a filled control rather than on a surface. Named for what
      it sits on, not for its colour — in dark mode the fills go light and these
      go dark, so `var(--surface)` would have been exactly wrong. */
-  --on-accent: #fff;
-  --on-success: #fff;
-  --on-danger: #fff;
+  --on-accent: light-dark(#fff, #12121a);
+  --on-success: light-dark(#fff, #052e16);
+  --on-danger: light-dark(#fff, #450a0a);
   /* Always light: it sits on a panel that is dark in both schemes. */
   --on-dark-panel: #fafafa;
   /* A surface deliberately opposite to the page (skip link, GitHub button). */
-  --invert-bg: #18181b;
-  --invert-fg: #fff;
+  --invert-bg: light-dark(#18181b, #fafafa);
+  --invert-fg: light-dark(#fff, #18181b);
 
   /* Status tones. Named pairings so a status keeps its meaning across schemes. */
-  --tone-neutral-bg: #f4f4f5;
-  --tone-neutral-fg: #52525b;
-  --tone-progress-bg: #fef3c7;
-  --tone-progress-fg: #92400e;
-  --tone-review-bg: #dbeafe;
-  --tone-review-fg: #1e40af;
-  --tone-approved-bg: #dcfce7;
-  --tone-approved-fg: #166534;
-  --tone-changes-bg: #ffedd5;
-  --tone-changes-fg: #9a3412;
+  --tone-neutral-bg: light-dark(#f4f4f5, #27272a);
+  --tone-neutral-fg: light-dark(#52525b, #d4d4d8);
+  --tone-progress-bg: light-dark(#fef3c7, #422006);
+  --tone-progress-fg: light-dark(#92400e, #fcd34d);
+  --tone-review-bg: light-dark(#dbeafe, #172554);
+  --tone-review-fg: light-dark(#1e40af, #93c5fd);
+  --tone-approved-bg: light-dark(#dcfce7, #052e16);
+  --tone-approved-fg: light-dark(#166534, #86efac);
+  --tone-changes-bg: light-dark(#ffedd5, #431407);
+  --tone-changes-fg: light-dark(#9a3412, #fdba74);
 
   /* Evidence types */
-  --type-github-bg: #e0e7ff;
-  --type-github-fg: #4338ca;
-  --type-reflection-bg: #dcfce7;
-  --type-reflection-fg: #15803d;
-  --type-upload-bg: #fef3c7;
-  --type-upload-fg: #b45309;
+  --type-github-bg: light-dark(#e0e7ff, #1e1b4b);
+  --type-github-fg: light-dark(#4338ca, #a5b4fc);
+  --type-reflection-bg: light-dark(#dcfce7, #052e16);
+  --type-reflection-fg: light-dark(#15803d, #86efac);
+  --type-upload-bg: light-dark(#fef3c7, #422006);
+  --type-upload-fg: light-dark(#b45309, #fcd34d);
 
   /* KSB categories. Each fg is the darkest step that clears 4.5:1 on its own
      tint — the brighter 500-weights land at 3.5–4.0:1. */
-  --cat-knowledge-bg: #eef2ff;
-  --cat-knowledge-fg: #4338ca;
-  --cat-skill-bg: #ecfeff;
-  --cat-skill-fg: #0e7490;
-  --cat-behaviour-bg: #faf5ff;
-  --cat-behaviour-fg: #7e22ce;
+  --cat-knowledge-bg: light-dark(#eef2ff, #1e1b4b);
+  --cat-knowledge-fg: light-dark(#4338ca, #a5b4fc);
+  --cat-skill-bg: light-dark(#ecfeff, #083344);
+  --cat-skill-fg: light-dark(#0e7490, #67e8f9);
+  --cat-behaviour-bg: light-dark(#faf5ff, #2e1065);
+  --cat-behaviour-fg: light-dark(#7e22ce, #d8b4fe);
 
-  --modal-backdrop: rgba(15, 23, 42, 0.55);
+  --modal-backdrop: light-dark(rgba(15, 23, 42, 0.55), rgba(0, 0, 0, 0.7));
 
   /* Decorative icon defaults (icons.tsx prop defaults resolve to these). */
-  --icon-muted: #a1a1aa;
-  --icon-faint: #d4d4d8;
-  --accent-soft: #6366f1;
-  --accent-deep: #3730a3;
-  --success-tint-strong: #dcfce7;
-  --md-badge-fg: #0f766e;
-  --md-badge-bg: #f0fdfa;
+  --icon-muted: light-dark(#a1a1aa, #a1a1aa);
+  --icon-faint: light-dark(#d4d4d8, #52525b);
+  --accent-soft: light-dark(#6366f1, #818cf8);
+  --accent-deep: light-dark(#3730a3, #c7d2fe);
+  --success-tint-strong: light-dark(#dcfce7, #14532d);
+  --md-badge-fg: light-dark(#0f766e, #5eead4);
+  --md-badge-bg: light-dark(#f0fdfa, #042f2e);
 
   /* Progress-bar segments. Graphical, each paired with its own text label. */
-  --seg-approved: #22c55e;
-  --seg-submitted: #3b82f6;
-  --seg-inprogress: #f59e0b;
-  --seg-notstarted: #d4d4d8;
+  --seg-approved: light-dark(#22c55e, #4ade80);
+  --seg-submitted: light-dark(#3b82f6, #60a5fa);
+  --seg-inprogress: light-dark(#f59e0b, #fbbf24);
+  --seg-notstarted: light-dark(#d4d4d8, #3f3f46);
 
   /* Radii */
   --radius-xs: 8px;
@@ -143,139 +148,25 @@
   --radius-pill: 9999px;
 
   /* Elevation */
-  --shadow-card: 0 4px 16px rgba(0, 0, 0, 0.06);
-  --shadow-menu: 0 8px 28px rgba(0, 0, 0, 0.12);
+  --shadow-card-tint: light-dark(rgba(0, 0, 0, 0.06), rgba(0, 0, 0, 0.4));
+  --shadow-card: 0 4px 16px var(--shadow-card-tint);
+  --shadow-menu-tint: light-dark(rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0.55));
+  --shadow-menu: 0 8px 28px var(--shadow-menu-tint);
   --shadow-modal: 0 24px 60px rgba(0, 0, 0, 0.4);
-  --shadow-raised: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-raised-tint: light-dark(rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.5));
+  --shadow-raised: 0 1px 3px var(--shadow-raised-tint);
   --shadow-lift: 0 2px 10px var(--accent-shadow);
 
-  color-scheme: light;
 }
 
-/* ---- Dark scheme --------------------------------------------------------- */
-/* The same token list, re-valued. No component rule below this block is aware
-   of the colour scheme; everything downstream reads the tokens.
-   Two things do not simply invert:
-   - Filled controls (accent, success, danger) go LIGHT with dark text, so the
-     `--on-*` tokens flip with them.
-   - Panels that are dark in both schemes (code previews, the sign-in hero) get
-     lifted rather than darkened, or they vanish into the page. */
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    color-scheme: dark;
-
-    /* Surfaces */
-    --surface: #18181b;
-    --surface-page: #0b0b0d;
-    --surface-sunken: #141417;
-    --surface-muted: #27272a;
-    --surface-hover: #202024;
-    --surface-hover-strong: #26262b;
-
-    /* Borders */
-    --border-faint: #1f1f23;
-    --border: #2a2a2f;
-    --border-strong: #3f3f46;
-    --border-dashed: #52525b;
-
-    /* Text — the light ramp reversed, so "muted" stays the quietest. */
-    --text: #fafafa;
-    --text-secondary: #e4e4e7;
-    --text-tertiary: #c9c9d0;
-    --text-muted: #a1a1aa;
-
-    /* Accent. The 400 weight reads as indigo on a dark ground where the 600
-       used in light mode goes muddy. */
-    --accent: #818cf8;
-    --accent-strong: #a5b4fc;
-    --accent-tint: #1e1b4b;
-    --accent-tint-alt: #2e1065;
-    --accent-ring: #6366f1;
-    --accent-selection: #3730a3;
-    --accent-shadow: rgba(129, 140, 248, 0.16);
-    --accent-soft: #818cf8;
-    --accent-deep: #c7d2fe;
-
-    /* Dark panels lift above the page instead of sinking below it. */
-    --dark-surface: #1e1e26;
-    --dark-surface-alt: #141419;
-    --dark-border: #2c2c38;
-
-    /* Filled controls invert: light fill, dark label. */
-    --on-accent: #12121a;
-    --on-success: #052e16;
-    --on-danger: #450a0a;
-    --invert-bg: #fafafa;
-    --invert-fg: #18181b;
-
-    /* Feedback */
-    --danger: #fca5a5;
-    --danger-strong: #f87171;
-    --danger-tint: #2a1416;
-    --danger-border: #7f1d1d;
-    --danger-text: #fca5a5;
-    --warn: #fbbf24;
-    --warn-tint: #2a2010;
-    --warn-border: #78350f;
-    --warn-text: #fcd34d;
-    --changes-tint: #2a1a10;
-    --changes-text: #fdba74;
-    --success: #4ade80;
-    --success-tint: #0f2418;
-    --success-text: #86efac;
-    --success-tint-strong: #14532d;
-    --info-tint: #12203a;
-    --info-border: #1e3a8a;
-    --info-icon-bg: #1e3a8a;
-    --info-icon: #93c5fd;
-    --info-text: #bfdbfe;
-
-    /* Status tones: deep ground, light label. */
-    --tone-neutral-bg: #27272a;
-    --tone-neutral-fg: #d4d4d8;
-    --tone-progress-bg: #422006;
-    --tone-progress-fg: #fcd34d;
-    --tone-review-bg: #172554;
-    --tone-review-fg: #93c5fd;
-    --tone-approved-bg: #052e16;
-    --tone-approved-fg: #86efac;
-    --tone-changes-bg: #431407;
-    --tone-changes-fg: #fdba74;
-
-    --type-github-bg: #1e1b4b;
-    --type-github-fg: #a5b4fc;
-    --type-reflection-bg: #052e16;
-    --type-reflection-fg: #86efac;
-    --type-upload-bg: #422006;
-    --type-upload-fg: #fcd34d;
-
-    --cat-knowledge-bg: #1e1b4b;
-    --cat-knowledge-fg: #a5b4fc;
-    --cat-skill-bg: #083344;
-    --cat-skill-fg: #67e8f9;
-    --cat-behaviour-bg: #2e1065;
-    --cat-behaviour-fg: #d8b4fe;
-
-    --modal-backdrop: rgba(0, 0, 0, 0.7);
-
-    --icon-muted: #a1a1aa;
-    --icon-faint: #52525b;
-    --md-badge-fg: #5eead4;
-    --md-badge-bg: #042f2e;
-
-    /* Progress segments brighten a step to hold up against the dark track. */
-    --seg-approved: #4ade80;
-    --seg-submitted: #60a5fa;
-    --seg-inprogress: #fbbf24;
-    --seg-notstarted: #3f3f46;
-
-    /* Shadows do almost nothing on a dark ground; lean on borders instead. */
-    --shadow-card: 0 4px 16px rgba(0, 0, 0, 0.4);
-    --shadow-menu: 0 8px 28px rgba(0, 0, 0, 0.55);
-    --shadow-raised: 0 1px 3px rgba(0, 0, 0, 0.5);
-  }
-
+/* The theme control writes `data-theme`, and an inline script in app/layout.tsx
+   replays the stored choice before first paint. Choosing "System" clears both,
+   returning to the `light dark` default above. */
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
 }
 
 html,
@@ -759,6 +650,39 @@ a:hover {
   color: var(--text-tertiary);
   text-transform: capitalize;
 }
+/* Shares the segmented look of the role toggle. Icon-only to survive the
+   crowded header, so each option carries a visually hidden label; 26px keeps
+   every target above the WCAG 2.2 minimum. */
+.theme-toggle {
+  display: flex;
+  background: var(--surface-muted);
+  border-radius: 9px;
+  padding: 3px;
+}
+.theme-toggle__option {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  /* --text-tertiary, not --text-muted: the latter only reaches 4.4:1 on
+     --surface-muted, the same shortfall the nav and role tabs hit. */
+  color: var(--text-tertiary);
+  font-family: inherit;
+  cursor: pointer;
+}
+.theme-toggle__option:hover {
+  color: var(--text);
+}
+.theme-toggle__option[aria-pressed="true"] {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-raised);
+}
+
 .role-toggle {
   display: flex;
   background: var(--surface-muted);
@@ -2383,23 +2307,27 @@ a:hover {
   }
 }
 
-/* ---- Dark scheme, component overrides ------------------------------------ */
-/* These have to live at the end of the file: they compete with the component
-   rules above on specificity, so source order decides. The token block near the
-   top does not — custom properties cascade by inheritance, not by position. */
+/* ---- Scheme-dependent component colours ---------------------------------- */
+/* Colours that arrive as data rather than tokens — each assessment method
+   carries its own light-mode pair in the standard's config — can't be
+   enumerated as tokens, so they're adapted for the dark scheme rather than
+   replaced. Written with light-dark() so they stay ordinary declarations on the
+   component itself, rather than overrides that have to out-order it. */
 
-@media (prefers-color-scheme: dark) {
-  /* Colours that arrive as data rather than tokens — each assessment method
-     carries its own light-mode pair in the standard's config — are adapted
-     rather than replaced, since the set isn't known ahead of time. */
-  .pill--data {
-    background: color-mix(in srgb, var(--pill-bg) 14%, var(--surface));
-    color: color-mix(in srgb, var(--pill-fg) 45%, #fff);
-  }
-  .method-card__title {
-    color: color-mix(in srgb, var(--method-fg) 45%, #fff);
-  }
-  .method-card__dot {
-    background: color-mix(in srgb, var(--method-fg) 45%, #fff);
-  }
+.pill--data {
+  background: light-dark(
+    var(--pill-bg),
+    color-mix(in srgb, var(--pill-bg) 14%, var(--surface))
+  );
+  color: light-dark(var(--pill-fg), color-mix(in srgb, var(--pill-fg) 45%, #fff));
 }
+.method-card__title {
+  color: light-dark(var(--method-fg), color-mix(in srgb, var(--method-fg) 45%, #fff));
+}
+.method-card__dot {
+  background: light-dark(
+    var(--method-fg),
+    color-mix(in srgb, var(--method-fg) 45%, #fff)
+  );
+}
+
