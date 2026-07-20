@@ -2338,6 +2338,32 @@ a:hover {
   .ksb-row__meta {
     flex-wrap: wrap;
   }
+
+  /* The expanded sub-point rows have the same shape as the KSB row above and
+     the same problem: a fixed code column, a flexible statement, then nowrap
+     metadata, all on one non-wrapping line. Wrap them the same way — the basis
+     is the space the code column and its gap leave, so the method pills,
+     evidence count and status drop to the second line together. */
+  .subpoint-item {
+    flex-wrap: wrap;
+    row-gap: 8px;
+  }
+  .subpoint-item__text {
+    /* 42px code column + 10px row gap */
+    flex-basis: calc(100% - 52px);
+  }
+  /* Sub-point statements are the longest text on the screen, so a centred code
+     column drifts furthest into the middle of them. */
+  .subpoint-item__code {
+    align-self: flex-start;
+  }
+  /* Once the count sits on the wrapped line it is no longer a right-hand
+     column, so the reserved width and right alignment would only gap it away
+     from the pills it now follows. */
+  .subpoint-item__count {
+    min-width: 0;
+    text-align: left;
+  }
 }
 
 /* ---- Scheme-dependent component colours ---------------------------------- */
