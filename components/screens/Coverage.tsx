@@ -172,8 +172,17 @@ export function Coverage() {
         </div>
 
         <div className="on-dark panel-dark code-panel">
-          <div className="code-panel__label">scripts/build_coverage.py</div>
-          <pre tabIndex={0} className="code-panel__code">
+          <div className="code-panel__label" id="build-coverage-label">
+            scripts/build_coverage.py
+          </div>
+          {/* A focusable scroll container needs a name, the same way the
+              coverage matrix above is named — its visible label supplies it. */}
+          <pre
+            tabIndex={0}
+            role="region"
+            aria-labelledby="build-coverage-label"
+            className="code-panel__code"
+          >
 {`for md in evidence/*/index.md:
     fm = parse_front_matter(md)
     rows.append({

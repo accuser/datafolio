@@ -1,6 +1,6 @@
 "use client";
 
-import { Dialog, DialogBackdrop, DialogPanel } from "@headlessui/react";
+import { Dialog, DialogBackdrop, DialogPanel, DialogTitle } from "@headlessui/react";
 import { useApp } from "@/lib/state";
 import { ksbIndex } from "@/lib/standards";
 import { genMd } from "@/lib/domain";
@@ -18,13 +18,16 @@ export function MdPreview() {
     <Dialog open={open} onClose={actions.closeMd}>
       <DialogBackdrop className="modal-backdrop" />
       <div className="modal-layer">
-        <DialogPanel
-          aria-label={path ? `Preview of ${path}` : "File preview"}
-          className="on-dark md-preview"
-        >
+        {/* The accessible name has to come from a DialogTitle in Headless UI's
+            registry: an aria-label on DialogPanel lands on a plain <div>, not on
+            the element carrying role="dialog", so the dialog announced only as
+            "dialog" with no context. The path is that title. */}
+        <DialogPanel className="on-dark md-preview">
           <div className="md-preview__bar">
             <FileIcon size={15} color="var(--dark-text-muted)" />
-            <span className="md-preview__path">{path}</span>
+            <DialogTitle as="span" className="md-preview__path">
+              {path}
+            </DialogTitle>
             <span className="md-preview__badge">auto-written</span>
             <span className="row__spacer" />
             <button onClick={actions.closeMd} aria-label="Close preview" className="md-preview__close">

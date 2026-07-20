@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { BACKEND_MODE, useApp } from "@/lib/state";
 import { Header } from "./Header";
 import { MdPreview } from "./MdPreview";
@@ -84,6 +84,17 @@ function LoadFailed() {
  */
 export function AppShell({ children }: { children: ReactNode }) {
   const { state } = useApp();
+  const mainRef = useRef<HTMLElement>(null);
+  const wasSignedIn = useRef(state.signedIn);
+
+  // On sign-in the whole SignIn screen unmounts, including the "Continue with
+  // GitHub" button that had focus — which resets focus to <body>. Move it into
+  // the app so a keyboard or screen-reader user lands somewhere meaningful.
+  // main already carries tabIndex={-1} for exactly this.
+  useEffect(() => {
+    if (state.signedIn && !wasSignedIn.current) mainRef.current?.focus();
+    wasSignedIn.current = state.signedIn;
+  }, [state.signedIn]);
 
   // Until the session check settles we don't know whether this user is signed
   // in, and guessing "signed out" painted the sign-in hero on every refresh and
@@ -111,7 +122,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <PortfolioBar />
         <ErrorBanner />
         <ManifestWarning />
-        <main id="main" tabIndex={-1}>
+        <main id="main" ref={mainRef} tabIndex={-1}>
           {state.loadError ? <LoadFailed /> : children}
         </main>
       </div>

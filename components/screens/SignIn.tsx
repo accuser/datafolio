@@ -26,7 +26,12 @@ export function SignIn() {
               ? `Level ${only.level} ${only.title} · ${only.reference}`
               : "Apprenticeship portfolio evidence"}
           </div>
-          <h1 className="signin__headline">Capture your portfolio evidence, KSB by KSB.</h1>
+          {/* Display text, not the page heading: this hero is marketing copy
+              and is hidden entirely below 768px. The actual h1 is "Sign in",
+              which is present in every viewport. */}
+          <div className="signin__headline" role="presentation">
+            Capture your portfolio evidence, KSB by KSB.
+          </div>
           <p className="signin__lede">
             Map GitHub artefacts, written reflections and files against every Knowledge,
             Skill and Behaviour — right down to the sub-points — and commit them straight
@@ -55,7 +60,7 @@ export function SignIn() {
       {/* Right panel */}
       <div className="signin__form-panel">
         <div className="signin__form">
-          <h2 className="signin__title">Sign in</h2>
+          <h1 className="signin__title">Sign in</h1>
           {/* A failed session check is not the same as being signed out. Say
               which happened, so a user who *is* signed in doesn't conclude their
               account stopped working and try to create another one. */}

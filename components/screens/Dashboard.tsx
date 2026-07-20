@@ -176,31 +176,37 @@ export function Dashboard() {
         ))}
       </div>
 
-      {/* Filters */}
+      {/* Filters. Two named groups, not one flat row: the status set and the
+          method set both start with an "All" chip, and without a boundary a
+          screen reader user can't tell "All" from "All methods" out of context. */}
       <div className="filter-bar">
-        {statusFilters.map((f) => (
-          <button
-            key={f.key}
-            type="button"
-            aria-pressed={filter === f.key}
-            className="chip"
-            onClick={() => actions.setFilter(f.key)}
-          >
-            {f.label} <span className="chip__count">{f.count}</span>
-          </button>
-        ))}
+        <div role="group" aria-label="Filter by status" className="filter-bar__set">
+          {statusFilters.map((f) => (
+            <button
+              key={f.key}
+              type="button"
+              aria-pressed={filter === f.key}
+              className="chip"
+              onClick={() => actions.setFilter(f.key)}
+            >
+              {f.label} <span className="chip__count">{f.count}</span>
+            </button>
+          ))}
+        </div>
         <span aria-hidden="true" className="filter-bar__divider" />
-        {routeFilters.map((r) => (
-          <button
-            key={r.key}
-            type="button"
-            aria-pressed={routeFilter === r.key}
-            className="chip chip--method"
-            onClick={() => actions.setRouteFilter(r.key)}
-          >
-            {r.label}
-          </button>
-        ))}
+        <div role="group" aria-label="Filter by assessment method" className="filter-bar__set">
+          {routeFilters.map((r) => (
+            <button
+              key={r.key}
+              type="button"
+              aria-pressed={routeFilter === r.key}
+              className="chip chip--method"
+              onClick={() => actions.setRouteFilter(r.key)}
+            >
+              {r.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Filtering swaps the list out with no visual transition, so announce the
