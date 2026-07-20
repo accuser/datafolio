@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { resolveRepoContext } from "@/lib/github/request-context";
-import { createGitHubCardStore } from "@/lib/data/github-card-store";
+import { createGitHubCardStore, loadCards } from "@/lib/data/github-card-store";
 import { resolveStandard } from "@/lib/data/github-store";
 import { storeErrorResponse } from "@/lib/data/error-response";
 import { validateNewCards } from "@/lib/data/card-validation";
@@ -14,11 +14,6 @@ import { validateNewCards } from "@/lib/data/card-validation";
 // in the reviewer's app" rather than hidden from a collaborator who can already
 // read the repo.
 
-/** True when the signed-in user is the repo owner, i.e. the learner. */
-function isOwner(ctx: { login: string; owner: string }): boolean {
-  return ctx.login.toLowerCase() === ctx.owner.toLowerCase();
-}
-
 const NOT_YOURS = "Revision cards belong to the learner — only they can change them.";
 
 // GET /api/cards → every revision card in the repo.
@@ -27,9 +22,7 @@ export async function GET() {
   if (!res.ok) return NextResponse.json({ error: res.error }, { status: res.status });
   const { ctx } = res;
   try {
-    const standard = await resolveStandard(ctx);
-    const cards = await createGitHubCardStore(ctx, standard).load();
-    return NextResponse.json({ cards });
+    return NextResponse.json({ cards: await loadCards(ctx) });
   } catch (e) {
     return storeErrorResponse("GET /api/cards", e);
   }
@@ -41,7 +34,7 @@ export async function POST(request: Request) {
   const res = await resolveRepoContext();
   if (!res.ok) return NextResponse.json({ error: res.error }, { status: res.status });
   const { ctx } = res;
-  if (!isOwner(ctx)) return NextResponse.json({ error: NOT_YOURS }, { status: 403 });
+  if (!ctx.isOwner) return NextResponse.json({ error: NOT_YOURS }, { status: 403 });
 
   const standard = await resolveStandard(ctx);
   const valid = validateNewCards(await request.json().catch(() => null), standard);

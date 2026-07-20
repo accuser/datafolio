@@ -3,6 +3,7 @@ import { cardFolder, cardsInFolder, renderCardsMd } from "../cards";
 import { ksbIndex, type Standard } from "../standards";
 import { parseCardsMd } from "../github/cards-frontmatter";
 import { commitTree, withConflictRetry, type TreeEntry } from "../github/commit";
+import { readFolders, readRepoTree, type RepoTree } from "../github/repo-tree";
 import type { GitHubStoreContext } from "./github-store";
 import type { CardStore } from "./card-store";
 import type { Card } from "../types";
@@ -16,47 +17,37 @@ import type { Card } from "../types";
 
 const CARDS_RE = /^revision\/([^/]+)\/cards\.md$/;
 
+/**
+ * Read every card in the repo.
+ *
+ * Standalone because reading doesn't need the portfolio's standard — only
+ * rewriting a folder does — so a plain `GET /api/cards` shouldn't pay for
+ * resolving datafolio.yml just to construct a store it then only reads from.
+ */
+export async function loadCards(ctx: GitHubStoreContext): Promise<Card[]> {
+  const tree = await readRepoTree(ctx);
+  return readFolders(ctx, tree, CARDS_RE, (md) => ({
+    items: parseCardsMd(md).cards,
+  }));
+}
+
 export function createGitHubCardStore(
   ctx: GitHubStoreContext,
   standard: Standard,
 ): CardStore {
   const { octokit, owner, repo } = ctx;
 
-  async function defaultBranch(): Promise<string> {
-    const { data } = await octokit.request("GET /repos/{owner}/{repo}", { owner, repo });
-    return data.default_branch;
-  }
-
-  async function loadAll(): Promise<{ cards: Card[]; branch: string }> {
-    const branch = await defaultBranch();
-    const { data: tree } = await octokit.request(
-      "GET /repos/{owner}/{repo}/git/trees/{tree_sha}",
-      { owner, repo, tree_sha: branch, recursive: "true" },
-    );
-    const files = tree.tree.filter(
-      (t) => t.type === "blob" && t.path && t.sha && CARDS_RE.test(t.path),
-    );
-    const folders = await Promise.all(
-      files.map(async (f) => {
-        const { data: blob } = await octokit.request(
-          "GET /repos/{owner}/{repo}/git/blobs/{file_sha}",
-          { owner, repo, file_sha: f.sha! },
-        );
-        return parseCardsMd(Buffer.from(blob.content, "base64").toString("utf8"));
-      }),
-    );
-    // De-dupe by id: a hand-edited repo could list the same card in two folders,
-    // and loading both would make edits look like they only half-applied.
-    const seen = new Set<string>();
-    const cards = folders
-      .flatMap((f) => f.cards)
-      .filter((c) => (seen.has(c.id) ? false : (seen.add(c.id), true)));
-    return { cards, branch };
+  async function loadAll(): Promise<{ cards: Card[]; tree: RepoTree }> {
+    const tree = await readRepoTree(ctx);
+    const cards = await readFolders(ctx, tree, CARDS_RE, (md) => ({
+      items: parseCardsMd(md).cards,
+    }));
+    return { cards, tree };
   }
 
   /** Rewrite each named folder's cards.md from `all`, as one commit. */
   async function commitFolders(
-    branch: string,
+    tree: RepoTree,
     folders: string[],
     all: Card[],
     message: string,
@@ -77,20 +68,36 @@ export function createGitHubCardStore(
             : { sha: null }),
         };
       });
-    if (entries.length) {
-      await commitTree(octokit, owner, repo, branch, entries, message);
+    // Every folder filtered out means there is nothing to write — but the
+    // callers all return the mutated collection regardless, so skipping the
+    // commit here would tell the learner their change was saved when no commit
+    // was ever made, and the card would reappear on the next load. Fail loudly
+    // instead: reaching this point at all means the caller's folder list didn't
+    // survive `ksbIndex`, which is a bug rather than a user error.
+    if (!entries.length) {
+      throw new Error(
+        `No revision folder to write for [${folders.join(", ")}] — card change not saved`,
+      );
     }
+    await commitTree(
+      octokit,
+      owner,
+      repo,
+      tree.branch,
+      tree.headSha,
+      entries,
+      message,
+    );
   }
 
   return {
     async load(): Promise<Card[]> {
-      const { cards } = await loadAll();
-      return cards;
+      return loadCards(ctx);
     },
 
     async addCards(cards: Card[]): Promise<Card[]> {
       return withConflictRetry(async () => {
-        const { cards: current, branch } = await loadAll();
+        const { cards: current, tree } = await loadAll();
         const known = new Set(current.map((c) => c.id));
         // Same idempotency contract as the mock: seeded ids are derived from
         // what a card revises, so re-seeding a KSB is a no-op rather than a
@@ -103,14 +110,14 @@ export function createGitHubCardStore(
           fresh.length === 1
             ? `Add revision card: ${fresh[0].front.slice(0, 60)}`
             : `Add ${fresh.length} starter cards: ${folders.join(", ")}`;
-        await commitFolders(branch, folders, all, message);
+        await commitFolders(tree, folders, all, message);
         return all;
       });
     },
 
     async updateCard(id: string, patch: Partial<Card>): Promise<Card[]> {
       return withConflictRetry(async () => {
-        const { cards: current, branch } = await loadAll();
+        const { cards: current, tree } = await loadAll();
         const target = current.find((c) => c.id === id);
         if (!target) throw new Error(`Card ${id} not found`);
         const updated: Card = { ...target, ...patch };
@@ -121,7 +128,7 @@ export function createGitHubCardStore(
           ...new Set([cardFolder(target), cardFolder(updated)].filter(Boolean)),
         ];
         await commitFolders(
-          branch,
+          tree,
           folders,
           all,
           `Update revision card: ${updated.front.slice(0, 60)}`,
@@ -132,13 +139,22 @@ export function createGitHubCardStore(
 
     async deleteCard(id: string): Promise<Card[]> {
       return withConflictRetry(async () => {
-        const { cards: current, branch } = await loadAll();
+        const { cards: current, tree } = await loadAll();
         const target = current.find((c) => c.id === id);
         if (!target) throw new Error(`Card ${id} not found`);
+        // An unmapped card has no folder to rewrite, so there is no commit that
+        // would remove it. Say so rather than reporting a delete that leaves the
+        // card in the repo to reappear on the next load.
+        const folder = cardFolder(target);
+        if (!folder) {
+          throw new Error(
+            `Card ${id} is not mapped to a KSB, so it has no file to delete`,
+          );
+        }
         const all = current.filter((c) => c.id !== id);
         await commitFolders(
-          branch,
-          [cardFolder(target)].filter(Boolean),
+          tree,
+          [folder],
           all,
           `Delete revision card: ${target.front.slice(0, 60)}`,
         );

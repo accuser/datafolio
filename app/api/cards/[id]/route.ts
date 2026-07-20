@@ -11,10 +11,6 @@ import { validateCardPatch } from "@/lib/data/card-validation";
 // Both are owner-only for the same reason as POST: a reviewer has push access
 // but revision is the learner's own preparation, not something to be reviewed.
 
-function isOwner(ctx: { login: string; owner: string }): boolean {
-  return ctx.login.toLowerCase() === ctx.owner.toLowerCase();
-}
-
 const NOT_YOURS = "Revision cards belong to the learner — only they can change them.";
 
 export async function PATCH(
@@ -24,7 +20,7 @@ export async function PATCH(
   const res = await resolveRepoContext();
   if (!res.ok) return NextResponse.json({ error: res.error }, { status: res.status });
   const { ctx } = res;
-  if (!isOwner(ctx)) return NextResponse.json({ error: NOT_YOURS }, { status: 403 });
+  if (!ctx.isOwner) return NextResponse.json({ error: NOT_YOURS }, { status: 403 });
 
   const { id } = await params;
   const standard = await resolveStandard(ctx);
@@ -48,7 +44,7 @@ export async function DELETE(
   const res = await resolveRepoContext();
   if (!res.ok) return NextResponse.json({ error: res.error }, { status: res.status });
   const { ctx } = res;
-  if (!isOwner(ctx)) return NextResponse.json({ error: NOT_YOURS }, { status: 403 });
+  if (!ctx.isOwner) return NextResponse.json({ error: NOT_YOURS }, { status: 403 });
 
   const { id } = await params;
   try {

@@ -173,6 +173,62 @@ async function main() {
   }
   assert(threw, "deleting an unknown card throws");
 
+  // --- REGRESSION (#52): a delete that writes nothing must not report success --
+  // A card mapped to a KSB the current standard doesn't define — a hand-edited
+  // repo, or one whose datafolio.yml moved to another standard — survives
+  // parsing but is filtered out of the tree entries by `ksbIndex`. The store
+  // used to skip the commit and still return the shrunken collection, so the UI
+  // reported a successful delete and the card reappeared on the next load.
+  //
+  // (A card with *no* mapping at all can't reach this: the parser drops those
+  // at load, so `deleteCard` never finds one to begin with.)
+  {
+    const orphan: Card = {
+      id: "c-orphan", ksbIds: ["Z9"], front: "Maps outside the standard.", back: "",
+      source: "learner", created: "6 Jul 2026", updated: "6 Jul 2026",
+    };
+    let wrote = false;
+    const octokit = {
+      async request(route: string, params: Record<string, unknown>) {
+        switch (route) {
+          case "GET /repos/{owner}/{repo}":
+            return { data: { default_branch: "main" } };
+          case "GET /repos/{owner}/{repo}/git/ref/{ref}":
+            return { data: { object: { sha: "C1" } } };
+          case "GET /repos/{owner}/{repo}/git/trees/{tree_sha}":
+            return {
+              data: { tree: [{ path: "revision/K4/cards.md", type: "blob", sha: "s" }] },
+            };
+          case "GET /repos/{owner}/{repo}/git/blobs/{file_sha}":
+            return {
+              data: { content: b64(renderCardsMd(byId.K4, [k4a, orphan])), encoding: "base64" },
+            };
+          default:
+            wrote = true;
+            throw new Error("Unexpected write: " + route + " " + JSON.stringify(params));
+        }
+      },
+    } as unknown as Octokit;
+    const s = createGitHubCardStore(
+      { octokit, owner: "lucy-ds", repo: "portfolio-evidence" },
+      std,
+    );
+    const loaded = await s.load();
+    assert(loaded.some((c) => c.id === "c-orphan"), "the unmapped card is present to begin with");
+
+    let message = "";
+    try {
+      await s.deleteCard("c-orphan");
+    } catch (e) {
+      message = (e as Error).message;
+    }
+    assert(
+      /card change not saved/.test(message),
+      `a delete that would write nothing explains itself, got "${message}"`,
+    );
+    assert(!wrote, "the failed delete made no commit at all");
+  }
+
   console.log(
     "GITHUB-CARD-STORE OK — load/add/update/remap/delete produce correct atomic commits",
   );
