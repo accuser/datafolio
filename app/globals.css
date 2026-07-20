@@ -2459,3 +2459,24 @@ a:hover {
   display: flex;
   gap: 8px;
 }
+
+.revision-callout {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 14px 18px;
+  margin-bottom: 24px;
+}
+.revision-callout__text {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  max-width: 62ch;
+}
+.revision-callout__btn {
+  white-space: nowrap;
+}
