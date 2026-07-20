@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CARDS_ENABLED, useApp } from "@/lib/state";
+import { useApp } from "@/lib/state";
 import { cardable, collectsEvidence, ksbIndex } from "@/lib/standards";
 import {
   collectingPoints,
@@ -209,7 +209,7 @@ export function KsbDetail({ ksbId }: { ksbId: string }) {
   // learner's repo, which a reviewer can already read — this is "not shown here",
   // not privacy. Real privacy from a line-manager reviewer would need a separate
   // location they aren't granted.
-  const showCards = CARDS_ENABLED && isLearner && cardable(standard, sel);
+  const showCards = isLearner && cardable(standard, sel);
   // On an examined KSB there is nothing to submit, and the strip above already
   // says so — so cards take that dead space rather than sitting under an
   // "Evidence · 0 / nothing to submit" panel that repeats it.

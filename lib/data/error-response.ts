@@ -1,6 +1,6 @@
 import "server-only";
 import { NextResponse } from "next/server";
-import { CONFLICT_MESSAGE } from "./github-store";
+import { CONFLICT_MESSAGE } from "../github/commit";
 
 // Map a thrown store/GitHub error to a client-safe JSON response. Raw GitHub
 // error text is logged server-side but never relayed to the client on a 502.
