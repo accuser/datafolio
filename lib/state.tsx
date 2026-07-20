@@ -71,7 +71,7 @@ interface AppState {
   openFolders: Record<string, boolean>;
   mdPreviewKid: string | null;
   evidence: Evidence[];
-  /** Portfolios the signed-in user can switch between (own + coached). */
+  /** Portfolios the signed-in user can switch between (own + reviewed). */
   portfolios: Portfolio[];
   /** The portfolio currently in view (owner = whose repo, not necessarily me). */
   target: { owner: string; repo: string } | null;
@@ -152,7 +152,7 @@ function reducer(state: AppState, action: Action): AppState {
 export interface AppActions {
   signIn(): void;
   signOut(): void;
-  /** Switch to another portfolio (own or coached), then reload. */
+  /** Switch to another portfolio (own or reviewed), then reload. */
   switchPortfolio(owner: string, repo: string): void;
   setRole(role: Role): void;
   /** Expand or collapse a repository folder. Takes an explicit value because the
@@ -391,7 +391,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           routerRef.current.push(`/ksb/${targetKsb}`);
         }),
 
-      // One-click resubmit after a coach requested changes.
+      // One-click resubmit after a reviewer requested changes.
       resubmit: (id) =>
         runExclusive(async () => {
           const next = await store.updateEvidence(id, { status: "Submitted" });
@@ -404,7 +404,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           dispatch({ type: "SET_EVIDENCE", evidence: next });
         }),
 
-      // Coach actions patch the matching evidence item's status + feedback.
+      // Reviewer actions patch the matching evidence item's status + feedback.
       approve: (id) =>
         runExclusive(async () => {
           const s = stateRef.current;
@@ -449,7 +449,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           patch: {
             signedIn: true,
             loading: true,
-            role: session.role === "coach" ? "coach" : "learner",
+            role: session.role === "reviewer" ? "reviewer" : "learner",
             user: {
               name,
               login: session.user.login,

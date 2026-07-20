@@ -20,7 +20,7 @@ import { ChevronRight, CheckBadge } from "../icons";
 export function Dashboard() {
   const { state, user, actions } = useApp();
   const { evidence, filter, routeFilter, role, standard, loading } = state;
-  const isCoach = role === "coach";
+  const isReviewer = role === "reviewer";
   const KSBS = standard.ksbs;
   // Which KSBs have their sub-points expanded. Sub-points are assessed
   // individually and don't inherit the parent's methods, so a collapsed row's
@@ -90,14 +90,14 @@ export function Dashboard() {
     <div className="screen screen--dashboard">
       <div className="page-head">
         <div className="page-head__eyebrow">
-          {isCoach ? "Coach view" : "Your portfolio"}
+          {isReviewer ? "Reviewer view" : "Your portfolio"}
         </div>
         <h1 className="page-head__title">
-          {isCoach ? "Review evidence" : `Welcome back, ${user.name.split(" ")[0]}`}
+          {isReviewer ? "Review evidence" : `Welcome back, ${user.name.split(" ")[0]}`}
         </h1>
       </div>
 
-      {isCoach && awaitingReview > 0 && (
+      {isReviewer && awaitingReview > 0 && (
         <div className="review-callout">
           <div className="review-callout__icon">
             <CheckBadge size={17} color="var(--info-icon)" />

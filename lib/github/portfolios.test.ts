@@ -1,7 +1,7 @@
 /**
  * Network-free unit test for fetchUserPortfolios. Stubs global fetch with a
  * canned GitHub App installations/repositories view and asserts the filtering
- * (portfolio repo name only), role derivation (own = learner, else coach),
+ * (portfolio repo name only), role derivation (own = learner, else reviewer),
  * de-duping and ordering. Run: `tsx lib/github/portfolios.test.ts`.
  */
 import { fetchUserPortfolios, pickDefaultTarget } from "./portfolios";
@@ -48,12 +48,12 @@ async function withFetch<T>(fn: () => Promise<T>, stub: typeof fetch): Promise<T
 }
 
 async function main() {
-  // --- own repo → learner; collaborator repos → coach; sorted learner-first ---
+  // --- own repo → learner; collaborator repos → reviewer; sorted learner-first ---
   {
     const stub = stubFetch([1, 2, 3], {
       1: [{ name: REPO, owner: "alice" }], // own
-      2: [{ name: REPO, owner: "bob" }], // coached
-      3: [{ name: REPO, owner: "carol" }], // coached
+      2: [{ name: REPO, owner: "bob" }], // reviewered
+      3: [{ name: REPO, owner: "carol" }], // reviewered
     });
     const result = await withFetch(
       () => fetchUserPortfolios("tok", "alice", REPO),
@@ -61,8 +61,8 @@ async function main() {
     );
     assert(result.length === 3, "three portfolios found");
     assert(result[0].owner === "alice" && result[0].role === "learner", "own repo is learner, first");
-    assert(result[1].owner === "bob" && result[1].role === "coach", "bob coached, alphabetical");
-    assert(result[2].owner === "carol" && result[2].role === "coach", "carol coached, after bob");
+    assert(result[1].owner === "bob" && result[1].role === "reviewer", "bob reviewered, alphabetical");
+    assert(result[2].owner === "carol" && result[2].role === "reviewer", "carol reviewered, after bob");
   }
 
   // --- non-portfolio repos are filtered out ---
@@ -82,20 +82,20 @@ async function main() {
     assert(result[0].owner === "alice", "the surviving repo is the portfolio repo");
   }
 
-  // --- a coach who owns no portfolio: all coached, no learner entry ---
+  // --- a reviewer who owns no portfolio: all reviewered, no learner entry ---
   {
     const stub = stubFetch([1, 2], {
       1: [{ name: REPO, owner: "bob" }],
       2: [{ name: REPO, owner: "carol" }],
     });
     const result = await withFetch(
-      () => fetchUserPortfolios("tok", "coachonly", REPO),
+      () => fetchUserPortfolios("tok", "revieweronly", REPO),
       stub as unknown as typeof fetch,
     );
-    assert(result.length === 2, "coach-only sees both coached repos");
+    assert(result.length === 2, "reviewer-only sees both reviewered repos");
     assert(
-      result.every((p) => p.role === "coach"),
-      "coach-only has no learner entry",
+      result.every((p) => p.role === "reviewer"),
+      "reviewer-only has no learner entry",
     );
   }
 
@@ -163,7 +163,7 @@ async function main() {
   {
     const many = Array.from({ length: 80 }, (_, i) => ({
       name: REPO,
-      owner: `coach-${String(i).padStart(3, "0")}`,
+      owner: `reviewer-${String(i).padStart(3, "0")}`,
     }));
     many.push({ name: REPO, owner: "alice" }); // the user's own, unsorted position
     const stub = stubFetch([1], { 1: many });
@@ -179,20 +179,20 @@ async function main() {
   {
     const portfolios = [
       { owner: "alice", repo: REPO, role: "learner" as const },
-      { owner: "bob", repo: REPO, role: "coach" as const },
+      { owner: "bob", repo: REPO, role: "reviewer" as const },
     ];
     const t = pickDefaultTarget(portfolios, "alice", REPO);
     assert(t.owner === "alice" && t.repo === REPO, "own portfolio is the default target");
   }
 
-  // --- pickDefaultTarget: coach with no own repo lands on the first reachable (the dead-end fix) ---
+  // --- pickDefaultTarget: reviewer with no own repo lands on the first reachable (the dead-end fix) ---
   {
     const portfolios = [
-      { owner: "bob", repo: REPO, role: "coach" as const },
-      { owner: "carol", repo: REPO, role: "coach" as const },
+      { owner: "bob", repo: REPO, role: "reviewer" as const },
+      { owner: "carol", repo: REPO, role: "reviewer" as const },
     ];
-    const t = pickDefaultTarget(portfolios, "coachonly", REPO);
-    assert(t.owner === "bob" && t.repo === REPO, "coach-only lands on first reachable portfolio, not a dead end");
+    const t = pickDefaultTarget(portfolios, "revieweronly", REPO);
+    assert(t.owner === "bob" && t.repo === REPO, "reviewer-only lands on first reachable portfolio, not a dead end");
   }
 
   // --- pickDefaultTarget: no portfolios → best-effort own-login default ---

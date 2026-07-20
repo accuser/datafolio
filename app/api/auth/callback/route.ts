@@ -64,7 +64,7 @@ export async function GET(req: NextRequest) {
   }
   session.portfolios = portfolios;
 
-  // Land on the repo the coach asked for (?owner=...); otherwise pick a sensible
+  // Land on the repo the reviewer asked for (?owner=...); otherwise pick a sensible
   // default (own portfolio, else the first reachable one — the dead-end fix).
   if (!session.target?.owner) {
     session.target = pickDefaultTarget(

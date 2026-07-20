@@ -30,7 +30,7 @@ export function SignIn() {
           <p className="signin__lede">
             Map GitHub artefacts, written reflections and files against every Knowledge,
             Skill and Behaviour — right down to the sub-points — and commit them straight
-            to your private repo, ready for your coach and EPA.
+            to your private repo, ready for your reviewer and EPA.
           </p>
         </div>
 

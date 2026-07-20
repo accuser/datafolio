@@ -2,7 +2,7 @@
 // (evidence/<KSB>/index.md front-matter) so the mock data layer can later be
 // swapped for a GitHub-backed one without touching the UI.
 
-export type Role = "learner" | "coach";
+export type Role = "learner" | "reviewer";
 
 export type View = "signin" | "dashboard" | "ksb" | "add" | "repo" | "coverage";
 
@@ -59,9 +59,13 @@ export interface UserProfile {
 
 /**
  * A portfolio repo the signed-in user can reach — either their own (`learner`)
- * or one they're a collaborator on (`coach`). Enumerated at sign-in from the
- * repos where the App is installed and the user has access, so a coach can
- * switch between the learners they mentor without hand-typing logins.
+ * or one they're a collaborator on (`reviewer`). Enumerated at sign-in from the
+ * repos where the App is installed and the user has access, so a reviewer can
+ * switch between the learners they review without hand-typing logins.
+ *
+ * A reviewer is simply anyone granted access to review the portfolio — coach,
+ * line manager, whoever. The role is named for the access, not for a coaching
+ * relationship the mechanism never actually required.
  */
 export interface Portfolio {
   owner: string;

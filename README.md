@@ -2,8 +2,9 @@
 
 A web app for **Level 6 Data Scientist (ST0585)** apprentices to capture
 portfolio evidence against every KSB (Knowledge, Skill, Behaviour) — down to
-sub-points — and commit it to their own **private GitHub repo**. A coach reviews
-and approves or requests changes. Built with **Next.js** on the
+sub-points — and commit it to their own **private GitHub repo**. A reviewer —
+a coach, line manager, or anyone else granted access — approves it or requests
+changes. Built with **Next.js** on the
 apprenticeship's repository contract (`evidence/<KSB>/index.md`).
 
 ## Run it
@@ -14,7 +15,7 @@ npm run dev        # http://localhost:3000
 ```
 
 Out of the box it runs in **mock mode** — in-memory sample data, no GitHub, no
-auth — so you can click through all six screens in both roles (learner / coach).
+auth — so you can click through all six screens in both roles (learner / reviewer).
 
 ## Two data modes
 

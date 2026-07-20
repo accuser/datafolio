@@ -21,7 +21,7 @@ export interface SessionInfo {
   configured: boolean;
   user: { login: string; name: string; avatarUrl: string } | null;
   target?: { owner: string; repo: string };
-  role?: "learner" | "coach" | "unknown";
+  role?: "learner" | "reviewer" | "unknown";
   portfolios?: Portfolio[];
 }
 

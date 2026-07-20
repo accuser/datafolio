@@ -11,7 +11,7 @@ import type { Evidence } from "../types";
  * proxy, and turns each mutation into a single commit to the KSB folder:
  *   - addEvidence   → update the KSB's index.md front-matter `evidence[]`
  *                     (and upload any file blob to the same folder).
- *   - updateEvidence → coach approve / request-changes: patch the matching
+ *   - updateEvidence → reviewer approve / request-changes: patch the matching
  *                     evidence item's `status` + `feedback`.
  * The UI never talks to GitHub directly — only through this interface — so the
  * screens are identical in both modes.
@@ -38,7 +38,7 @@ export interface EvidenceStore {
   load(): Promise<StoreLoad>;
   /** Commit a new evidence item; resolves to the updated collection. */
   addEvidence(item: Evidence, opts?: AddOptions): Promise<Evidence[]>;
-  /** Patch an existing item (coach review / edits); resolves to the collection. */
+  /** Patch an existing item (reviewer review / edits); resolves to the collection. */
   updateEvidence(id: string, patch: Partial<Evidence>): Promise<Evidence[]>;
   /** Delete an item (and its uploaded file); resolves to the collection. */
   deleteEvidence(id: string): Promise<Evidence[]>;

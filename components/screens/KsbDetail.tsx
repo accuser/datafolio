@@ -21,7 +21,7 @@ import { ChevronLeft, Check, FileIcon, FolderIcon, LinkIcon, Plus } from "../ico
 
 function EvidenceCard({ e, ksbId }: { e: Evidence; ksbId: string }) {
   const { state, actions } = useApp();
-  const isCoach = state.role === "coach";
+  const isReviewer = state.role === "reviewer";
   const isLearner = state.role === "learner";
   const [confirmDelete, setConfirmDelete] = useState(false);
   // Asking to confirm replaces the Delete button, which would otherwise drop
@@ -32,7 +32,7 @@ function EvidenceCard({ e, ksbId }: { e: Evidence; ksbId: string }) {
   }, [confirmDelete]);
   const em = evMeta(e.status);
   const ti = typeInfo(e.type);
-  const showReview = isCoach && e.status === "Submitted";
+  const showReview = isReviewer && e.status === "Submitted";
   const httpsHref = e.url ? "https://" + e.url.replace(/^https?:\/\//, "") : "#";
 
   return (
@@ -76,7 +76,7 @@ function EvidenceCard({ e, ksbId }: { e: Evidence; ksbId: string }) {
                   : "feedback feedback--approved"
               }
             >
-              <div className="feedback__label">Coach feedback</div>
+              <div className="feedback__label">Reviewer feedback</div>
               <div className="feedback__text">{e.feedback}</div>
             </div>
           )}

@@ -4,7 +4,7 @@ import { getGitHubConfig } from "@/lib/github/config";
 import { getSession } from "@/lib/session";
 
 // Start the GitHub App user OAuth (user-to-server) flow. A learner is sent to
-// their own repo by default; a coach can target a learner's repo with
+// their own repo by default; a reviewer can target a learner's repo with
 // ?owner=<learner-login>[&repo=<repo>].
 export async function GET(req: NextRequest) {
   const cfg = getGitHubConfig();

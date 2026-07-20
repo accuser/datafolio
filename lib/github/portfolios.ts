@@ -11,13 +11,13 @@ import type { Portfolio } from "../types";
 
 const API = "https://api.github.com";
 const PER_PAGE = 100;
-// Defensive cap: a coach's roster is small, but never loop unbounded.
+// Defensive cap: a reviewer's roster is small, but never loop unbounded.
 const MAX_PAGES = 10;
 // The list is cached in the encrypted session cookie (~4KB browser limit) and
 // sent on every request, so bound its length. Rosters this large are the
 // provider-scale case the collaborator model doesn't target; truncating keeps
 // the learner's own portfolio (sorted first) and the alphabetically-first
-// coached repos rather than risking an oversized cookie.
+// reviewed repos rather than risking an oversized cookie.
 const MAX_PORTFOLIOS = 50;
 
 interface Installation {
@@ -65,7 +65,7 @@ async function paginate<T>(
 /**
  * The portfolios `login` can reach, given their user token. `repoName` is the
  * shared portfolio repo name (env `DATAFOLIO_REPO_NAME`). Own repo → `learner`,
- * anything else → `coach`. Learner first, then coached repos alphabetically.
+ * anything else → `reviewer`. Learner first, then reviewed repos alphabetically.
  */
 export async function fetchUserPortfolios(
   token: string,
@@ -109,7 +109,7 @@ export async function fetchUserPortfolios(
       portfolios.push({
         owner: r.owner.login,
         repo: r.name,
-        role: r.owner.login.toLowerCase() === me ? "learner" : "coach",
+        role: r.owner.login.toLowerCase() === me ? "learner" : "reviewer",
       });
     }
   }
@@ -124,8 +124,8 @@ export async function fetchUserPortfolios(
 
 /**
  * The portfolio to land on after sign-in when the caller hasn't already pinned
- * one (e.g. a coach deep-linking `?owner=`): the user's own repo if they have
- * it, else the first portfolio they can reach — which is what stops a coach who
+ * one (e.g. a reviewer deep-linking `?owner=`): the user's own repo if they have
+ * it, else the first portfolio they can reach — which is what stops a reviewer who
  * owns no portfolio hitting a dead end — else a best-effort own-login default.
  */
 export function pickDefaultTarget(

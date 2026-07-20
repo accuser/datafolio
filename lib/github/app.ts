@@ -5,7 +5,7 @@ import { requireGitHubConfig } from "./config";
 
 // GitHub App client. Handles the hard part — signing an App JWT and minting
 // short-lived, per-repo installation tokens — via @octokit/app. User OAuth
-// (identifying the signed-in learner/coach) is done with plain fetch in the
+// (identifying the signed-in learner/reviewer) is done with plain fetch in the
 // auth routes, since it needs no signing.
 
 let appSingleton: App | null = null;
@@ -39,7 +39,7 @@ export async function getInstallationOctokit(
 
 /**
  * Whether `username` may write to `owner/repo` — i.e. is the owner or a
- * collaborator with at least push access. This is how a coach (a collaborator
+ * collaborator with at least push access. This is how a reviewer (a collaborator
  * on the learner's private repo) is authorised to review.
  */
 export async function canWrite(
