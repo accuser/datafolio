@@ -36,6 +36,31 @@ export interface Evidence {
   feedback: string;
 }
 
+/**
+ * A revision flash card, stored in `revision/<KSB>/cards.md`.
+ *
+ * Deliberately a separate entity from `Evidence`, not a variant of it: a card
+ * has no status, no feedback and no reviewer action, because a reviewer never
+ * signs off on revision. That absence is the whole simplification.
+ *
+ * Note what is also absent: no interval, box, or due date. Scheduling is Anki's
+ * job — DataFolio captures cards and exports them, it does not study them — and
+ * keeping review state out of the repo file keeps the contract stable.
+ */
+export interface Card {
+  id: string;
+  /** KSB codes / sub-point ids this card revises, mirroring evidence tags. */
+  ksbIds: string[];
+  front: string;
+  back: string;
+  tags?: string[];
+  /** Distinguishes auto-generated starters from hand-written cards. */
+  source: "seed" | "learner";
+  /** Display date, e.g. "12 Jun 2026". */
+  created: string;
+  updated: string;
+}
+
 /** The add/edit-evidence draft form. */
 export interface EvidenceForm {
   type: EvidenceType;
