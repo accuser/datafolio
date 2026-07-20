@@ -1,4 +1,3 @@
-import type { CSSProperties } from "react";
 import { dump } from "js-yaml";
 import type {
   Evidence,
@@ -172,22 +171,6 @@ export function categoryMeta(cat: Category): CategoryMeta {
     Skill: { name: "Skills", letter: "S", fg: "#0e7490", bg: "#ecfeff" },
     Behaviour: { name: "Behaviours", letter: "B", fg: "#7e22ce", bg: "#faf5ff" },
   }[cat];
-}
-
-/** Shared pill style used for status/route badges. */
-export function pill(bg: string, fg: string): CSSProperties {
-  return {
-    display: "inline-flex",
-    alignItems: "center",
-    padding: "3px 10px",
-    borderRadius: 9999,
-    fontSize: "0.75rem",
-    fontWeight: 600,
-    lineHeight: 1.3,
-    background: bg,
-    color: fg,
-    whiteSpace: "nowrap",
-  };
 }
 
 // ---- Dates -----------------------------------------------------------------

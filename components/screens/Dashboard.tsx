@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type CSSProperties } from "react";
+import Link from "next/link";
 import { useApp, type RouteFilter, type StatusFilter } from "@/lib/state";
 import {
   categoryMeta,
@@ -13,47 +14,8 @@ import {
   statusMeta,
 } from "@/lib/domain";
 import type { Category } from "@/lib/types";
-import { LoadingState, Pill, SR_ONLY } from "../ui";
+import { LoadingState, Pill } from "../ui";
 import { ChevronRight, CheckBadge } from "../icons";
-import { HoverDiv } from "../Hover";
-
-const CARD: CSSProperties = {
-  background: "#fff",
-  border: "1px solid #ececec",
-  borderRadius: 16,
-};
-
-function dot(bg: string): CSSProperties {
-  return { width: 9, height: 9, borderRadius: 9999, background: bg, display: "inline-block" };
-}
-
-function statusChip(active: boolean): CSSProperties {
-  return {
-    cursor: "pointer",
-    border: "1px solid " + (active ? "#4f46e5" : "#e4e4e7"),
-    background: active ? "#4f46e5" : "#fff",
-    color: active ? "#fff" : "#52525b",
-    borderRadius: 9999,
-    padding: "7px 14px",
-    fontSize: "0.8125rem",
-    fontWeight: 500,
-    fontFamily: "inherit",
-  };
-}
-
-function routeChip(active: boolean): CSSProperties {
-  return {
-    cursor: "pointer",
-    border: "1px solid " + (active ? "#3730a3" : "#e4e4e7"),
-    background: active ? "#eef2ff" : "#fff",
-    color: active ? "#3730a3" : "#71717a",
-    borderRadius: 9999,
-    padding: "7px 13px",
-    fontSize: "0.8125rem",
-    fontWeight: 600,
-    fontFamily: "inherit",
-  };
-}
 
 export function Dashboard() {
   const { state, user, actions } = useApp();
@@ -108,60 +70,39 @@ export function Dashboard() {
 
   const shown = groups.reduce((n, g) => n + g.items.length, 0);
 
-  const bar = (n: number, bg: string): CSSProperties => ({
+  // Segment widths are data, so they stay inline; the colours are tokens.
+  const bar = (n: number, token: string): CSSProperties => ({
     width: (n / total) * 100 + "%",
-    background: bg,
+    background: `var(${token})`,
     height: "100%",
   });
 
   const legend = [
-    { label: "Approved", count: approved, color: "#22c55e" },
-    { label: "Awaiting review", count: submitted, color: "#3b82f6" },
-    { label: "In progress", count: inprogress, color: "#f59e0b" },
-    { label: "Not started", count: notstarted, color: "#d4d4d8" },
+    { label: "Approved", count: approved, token: "--seg-approved" },
+    { label: "Awaiting review", count: submitted, token: "--seg-submitted" },
+    { label: "In progress", count: inprogress, token: "--seg-inprogress" },
+    { label: "Not started", count: notstarted, token: "--seg-notstarted" },
   ];
 
   if (loading) return <LoadingState label="Loading your portfolio…" />;
 
   return (
-    <div style={{ padding: "32px 0 64px" }}>
-      <div style={{ marginBottom: 24 }}>
-        <div style={{ fontSize: "0.8125rem", fontWeight: 600, color: "#71717a", letterSpacing: "0.03em" }}>
+    <div className="screen screen--dashboard">
+      <div className="page-head">
+        <div className="page-head__eyebrow">
           {isCoach ? "Coach view" : "Your portfolio"}
         </div>
-        <h1 style={{ fontSize: "1.75rem", fontWeight: 700, letterSpacing: "-0.02em", margin: "4px 0 0" }}>
+        <h1 className="page-head__title">
           {isCoach ? "Review evidence" : `Welcome back, ${user.name.split(" ")[0]}`}
         </h1>
       </div>
 
       {isCoach && awaitingReview > 0 && (
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-            background: "#eff6ff",
-            border: "1px solid #bfdbfe",
-            borderRadius: 12,
-            padding: "14px 18px",
-            marginBottom: 24,
-          }}
-        >
-          <div
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: 9,
-              background: "#dbeafe",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              flexShrink: 0,
-            }}
-          >
-            <CheckBadge size={17} color="#1d4ed8" />
+        <div className="review-callout">
+          <div className="review-callout__icon">
+            <CheckBadge size={17} color="var(--info-icon)" />
           </div>
-          <div style={{ fontSize: "0.875rem", color: "#1e3a8a" }}>
+          <div className="review-callout__text">
             <strong>{awaitingReview} evidence item(s)</strong> awaiting your review across the
             portfolio.
           </div>
@@ -169,116 +110,70 @@ export function Dashboard() {
       )}
 
       {/* Overall progress */}
-      <div style={{ ...CARD, padding: "24px 26px", marginBottom: 26 }}>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            marginBottom: 16,
-          }}
-        >
-          <div style={{ fontSize: "0.9375rem", fontWeight: 600 }}>Overall progress</div>
-          <div style={{ fontSize: "0.8125rem", color: "#71717a" }}>
-            <strong style={{ color: "#18181b" }}>{approved}</strong>
+      <div className="card card--xl progress-card">
+        <div className="progress-card__head">
+          <div className="progress-card__title">Overall progress</div>
+          <div className="progress-card__count">
+            <strong>{approved}</strong>
             {` of ${total} KSBs evidenced & approved`}
           </div>
         </div>
-        <div
-          style={{
-            height: 12,
-            background: "#f4f4f5",
-            borderRadius: 9999,
-            overflow: "hidden",
-            display: "flex",
-          }}
-        >
-          <div style={bar(approved, "#22c55e")} />
-          <div style={bar(submitted, "#3b82f6")} />
-          <div style={bar(inprogress, "#f59e0b")} />
+        <div className="progress-bar">
+          <div style={bar(approved, "--seg-approved")} />
+          <div style={bar(submitted, "--seg-submitted")} />
+          <div style={bar(inprogress, "--seg-inprogress")} />
         </div>
-        <div style={{ display: "flex", gap: 22, marginTop: 16, flexWrap: "wrap" }}>
+        <div className="progress-legend">
           {legend.map((l) => (
-            <div
-              key={l.label}
-              style={{ display: "flex", alignItems: "center", gap: 7, fontSize: "0.8125rem", color: "#52525b" }}
-            >
-              <span style={dot(l.color)} />
-              {l.label} <strong style={{ color: "#18181b" }}>{l.count}</strong>
+            <div key={l.label} className="progress-legend__item">
+              <span
+                className="progress-legend__dot"
+                style={{ background: `var(${l.token})` }}
+              />
+              {l.label} <strong>{l.count}</strong>
             </div>
           ))}
         </div>
       </div>
 
       {/* Route split */}
-      <div
-        className="grid-2"
-        style={{
-          display: "grid",
-          gap: 14,
-          marginBottom: 28,
-        }}
-      >
+      <div className="grid-2 method-cards">
         {Object.values(standard.methods).map((mm) => (
-          <div key={mm.key} style={{ ...CARD, borderRadius: 14, padding: "16px 18px" }}>
+          <div key={mm.key} className="card method-card">
+            {/* Method colours come from the standard's own config, so they're
+                injected as a custom property rather than hard-coded here. */}
             <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                fontSize: "0.875rem",
-                fontWeight: 600,
-                color: mm.colour.fg,
-              }}
+              className="method-card__title"
+              style={{ "--method-fg": mm.colour.fg } as CSSProperties}
             >
-              <span
-                style={{
-                  width: 9,
-                  height: 9,
-                  borderRadius: 9999,
-                  background: mm.colour.fg,
-                }}
-              />
+              <span className="method-card__dot" />
               {mm.label}
             </div>
-            <div style={{ fontSize: "0.8125rem", color: "#71717a", marginTop: 5, lineHeight: 1.5 }}>
-              {mm.note}
-            </div>
+            <div className="method-card__note">{mm.note}</div>
           </div>
         ))}
       </div>
 
       {/* Filters */}
-      <div
-        style={{
-          display: "flex",
-          gap: 8,
-          marginBottom: 20,
-          flexWrap: "wrap",
-          alignItems: "center",
-        }}
-      >
+      <div className="filter-bar">
         {statusFilters.map((f) => (
           <button
             key={f.key}
             type="button"
             aria-pressed={filter === f.key}
-            style={statusChip(filter === f.key)}
+            className="chip"
             onClick={() => actions.setFilter(f.key)}
           >
-            {f.label} <span style={{ opacity: 0.75 }}>{f.count}</span>
+            {f.label} <span className="chip__count">{f.count}</span>
           </button>
         ))}
-        <span
-          aria-hidden="true"
-          style={{ width: 1, height: 22, background: "#e4e4e7", margin: "0 4px" }}
-        />
+        <span aria-hidden="true" className="filter-bar__divider" />
         {routeFilters.map((r) => (
           <button
             key={r.key}
             type="button"
             aria-pressed={routeFilter === r.key}
-            style={routeChip(routeFilter === r.key)}
+            className="chip chip--method"
             onClick={() => actions.setRouteFilter(r.key)}
           >
             {r.label}
@@ -288,54 +183,30 @@ export function Dashboard() {
 
       {/* Filtering swaps the list out with no visual transition, so announce the
           new result count for anyone not watching the page. */}
-      <p aria-live="polite" style={SR_ONLY}>
+      <p aria-live="polite" className="sr-only">
         {filtering
           ? `${shown} of ${total} KSBs match the current filters.`
           : `Showing all ${total} KSBs.`}
       </p>
 
-      {/* KSB groups */}
       {/* Every group can filter down to nothing; without this the page would end
           at the chips with no explanation and read as broken. */}
       {!loading && groups.length === 0 && (
-        <div
-          style={{
-            border: "1.5px dashed #e4e4e7",
-            borderRadius: 14,
-            padding: 40,
-            textAlign: "center",
-          }}
-        >
-          <div style={{ fontSize: "0.9375rem", fontWeight: 600, color: "#3f3f46", marginBottom: 4 }}>
-            No KSBs match these filters
-          </div>
-          <div style={{ fontSize: "0.875rem", color: "#71717a", marginBottom: 16 }}>
+        <div className="empty-state">
+          <div className="empty-state__title">No KSBs match these filters</div>
+          <div className="empty-state__body">
             Nothing is both{" "}
-            <strong style={{ fontWeight: 600 }}>
-              {statusFilters.find((f) => f.key === filter)?.label.toLowerCase()}
-            </strong>{" "}
+            <strong>{statusFilters.find((f) => f.key === filter)?.label.toLowerCase()}</strong>{" "}
             and assessed by{" "}
-            <strong style={{ fontWeight: 600 }}>
-              {routeFilters.find((r) => r.key === routeFilter)?.label.toLowerCase()}
-            </strong>
+            <strong>{routeFilters.find((r) => r.key === routeFilter)?.label.toLowerCase()}</strong>
             .
           </div>
           <button
             type="button"
+            className="btn btn--primary btn--compact"
             onClick={() => {
               actions.setFilter("all");
               actions.setRouteFilter("all");
-            }}
-            style={{
-              background: "#4f46e5",
-              color: "#fff",
-              border: "none",
-              borderRadius: 9,
-              padding: "9px 16px",
-              fontSize: "0.875rem",
-              fontWeight: 600,
-              fontFamily: "inherit",
-              cursor: "pointer",
             }}
           >
             Clear filters
@@ -344,37 +215,27 @@ export function Dashboard() {
       )}
 
       {groups.map((g) => (
-        <div key={g.meta.name} style={{ marginBottom: 34 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+        <div key={g.meta.name} className="ksb-group">
+          <div className="ksb-group__head">
             <span
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                width: 26,
-                height: 26,
-                borderRadius: 8,
-                background: g.meta.bg,
-                color: g.meta.fg,
-                fontWeight: 700,
-                fontSize: "0.8125rem",
-              }}
+              className="ksb-group__letter"
+              style={
+                { "--cat-bg": g.meta.bg, "--cat-fg": g.meta.fg } as CSSProperties
+              }
             >
               {g.meta.letter}
             </span>
-            <h2 style={{ fontSize: "0.9375rem", fontWeight: 700, letterSpacing: "-0.01em", margin: 0 }}>
-              {g.meta.name}
-            </h2>
+            <h2 className="ksb-group__name">{g.meta.name}</h2>
             {/* Under a filter the group shows a subset, so count what's on
                 screen — "8 KSBs" above a single row reads as a bug. */}
-            <span style={{ fontSize: "0.8125rem", color: "#71717a" }}>
+            <span className="ksb-group__count">
               {filtering
                 ? `${g.items.length} of ${g.all.length} KSBs`
                 : `${g.all.length} KSBs`}
             </span>
           </div>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div className="ksb-list">
             {g.items.map((k) => {
               const sk = ksbStatusKey(evidence, k.id);
               const m = statusMeta(sk);
@@ -382,188 +243,84 @@ export function Dashboard() {
               const n = evFor(evidence, k.id).length;
               return (
                 <div key={k.id}>
-                <HoverDiv
-                  href={`/ksb/${k.id}`}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 14,
-                    background: "#fff",
-                    border: "1px solid #ececec",
-                    borderRadius: 12,
-                    padding: "15px 18px",
-                    cursor: "pointer",
-                  }}
-                  ariaLabel={`Open ${k.id}: ${k.short}`}
-                  hoverStyle={{
-                    border: "1px solid #c7d2fe",
-                    boxShadow: "0 2px 10px rgba(79,70,229,.07)",
-                  }}
-                >
-                  <span
-                    style={{
-                      fontSize: "0.8125rem",
-                      fontWeight: 700,
-                      color: "#4338ca",
-                      background: "#eef2ff",
-                      borderRadius: 7,
-                      padding: "5px 9px",
-                      minWidth: 38,
-                      textAlign: "center",
-                      flexShrink: 0,
-                    }}
+                  <Link
+                    href={`/ksb/${k.id}`}
+                    aria-label={`Open ${k.id}: ${k.short}`}
+                    className="row row--lift row--lift-shadow ksb-row"
                   >
-                    {k.id}
-                  </span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: "0.875rem", lineHeight: 1.45, color: "#3f3f46" }}>{k.statement}</div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 6 }}>
-                      {methods.map((m) => (
-                        <Pill key={m.key} bg={m.bg} fg={m.fg}>
-                          {m.label}
-                        </Pill>
-                      ))}
-                      {k.points && (
-                        <span style={{ fontSize: "0.75rem", color: "#71717a", whiteSpace: "nowrap" }}>
-                          {k.points.length} sub-points
-                        </span>
-                      )}
+                    <span className="ksb-row__code">{k.id}</span>
+                    <div className="ksb-row__body">
+                      <div className="ksb-row__statement">{k.statement}</div>
+                      <div className="ksb-row__meta">
+                        {methods.map((m) => (
+                          <Pill key={m.key} bg={m.bg} fg={m.fg}>
+                            {m.label}
+                          </Pill>
+                        ))}
+                        {k.points && (
+                          <span className="ksb-row__subcount">
+                            {k.points.length} sub-points
+                          </span>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                  <span style={{ fontSize: "0.8125rem", color: "#71717a", whiteSpace: "nowrap" }}>
-                    {n === 0 ? "No evidence" : `${n} ${n === 1 ? "item" : "items"}`}
-                  </span>
-                  <Pill bg={m.bg} fg={m.fg}>
-                    {m.label}
-                  </Pill>
-                  <ChevronRight />
-                </HoverDiv>
-                {k.points && (
-                  <button
-                    type="button"
-                    aria-expanded={!!expanded[k.id]}
-                    aria-controls={`subpoints-${k.id}`}
-                    onClick={() => setExpanded((x) => ({ ...x, [k.id]: !x[k.id] }))}
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 5,
-                      margin: "4px 0 0 30px",
-                      background: "none",
-                      border: "none",
-                      padding: "4px 2px",
-                      minHeight: 24,
-                      fontSize: "0.75rem",
-                      fontFamily: "inherit",
-                      color: "#71717a",
-                      cursor: "pointer",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    <span
-                      aria-hidden
-                      style={{
-                        display: "inline-block",
-                        transition: "transform .15s",
-                        transform: expanded[k.id] ? "rotate(90deg)" : "none",
-                      }}
-                    >
-                      ›
+                    <span className="ksb-row__count">
+                      {n === 0 ? "No evidence" : `${n} ${n === 1 ? "item" : "items"}`}
                     </span>
-                    {expanded[k.id] ? "Hide" : "Show"} {k.points.length} sub-points
-                  </button>
-                )}
-                {k.points && expanded[k.id] && (
-                  <div
-                    id={`subpoints-${k.id}`}
-                    style={{
-                      margin: "2px 0 6px 30px",
-                      borderLeft: "2px solid #ececec",
-                      paddingLeft: 14,
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 2,
-                    }}
-                  >
-                    {k.points.map((p) => {
-                      const pMethods = p.methods.map((mk) => methodMeta(standard, mk));
-                      const collects = pMethods.some((mm) => mm.collectsEvidence);
-                      const pn = evForPoint(evidence, p.id).length;
-                      const psm = statusMeta(pointStatusKey(evidence, p.id));
-                      return (
-                        <div
-                          key={p.id}
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 10,
-                            padding: "8px 10px",
-                            borderRadius: 8,
-                            background: "#fafafa",
-                          }}
-                        >
-                          <span
-                            style={{
-                              fontSize: "0.75rem",
-                              fontWeight: 700,
-                              color: "#4338ca",
-                              minWidth: 42,
-                              flexShrink: 0,
-                            }}
-                          >
-                            {p.id}
-                          </span>
-                          <span
-                            style={{
-                              flex: 1,
-                              minWidth: 0,
-                              fontSize: "0.8125rem",
-                              color: "#52525b",
-                              lineHeight: 1.4,
-                            }}
-                          >
-                            {p.text}
-                          </span>
-                          {pMethods.map((mm) => (
-                            <Pill key={mm.key} bg={mm.bg} fg={mm.fg}>
-                              {mm.abbr}
-                            </Pill>
-                          ))}
-                          {/* A sub-point assessed only by examination is never the
-                              learner's to evidence — don't show it as "Not started". */}
-                          {collects ? (
-                            <>
-                              <span
-                                style={{
-                                  fontSize: "0.75rem",
-                                  color: "#71717a",
-                                  whiteSpace: "nowrap",
-                                  minWidth: 58,
-                                  textAlign: "right",
-                                }}
-                              >
-                                {pn === 0 ? "—" : `${pn} ${pn === 1 ? "item" : "items"}`}
-                              </span>
-                              <Pill bg={psm.bg} fg={psm.fg}>
-                                {psm.label}
+                    <Pill bg={m.bg} fg={m.fg}>
+                      {m.label}
+                    </Pill>
+                    <ChevronRight />
+                  </Link>
+                  {k.points && (
+                    <button
+                      type="button"
+                      aria-expanded={!!expanded[k.id]}
+                      aria-controls={`subpoints-${k.id}`}
+                      onClick={() => setExpanded((x) => ({ ...x, [k.id]: !x[k.id] }))}
+                      className="subpoint-toggle"
+                    >
+                      <span aria-hidden className="subpoint-toggle__caret">
+                        ›
+                      </span>
+                      {expanded[k.id] ? "Hide" : "Show"} {k.points.length} sub-points
+                    </button>
+                  )}
+                  {k.points && expanded[k.id] && (
+                    <div id={`subpoints-${k.id}`} className="subpoint-list">
+                      {k.points.map((p) => {
+                        const pMethods = p.methods.map((mk) => methodMeta(standard, mk));
+                        const collects = pMethods.some((mm) => mm.collectsEvidence);
+                        const pn = evForPoint(evidence, p.id).length;
+                        const psm = statusMeta(pointStatusKey(evidence, p.id));
+                        return (
+                          <div key={p.id} className="subpoint-item">
+                            <span className="subpoint-item__code">{p.id}</span>
+                            <span className="subpoint-item__text">{p.text}</span>
+                            {pMethods.map((mm) => (
+                              <Pill key={mm.key} bg={mm.bg} fg={mm.fg}>
+                                {mm.abbr}
                               </Pill>
-                            </>
-                          ) : (
-                            <span
-                              style={{
-                                fontSize: "0.75rem",
-                                color: "#71717a",
-                                whiteSpace: "nowrap",
-                              }}
-                            >
-                              No evidence needed
-                            </span>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
+                            ))}
+                            {/* A sub-point assessed only by examination is never the
+                                learner's to evidence — don't show it as "Not started". */}
+                            {collects ? (
+                              <>
+                                <span className="subpoint-item__count">
+                                  {pn === 0 ? "—" : `${pn} ${pn === 1 ? "item" : "items"}`}
+                                </span>
+                                <Pill bg={psm.bg} fg={psm.fg}>
+                                  {psm.label}
+                                </Pill>
+                              </>
+                            ) : (
+                              <span className="subpoint-item__none">No evidence needed</span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               );
             })}

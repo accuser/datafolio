@@ -16,14 +16,8 @@ import {
   typeInfo,
 } from "@/lib/domain";
 import type { Evidence } from "@/lib/types";
-import { Pill, mono } from "../ui";
-import { HoverDiv } from "../Hover";
+import { Pill } from "../ui";
 import { ChevronLeft, Check, FileIcon, FolderIcon, LinkIcon, Plus } from "../icons";
-
-const CARD: CSSProperties = {
-  background: "#fff",
-  border: "1px solid #ececec",
-};
 
 function EvidenceCard({ e, ksbId }: { e: Evidence; ksbId: string }) {
   const { state, actions } = useApp();
@@ -42,180 +36,83 @@ function EvidenceCard({ e, ksbId }: { e: Evidence; ksbId: string }) {
   const httpsHref = e.url ? "https://" + e.url.replace(/^https?:\/\//, "") : "#";
 
   return (
-    <div style={{ ...CARD, borderRadius: 14, padding: "18px 20px" }}>
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+    <div className="card evidence-card">
+      <div className="evidence-card__inner">
+        {/* Evidence-type colours are a fixed set but live beside their labels in
+            domain.ts, so they arrive as custom properties like the pills do. */}
         <div
-          style={{
-            width: 34,
-            height: 34,
-            borderRadius: 9,
-            background: ti.bg,
-            color: ti.fg,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: "1rem",
-            fontWeight: 700,
-            flexShrink: 0,
-          }}
+          className="evidence-card__icon"
+          style={{ "--type-bg": ti.bg, "--type-fg": ti.fg } as CSSProperties}
         >
           {ti.icon}
         </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              flexWrap: "wrap",
-              marginBottom: 3,
-            }}
-          >
-            <span style={{ fontSize: "0.9375rem", fontWeight: 600, lineHeight: 1.3 }}>{e.title}</span>
+        <div className="evidence-card__body">
+          <div className="evidence-card__head">
+            <span className="evidence-card__title">{e.title}</span>
             <Pill bg={em.bg} fg={em.fg}>
               {em.label}
             </Pill>
           </div>
-          <div style={{ fontSize: "0.8125rem", color: "#71717a", fontFamily: mono }}>
+          <div className="evidence-card__meta">
             {ti.label} · {e.date}
           </div>
 
           {e.type === "github" && (
-            <a
-              href={httpsHref}
-              target="_blank"
-              rel="noreferrer"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-                fontSize: "0.8125rem",
-                marginTop: 9,
-                wordBreak: "break-all",
-              }}
-            >
+            <a href={httpsHref} target="_blank" rel="noreferrer" className="evidence-card__link">
               <LinkIcon size={14} />
               {e.url}
             </a>
           )}
 
           {e.type === "upload" && (
-            <div
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 8,
-                fontSize: "0.8125rem",
-                marginTop: 9,
-                background: "#f4f4f5",
-                borderRadius: 8,
-                padding: "7px 11px",
-                color: "#3f3f46",
-                fontFamily: mono,
-              }}
-            >
-              <FileIcon size={14} color="#3f3f46" />
+            <div className="evidence-card__file">
+              <FileIcon size={14} color="var(--text-secondary)" />
               {e.fileName}
             </div>
           )}
 
           {e.type === "reflection" && e.note && (
-            <p
-              style={{
-                fontSize: "0.875rem",
-                lineHeight: 1.6,
-                color: "#52525b",
-                margin: "10px 0 0",
-                whiteSpace: "pre-wrap",
-              }}
-            >
-              {e.note}
-            </p>
+            <p className="evidence-card__note">{e.note}</p>
           )}
 
           {e.feedback && (
             <div
-              style={{
-                marginTop: 12,
-                padding: "11px 13px",
-                borderRadius: 10,
-                background: e.status === "Changes" ? "#fff7ed" : "#f0fdf4",
-                color: e.status === "Changes" ? "#9a3412" : "#166534",
-              }}
+              className={
+                e.status === "Changes"
+                  ? "feedback feedback--changes"
+                  : "feedback feedback--approved"
+              }
             >
-              <div
-                style={{
-                  fontSize: "0.75rem",
-                  fontWeight: 700,
-                  letterSpacing: "0.03em",
-                  textTransform: "uppercase",
-                  marginBottom: 4,
-                  opacity: 0.75,
-                }}
-              >
-                Coach feedback
-              </div>
-              <div style={{ fontSize: "0.875rem", lineHeight: 1.55 }}>{e.feedback}</div>
+              <div className="feedback__label">Coach feedback</div>
+              <div className="feedback__text">{e.feedback}</div>
             </div>
           )}
 
           {showReview && (
-            <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px dashed #ececec" }}>
+            <div className="review-box">
               <textarea
                 placeholder="Add feedback for the learner (optional)…"
                 aria-label={`Feedback for ${e.title}`}
                 rows={2}
                 value={state.reviewComments[e.id] || ""}
                 onChange={(ev) => actions.setReview(e.id, ev.target.value)}
-                style={{
-                  width: "100%",
-                  border: "1px solid #e4e4e7",
-                  borderRadius: 9,
-                  padding: "10px 12px",
-                  fontSize: "0.875rem",
-                  fontFamily: "inherit",
-                  resize: "vertical",
-                  color: "#18181b",
-                }}
+                className="input review-box__input"
               />
-              <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
+              <div className="review-box__actions">
                 <button
+                  type="button"
                   onClick={() => actions.approve(e.id)}
                   disabled={state.submitting}
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 6,
-                    background: "#16a34a",
-                    color: "#fff",
-                    border: "none",
-                    borderRadius: 8,
-                    padding: "9px 15px",
-                    fontSize: "0.875rem",
-                    fontWeight: 600,
-                    fontFamily: "inherit",
-                    cursor: state.submitting ? "default" : "pointer",
-                    opacity: state.submitting ? 0.6 : 1,
-                  }}
+                  className="btn btn--sm btn--approve"
                 >
                   <Check size={15} />
                   {state.submitting ? "Working…" : "Approve"}
                 </button>
                 <button
+                  type="button"
                   onClick={() => actions.requestChanges(e.id)}
                   disabled={state.submitting}
-                  style={{
-                    background: "#fff",
-                    color: "#b45309",
-                    border: "1px solid #fcd34d",
-                    borderRadius: 8,
-                    padding: "9px 15px",
-                    fontSize: "0.875rem",
-                    fontWeight: 600,
-                    fontFamily: "inherit",
-                    cursor: state.submitting ? "default" : "pointer",
-                    opacity: state.submitting ? 0.6 : 1,
-                  }}
+                  className="btn btn--sm btn--changes"
                 >
                   Request changes
                 </button>
@@ -223,41 +120,22 @@ function EvidenceCard({ e, ksbId }: { e: Evidence; ksbId: string }) {
             </div>
           )}
 
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 12 }}>
+          <div className="evidence-card__tags">
             {e.ksbIds.map((t) => (
-              <span
-                key={t}
-                style={{
-                  fontSize: "0.75rem",
-                  fontWeight: 600,
-                  color: "#4338ca",
-                  background: "#eef2ff",
-                  borderRadius: 6,
-                  padding: "3px 8px",
-                  fontFamily: mono,
-                }}
-              >
+              <span key={t} className="tag">
                 {t}
               </span>
             ))}
           </div>
 
           {isLearner && (
-            <div
-              style={{
-                display: "flex",
-                gap: 8,
-                flexWrap: "wrap",
-                marginTop: 14,
-                paddingTop: 12,
-                borderTop: "1px dashed #ececec",
-              }}
-            >
+            <div className="evidence-card__actions">
               {e.status === "Changes" && (
                 <button
+                  type="button"
                   onClick={() => actions.resubmit(e.id)}
                   disabled={state.submitting}
-                  style={cardActionStyle("#4f46e5", "#fff", state.submitting)}
+                  className="btn btn--xs btn--primary"
                 >
                   Resubmit
                 </button>
@@ -265,22 +143,14 @@ function EvidenceCard({ e, ksbId }: { e: Evidence; ksbId: string }) {
               {!confirmDelete && (
                 <Link
                   href={`/ksb/${ksbId}/add?edit=${encodeURIComponent(e.id)}`}
-                  style={{
-                    ...cardActionStyle("#fff", "#3f3f46", false, "#e4e4e7"),
-                    display: "inline-flex",
-                    alignItems: "center",
-                    textDecoration: "none",
-                  }}
+                  className="btn btn--xs btn--neutral"
                 >
                   Edit
                 </Link>
               )}
               {confirmDelete ? (
                 <>
-                  <span
-                    role="alert"
-                    style={{ alignSelf: "center", fontSize: "0.8125rem", color: "#71717a" }}
-                  >
+                  <span role="alert" className="confirm-prompt">
                     Delete this item?
                   </span>
                   <button
@@ -288,7 +158,7 @@ function EvidenceCard({ e, ksbId }: { e: Evidence; ksbId: string }) {
                     type="button"
                     onClick={() => actions.deleteEvidence(e.id)}
                     disabled={state.submitting}
-                    style={cardActionStyle("#dc2626", "#fff", state.submitting)}
+                    className="btn btn--xs btn--danger"
                   >
                     {state.submitting ? "Deleting…" : "Confirm delete"}
                   </button>
@@ -296,7 +166,7 @@ function EvidenceCard({ e, ksbId }: { e: Evidence; ksbId: string }) {
                     type="button"
                     onClick={() => setConfirmDelete(false)}
                     disabled={state.submitting}
-                    style={cardActionStyle("#fff", "#3f3f46", state.submitting, "#e4e4e7")}
+                    className="btn btn--xs btn--neutral"
                   >
                     Cancel
                   </button>
@@ -306,7 +176,7 @@ function EvidenceCard({ e, ksbId }: { e: Evidence; ksbId: string }) {
                   type="button"
                   onClick={() => setConfirmDelete(true)}
                   disabled={state.submitting}
-                  style={cardActionStyle("#fff", "#b91c1c", state.submitting, "#fecaca")}
+                  className="btn btn--xs btn--danger-outline"
                 >
                   Delete
                 </button>
@@ -317,27 +187,6 @@ function EvidenceCard({ e, ksbId }: { e: Evidence; ksbId: string }) {
       </div>
     </div>
   );
-}
-
-/** Small button used for the learner's per-item Edit / Resubmit / Delete row. */
-function cardActionStyle(
-  bg: string,
-  fg: string,
-  disabled: boolean,
-  border?: string,
-): CSSProperties {
-  return {
-    background: bg,
-    color: fg,
-    border: border ? `1px solid ${border}` : "none",
-    borderRadius: 8,
-    padding: "7px 13px",
-    fontSize: "0.8125rem",
-    fontWeight: 600,
-    fontFamily: "inherit",
-    cursor: disabled ? "default" : "pointer",
-    opacity: disabled ? 0.6 : 1,
-  };
 }
 
 export function KsbDetail({ ksbId }: { ksbId: string }) {
@@ -367,63 +216,17 @@ export function KsbDetail({ ksbId }: { ksbId: string }) {
   const ev = evFor(evidence, sel.id);
 
   return (
-    <div style={{ padding: "26px 0 64px" }}>
-      <Link
-        href="/"
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 6,
-          background: "none",
-          border: "none",
-          color: "#71717a",
-          fontSize: "0.875rem",
-          fontFamily: "inherit",
-          cursor: "pointer",
-          padding: "4px 2px",
-          marginBottom: 18,
-          textDecoration: "none",
-        }}
-      >
+    <div className="screen">
+      <Link href="/" className="back-link">
         <ChevronLeft size={15} />
         All KSBs
       </Link>
 
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 18, marginBottom: 18 }}>
-        <span
-          style={{
-            fontSize: "0.9375rem",
-            fontWeight: 700,
-            color: "#4338ca",
-            background: "#eef2ff",
-            borderRadius: 10,
-            padding: "9px 13px",
-            flexShrink: 0,
-          }}
-        >
-          {sel.id}
-        </span>
-        <div style={{ flex: 1 }}>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              marginBottom: 8,
-              flexWrap: "wrap",
-            }}
-          >
-            <span
-              style={{
-                fontSize: "0.8125rem",
-                fontWeight: 600,
-                color: "#71717a",
-                letterSpacing: "0.04em",
-                textTransform: "uppercase",
-              }}
-            >
-              {sel.category}
-            </span>
+      <div className="ksb-head">
+        <span className="ksb-head__code">{sel.id}</span>
+        <div className="ksb-head__body">
+          <div className="ksb-head__badges">
+            <span className="ksb-head__category">{sel.category}</span>
             {methods.map((mm) => (
               <Pill key={mm.key} bg={mm.bg} fg={mm.fg}>
                 {mm.label}
@@ -433,146 +236,52 @@ export function KsbDetail({ ksbId }: { ksbId: string }) {
               {m.label}
             </Pill>
           </div>
-          <h1
-            style={{
-              fontSize: "1.375rem",
-              fontWeight: 700,
-              lineHeight: 1.35,
-              letterSpacing: "-0.01em",
-              margin: 0,
-              textWrap: "pretty",
-            }}
-          >
-            {sel.statement}
-          </h1>
+          <h1 className="ksb-head__statement">{sel.statement}</h1>
         </div>
       </div>
 
       {/* route + folder strip */}
-      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 6 }}>
-        <div
-          style={{
-            flex: 1,
-            minWidth: 260,
-            ...CARD,
-            borderRadius: 12,
-            padding: "13px 16px",
-          }}
-        >
-          <div
-            style={{
-              fontSize: "0.75rem",
-              fontWeight: 700,
-              letterSpacing: "0.03em",
-              textTransform: "uppercase",
-              color: "#71717a",
-              marginBottom: 4,
-            }}
-          >
-            How it&apos;s gathered
-          </div>
-          <div style={{ fontSize: "0.875rem", color: "#3f3f46", lineHeight: 1.5 }}>{methods.map((mm) => mm.note).join(" ")}</div>
+      <div className="ksb-strip">
+        <div className="card card--md ksb-strip__card ksb-strip__card--grow">
+          <div className="eyebrow ksb-strip__label">How it&apos;s gathered</div>
+          <div className="ksb-strip__note">{methods.map((mm) => mm.note).join(" ")}</div>
         </div>
-        <HoverDiv
+        <Link
           href={`/repository?open=${sel.id}`}
-          ariaLabel={`Open the evidence/${sel.id} folder in the repository`}
-          style={{
-            minWidth: 260,
-            ...CARD,
-            borderRadius: 12,
-            padding: "13px 16px",
-            cursor: "pointer",
-          }}
-          hoverStyle={{ border: "1px solid #c7d2fe" }}
+          aria-label={`Open the evidence/${sel.id} folder in the repository`}
+          className="row--lift card--md ksb-strip__card ksb-strip__folder"
         >
-          <div
-            style={{
-              fontSize: "0.75rem",
-              fontWeight: 700,
-              letterSpacing: "0.03em",
-              textTransform: "uppercase",
-              color: "#71717a",
-              marginBottom: 5,
-            }}
-          >
-            Repository folder
-          </div>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              fontFamily: mono,
-              fontSize: "0.8125rem",
-              color: "#4f46e5",
-            }}
-          >
+          <div className="eyebrow ksb-strip__label">Repository folder</div>
+          <div className="ksb-strip__path">
             <FolderIcon size={15} />
             evidence/{sel.id}/
           </div>
-        </HoverDiv>
+        </Link>
       </div>
 
       {/* sub-points */}
       {pts.length > 0 && (
-        <div style={{ marginTop: 24 }}>
-          <h2 style={{ fontSize: "0.9375rem", fontWeight: 700, margin: "0 0 12px" }}>
+        <div className="ksb-subpoints">
+          <h2 className="section-title">
             Sub-points{" "}
-            <span style={{ color: "#71717a", fontWeight: 500 }}>
+            <span className="section-title__aside">
               {neededPts.length
                 ? ` — ${coveredN}/${neededPts.length} covered`
                 : " — none require portfolio evidence"}
             </span>
           </h2>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div className="ksb-subpoints__list">
             {pts.map((p) => {
               const n = evForPoint(evidence, p.id).length;
               const cov = n > 0;
               return (
-                <div
-                  key={p.id}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 12,
-                    ...CARD,
-                    borderRadius: 11,
-                    padding: "12px 15px",
-                  }}
-                >
-                  <span
-                    style={{
-                      width: 22,
-                      height: 22,
-                      borderRadius: 9999,
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: "0.75rem",
-                      fontWeight: 700,
-                      flexShrink: 0,
-                      background: cov ? "#dcfce7" : "#f4f4f5",
-                      color: cov ? "#166534" : "#d4d4d8",
-                      border: cov ? "none" : "1.5px solid #e4e4e7",
-                    }}
-                  >
+                <div key={p.id} className="card card--sm point-row">
+                  <span className={cov ? "point-row__tick point-row__tick--on" : "point-row__tick"}>
                     {cov ? "✓" : ""}
                   </span>
-                  <span
-                    style={{
-                      fontSize: "0.75rem",
-                      fontWeight: 700,
-                      color: "#4f46e5",
-                      fontFamily: mono,
-                      minWidth: 42,
-                    }}
-                  >
-                    {p.id}
-                  </span>
-                  <span style={{ flex: 1, fontSize: "0.875rem", color: "#3f3f46", lineHeight: 1.45 }}>
-                    {p.text}
-                  </span>
-                  <span style={{ fontSize: "0.75rem", color: "#71717a", whiteSpace: "nowrap" }}>
+                  <span className="point-row__code">{p.id}</span>
+                  <span className="point-row__text">{p.text}</span>
+                  <span className="point-row__count">
                     {n === 0 ? "—" : `${n} item${n === 1 ? "" : "s"}`}
                   </span>
                 </div>
@@ -583,39 +292,12 @@ export function KsbDetail({ ksbId }: { ksbId: string }) {
       )}
 
       {/* evidence */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 16,
-          margin: "30px 0 16px",
-        }}
-      >
-        <h2 style={{ fontSize: "1rem", fontWeight: 700, margin: 0 }}>
-          Evidence{" "}
-          <span style={{ color: "#71717a", fontWeight: 500 }}>{ev.length ? `· ${ev.length}` : ""}</span>
+      <div className="evidence-head">
+        <h2 className="section-title section-title--lg">
+          Evidence <span className="section-title__aside">{ev.length ? `· ${ev.length}` : ""}</span>
         </h2>
         {isLearner && collectsHere && (
-          <Link
-            href={`/ksb/${sel.id}/add`}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 7,
-              background: "#4f46e5",
-              color: "#fff",
-              border: "none",
-              borderRadius: 9,
-              padding: "10px 16px",
-              fontSize: "0.875rem",
-              fontWeight: 600,
-              fontFamily: "inherit",
-              cursor: "pointer",
-              textDecoration: "none",
-              whiteSpace: "nowrap",
-            }}
-          >
+          <Link href={`/ksb/${sel.id}/add`} className="btn btn--primary btn--add">
             <Plus size={16} />
             Add evidence
           </Link>
@@ -623,19 +305,11 @@ export function KsbDetail({ ksbId }: { ksbId: string }) {
       </div>
 
       {ev.length === 0 ? (
-        <div
-          style={{
-            border: "1.5px dashed #e4e4e7",
-            borderRadius: 14,
-            padding: 40,
-            textAlign: "center",
-            color: "#71717a",
-          }}
-        >
-          <div style={{ fontSize: "0.9375rem", fontWeight: 600, color: "#71717a", marginBottom: 4 }}>
+        <div className="empty-state empty-state--evidence">
+          <div className="empty-state__title empty-state__title--muted">
             {collectsHere ? "No evidence yet" : "No evidence needed"}
           </div>
-          <div style={{ fontSize: "0.875rem" }}>
+          <div className="empty-state__body empty-state__body--flush">
             {collectsHere ? (
               <>
                 Link a GitHub artefact, write a reflection, or upload a file to start evidencing
@@ -651,7 +325,7 @@ export function KsbDetail({ ksbId }: { ksbId: string }) {
           </div>
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div className="evidence-list">
           {ev.map((e) => (
             <EvidenceCard key={e.id} e={e} ksbId={sel.id} />
           ))}

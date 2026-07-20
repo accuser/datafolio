@@ -6,30 +6,11 @@ import { useApp } from "@/lib/state";
 import { MAX_UPLOAD_MB } from "@/lib/data/uploads";
 import { rootOf, typeInfo } from "@/lib/domain";
 import type { EvidenceType } from "@/lib/types";
-import { mono } from "../ui";
 import { ChevronLeft, UploadCloud } from "../icons";
 
 /** Matches the copy on the dropzone — notebooks, PDFs, images or slides. */
 const ACCEPT =
   ".ipynb,.pdf,.md,.csv,.png,.jpg,.jpeg,.gif,.webp,.svg,.ppt,.pptx,.key,.doc,.docx";
-
-const LABEL: CSSProperties = {
-  display: "block",
-  fontSize: "0.875rem",
-  fontWeight: 600,
-  color: "#3f3f46",
-  marginBottom: 7,
-};
-
-const INPUT: CSSProperties = {
-  width: "100%",
-  border: "1px solid #e4e4e7",
-  borderRadius: 9,
-  padding: "11px 13px",
-  fontSize: "0.875rem",
-  fontFamily: "inherit",
-  color: "#18181b",
-};
 
 const TYPE_CARDS: { key: EvidenceType; label: string; desc: string }[] = [
   { key: "github", label: "GitHub link", desc: "A file, commit or PR" },
@@ -61,7 +42,7 @@ export function AddEvidence({ ksbId, editId }: { ksbId: string; editId?: string 
   const ready = !!form && (editId ? form.editingId === editId : !form.editingId);
   if (!ready || !form) {
     return (
-      <div style={{ padding: "48px 0", color: "#71717a", fontSize: "0.875rem" }}>Loading…</div>
+      <div className="form-loading">Loading…</div>
     );
   }
 
@@ -116,46 +97,29 @@ export function AddEvidence({ ksbId, editId }: { ksbId: string; editId?: string 
   });
 
   return (
-    <div style={{ padding: "26px 0 64px", maxWidth: 680 }}>
-      <Link
-        href={`/ksb/${ksbId}`}
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 6,
-          background: "none",
-          border: "none",
-          color: "#71717a",
-          fontSize: "0.875rem",
-          fontFamily: "inherit",
-          cursor: "pointer",
-          padding: "4px 2px",
-          marginBottom: 18,
-          textDecoration: "none",
-        }}
-      >
+    <div className="screen screen--narrow">
+      <Link href={`/ksb/${ksbId}`} className="back-link">
         <ChevronLeft size={15} />
         Back to {ksbId}
       </Link>
 
-      <h1 style={{ fontSize: "1.375rem", fontWeight: 700, letterSpacing: "-0.01em", margin: "0 0 6px" }}>
+      <h1 className="screen-title screen-title--form">
         {editing ? "Edit evidence" : "Add evidence"}
       </h1>
-      <p style={{ fontSize: "0.9375rem", color: "#71717a", margin: "0 0 28px" }}>
+      <p className="form-intro">
         {editing
           ? "Update this item and resubmit it for review, or save it as a draft."
           : "This will be committed to your private repo and mapped to the KSBs and sub-points you tag."}
       </p>
 
       {/* A <label> with no control isn't a label — this names the button group. */}
-      <span style={{ ...LABEL, marginBottom: 9 }} id="evidence-type-label">
+      <span className="label label--group" id="evidence-type-label">
         Evidence type
       </span>
       <div
         role="group"
         aria-labelledby="evidence-type-label"
         className="type-cards"
-        style={{ display: "flex", gap: 10, marginBottom: 24 }}
       >
         {TYPE_CARDS.map((t) => {
           const ti = typeInfo(t.key);
@@ -171,49 +135,24 @@ export function AddEvidence({ ksbId, editId }: { ksbId: string; editId?: string 
               onClick={() => {
                 if (!editing) actions.setFormField("type", t.key);
               }}
-              style={{
-                textAlign: "left",
-                appearance: "none",
-                font: "inherit",
-                color: "inherit",
-                cursor: editing ? "default" : "pointer",
-                flex: 1,
-                border: "1.5px solid " + (on ? "#4f46e5" : "#e4e4e7"),
-                background: on ? "#f5f3ff" : "#fff",
-                borderRadius: 12,
-                padding: "14px 15px",
-              }}
+              className="type-card"
             >
               <div
                 aria-hidden="true"
-                style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 8,
-                  background: ti.bg,
-                  color: ti.fg,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: "0.9375rem",
-                  fontWeight: 700,
-                }}
+                className="type-card__icon"
+                style={{ "--type-bg": ti.bg, "--type-fg": ti.fg } as CSSProperties}
               >
                 {ti.icon}
               </div>
-              <div style={{ fontSize: "0.875rem", fontWeight: 600, marginTop: 10 }}>{t.label}</div>
-              {/* #52525b, not #71717a — the selected card's violet tint drops
-                  #71717a to 4.4:1. */}
-              <div style={{ fontSize: "0.75rem", color: "#52525b", lineHeight: 1.4, marginTop: 3 }}>
-                {t.desc}
-              </div>
+              <div className="type-card__label">{t.label}</div>
+              <div className="type-card__desc">{t.desc}</div>
             </button>
           );
         })}
       </div>
 
-      <div style={{ marginBottom: 20 }}>
-        <label style={LABEL} htmlFor="ev-title">
+      <div className="field">
+        <label className="label" htmlFor="ev-title">
           Title
         </label>
         <input
@@ -228,16 +167,13 @@ export function AddEvidence({ ksbId, editId }: { ksbId: string; editId?: string 
           required
           aria-invalid={titleError || undefined}
           aria-describedby={titleError ? "ev-title-error" : undefined}
-          style={{
-            ...INPUT,
-            borderColor: titleError ? "#dc2626" : "#e4e4e7",
-          }}
+          className="input"
         />
         {titleError && (
           <div
             id="ev-title-error"
             role="alert"
-            style={{ fontSize: "0.8125rem", color: "#b91c1c", marginTop: 6, fontWeight: 500 }}
+            className="field-error"
           >
             Give this evidence a title before saving it.
           </div>
@@ -245,8 +181,8 @@ export function AddEvidence({ ksbId, editId }: { ksbId: string; editId?: string 
       </div>
 
       {form.type === "github" && (
-        <div style={{ marginBottom: 20 }}>
-          <label style={LABEL} htmlFor="ev-url">
+        <div className="field">
+          <label className="label" htmlFor="ev-url">
             GitHub URL
           </label>
           <input
@@ -255,17 +191,17 @@ export function AddEvidence({ ksbId, editId }: { ksbId: string; editId?: string 
             onChange={(e) => actions.setFormField("url", e.target.value)}
             placeholder="github.com/you/portfolio-evidence/pull/12"
             aria-describedby="ev-url-hint"
-            style={{ ...INPUT, fontFamily: mono }}
+            className="input input--mono"
           />
-          <div id="ev-url-hint" style={{ fontSize: "0.8125rem", color: "#71717a", marginTop: 6 }}>
+          <div id="ev-url-hint" className="field-hint">
             Paste a link to a file, commit or pull request in your repo.
           </div>
         </div>
       )}
 
       {form.type === "reflection" && (
-        <div style={{ marginBottom: 20 }}>
-          <label style={LABEL} htmlFor="ev-note">
+        <div className="field">
+          <label className="label" htmlFor="ev-note">
             Reflection
           </label>
           <textarea
@@ -274,45 +210,32 @@ export function AddEvidence({ ksbId, editId }: { ksbId: string; editId?: string 
             onChange={(e) => actions.setFormField("note", e.target.value)}
             rows={6}
             placeholder="Describe what you did, the decisions you made, and how it demonstrates this KSB…"
-            style={{ ...INPUT, lineHeight: 1.6, resize: "vertical" }}
+            className="input input--textarea"
           />
         </div>
       )}
 
       {form.type === "upload" && editing && (
-        <div style={{ marginBottom: 20 }}>
-          <label style={LABEL}>File</label>
-          <div
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 8,
-              border: "1px solid #e4e4e7",
-              borderRadius: 10,
-              padding: "11px 13px",
-              fontSize: "0.875rem",
-              fontFamily: mono,
-              color: "#3f3f46",
-              background: "#f4f4f5",
-            }}
-          >
+        <div className="field">
+          <label className="label">File</label>
+          <div className="file-locked">
             {form.fileName || "—"}
           </div>
-          <div style={{ fontSize: "0.8125rem", color: "#71717a", marginTop: 6 }}>
+          <div className="field-hint">
             The uploaded file can&apos;t be swapped here — delete this item and add a new one to replace it.
           </div>
         </div>
       )}
 
       {form.type === "upload" && !editing && (
-        <div style={{ marginBottom: 20 }}>
-          <label style={LABEL} htmlFor="ev-file">
+        <div className="field">
+          <label className="label" htmlFor="ev-file">
             File
           </label>
           {/* It looks like a dropzone, so it accepts drops as well as clicks. */}
           <label
             htmlFor="ev-file"
-            className="dropzone"
+            className={dragging ? "dropzone dropzone--active" : "dropzone"}
             onDragOver={(e) => {
               e.preventDefault();
               setDragging(true);
@@ -324,25 +247,12 @@ export function AddEvidence({ ksbId, editId }: { ksbId: string; editId?: string 
               const f = e.dataTransfer.files?.[0];
               if (f) actions.setFile(f);
             }}
-            style={{
-              position: "relative",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: 8,
-              border: "1.5px dashed " + (dragging ? "#4f46e5" : "#d4d4d8"),
-              background: dragging ? "#f5f3ff" : "transparent",
-              borderRadius: 12,
-              padding: 28,
-              cursor: "pointer",
-              textAlign: "center",
-            }}
           >
-            <UploadCloud size={26} color={dragging ? "#4f46e5" : "#71717a"} />
-            <span style={{ fontSize: "0.875rem", fontWeight: 600, color: "#52525b" }}>
+            <UploadCloud size={26} color={dragging ? "var(--accent)" : "var(--text-muted)"} />
+            <span className="dropzone__primary">
               {form.fileName || "Drop a file here, or click to choose one"}
             </span>
-            <span style={{ fontSize: "0.8125rem", color: "#71717a" }}>
+            <span className="dropzone__hint">
               Notebooks, PDFs, images or slides · max {MAX_UPLOAD_MB} MB
             </span>
             <input
@@ -359,17 +269,7 @@ export function AddEvidence({ ksbId, editId }: { ksbId: string; editId?: string 
             <button
               type="button"
               onClick={actions.clearFile}
-              style={{
-                marginTop: 8,
-                background: "none",
-                border: "none",
-                padding: "4px 2px",
-                color: "#b91c1c",
-                fontSize: "0.8125rem",
-                fontWeight: 600,
-                fontFamily: "inherit",
-                cursor: "pointer",
-              }}
+              className="file-clear"
             >
               Remove {form.fileName}
             </button>
@@ -377,49 +277,22 @@ export function AddEvidence({ ksbId, editId }: { ksbId: string; editId?: string 
         </div>
       )}
 
-      <div style={{ marginBottom: 22 }}>
-        <label style={LABEL} htmlFor="ev-map">
+      <div className="field field--map">
+        <label className="label" htmlFor="ev-map">
           Mapped KSBs &amp; sub-points
         </label>
-        <div style={{ display: "flex", gap: 7, flexWrap: "wrap", marginBottom: 10 }}>
+        <div className="map-tags">
           {form.ksbIds.map((id) => (
             <span
               key={id}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-                fontSize: "0.8125rem",
-                fontWeight: 600,
-                color: "#4338ca",
-                background: "#eef2ff",
-                borderRadius: 8,
-                padding: "5px 9px",
-                fontFamily: mono,
-              }}
+              className="map-tag"
             >
               {id}
               <button
                 type="button"
                 onClick={() => actions.removeTag(id)}
                 aria-label={`Remove mapping ${id}`}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  width: 24,
-                  height: 24,
-                  margin: "-4px -6px -4px 0",
-                  background: "none",
-                  border: "none",
-                  padding: 0,
-                  color: "inherit",
-                  fontFamily: "inherit",
-                  cursor: "pointer",
-                  fontSize: "0.875rem",
-                  lineHeight: 1,
-                  opacity: 0.75,
-                }}
+                className="icon-btn map-tag__remove"
               >
                 ×
               </button>
@@ -432,7 +305,7 @@ export function AddEvidence({ ksbId, editId }: { ksbId: string; editId?: string 
           onChange={(e) => {
             if (e.target.value) actions.addTag(e.target.value);
           }}
-          style={{ ...INPUT, color: "#52525b", background: "#fff" }}
+          className="input input--select"
         >
           <option value="">＋ Also map to another KSB or sub-point…</option>
           {options.map((o) => (
@@ -444,47 +317,18 @@ export function AddEvidence({ ksbId, editId }: { ksbId: string; editId?: string 
       </div>
 
       {/* commit preview */}
-      <div
-        style={{
-          background: "#0f172a",
-          borderRadius: 12,
-          padding: "14px 16px",
-          marginBottom: 26,
-          fontFamily: mono,
-        }}
-      >
-        <div
-          style={{
-            fontSize: "0.75rem",
-            color: "#94a3b8",
-            letterSpacing: "0.05em",
-            textTransform: "uppercase",
-            marginBottom: 8,
-          }}
-        >
-          Will commit to
-        </div>
-        <div style={{ fontSize: "0.8125rem", color: "#a5b4fc" }}>{commitPath}</div>
-        <div style={{ fontSize: "0.8125rem", color: "#94a3b8", marginTop: 4 }}>{commitNote}</div>
+      <div className="on-dark commit-preview">
+        <div className="commit-preview__label">Will commit to</div>
+        <div className="commit-preview__path">{commitPath}</div>
+        <div className="commit-preview__note">{commitNote}</div>
       </div>
 
-      <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+      <div className="form-actions">
         <button
           type="button"
           onClick={() => submit("Submitted")}
           disabled={busy}
-          style={{
-            background: "#4f46e5",
-            color: "#fff",
-            border: "none",
-            borderRadius: 9,
-            padding: "11px 20px",
-            fontSize: "0.875rem",
-            fontWeight: 600,
-            fontFamily: "inherit",
-            cursor: busy ? "default" : "pointer",
-            opacity: busy ? 0.6 : 1,
-          }}
+          className="btn btn--primary"
         >
           {busy
             ? "Submitting…"
@@ -496,34 +340,12 @@ export function AddEvidence({ ksbId, editId }: { ksbId: string; editId?: string 
           type="button"
           onClick={() => submit("Draft")}
           disabled={busy}
-          style={{
-            background: "#fff",
-            color: "#3f3f46",
-            border: "1px solid #e4e4e7",
-            borderRadius: 9,
-            padding: "11px 18px",
-            fontSize: "0.875rem",
-            fontWeight: 600,
-            fontFamily: "inherit",
-            cursor: busy ? "default" : "pointer",
-            opacity: busy ? 0.6 : 1,
-          }}
+          className="btn btn--secondary"
         >
           {editing ? "Save as draft" : "Save draft"}
         </button>
-        <div style={{ flex: 1 }} />
-        <Link
-          href={`/ksb/${ksbId}`}
-          style={{
-            background: "none",
-            border: "none",
-            color: "#71717a",
-            fontSize: "0.875rem",
-            fontFamily: "inherit",
-            padding: "4px 2px",
-            textDecoration: "none",
-          }}
-        >
+        <div className="row__spacer" />
+        <Link href={`/ksb/${ksbId}`} className="btn--ghost form-actions__cancel">
           Cancel
         </Link>
       </div>
