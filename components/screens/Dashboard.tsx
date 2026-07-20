@@ -1,12 +1,15 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import { useState, type CSSProperties } from "react";
 import { useApp, type RouteFilter, type StatusFilter } from "@/lib/state";
 import {
   categoryMeta,
   evFor,
+  evForPoint,
   ksbStatusKey,
   ksbMethods,
+  methodMeta,
+  pointStatusKey,
   statusMeta,
 } from "@/lib/domain";
 import type { Category } from "@/lib/types";
@@ -57,6 +60,10 @@ export function Dashboard() {
   const { evidence, filter, routeFilter, role, standard } = state;
   const isCoach = role === "coach";
   const KSBS = standard.ksbs;
+  // Which KSBs have their sub-points expanded. Sub-points are assessed
+  // individually and don't inherit the parent's methods, so a collapsed row's
+  // badges alone can misrepresent what the learner actually has to evidence.
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
   const keys = KSBS.map((k) => ksbStatusKey(evidence, k.id));
   const total = KSBS.length;
@@ -296,8 +303,8 @@ export function Dashboard() {
               const methods = ksbMethods(standard, k);
               const n = evFor(evidence, k.id).length;
               return (
+                <div key={k.id}>
                 <HoverDiv
-                  key={k.id}
                   onClick={() => actions.openKsb(k.id)}
                   style={{
                     display: "flex",
@@ -339,7 +346,7 @@ export function Dashboard() {
                         </Pill>
                       ))}
                       {k.points && (
-                        <span style={{ fontSize: 12, color: "#a1a1aa" }}>
+                        <span style={{ fontSize: 12, color: "#a1a1aa", whiteSpace: "nowrap" }}>
                           {k.points.length} sub-points
                         </span>
                       )}
@@ -353,6 +360,130 @@ export function Dashboard() {
                   </Pill>
                   <ChevronRight />
                 </HoverDiv>
+                {k.points && (
+                  <button
+                    type="button"
+                    aria-expanded={!!expanded[k.id]}
+                    onClick={() => setExpanded((x) => ({ ...x, [k.id]: !x[k.id] }))}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 5,
+                      margin: "4px 0 0 30px",
+                      background: "none",
+                      border: "none",
+                      padding: "2px 0",
+                      fontSize: 12,
+                      fontFamily: "inherit",
+                      color: "#71717a",
+                      cursor: "pointer",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    <span
+                      aria-hidden
+                      style={{
+                        display: "inline-block",
+                        transition: "transform .15s",
+                        transform: expanded[k.id] ? "rotate(90deg)" : "none",
+                      }}
+                    >
+                      ›
+                    </span>
+                    {expanded[k.id] ? "Hide" : "Show"} {k.points.length} sub-points
+                  </button>
+                )}
+                {k.points && expanded[k.id] && (
+                  <div
+                    style={{
+                      margin: "2px 0 6px 30px",
+                      borderLeft: "2px solid #ececec",
+                      paddingLeft: 14,
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 2,
+                    }}
+                  >
+                    {k.points.map((p) => {
+                      const pMethods = p.methods.map((mk) => methodMeta(standard, mk));
+                      const collects = pMethods.some((mm) => mm.collectsEvidence);
+                      const pn = evForPoint(evidence, p.id).length;
+                      const psm = statusMeta(pointStatusKey(evidence, p.id));
+                      return (
+                        <div
+                          key={p.id}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 10,
+                            padding: "8px 10px",
+                            borderRadius: 8,
+                            background: "#fafafa",
+                          }}
+                        >
+                          <span
+                            style={{
+                              fontSize: 11.5,
+                              fontWeight: 700,
+                              color: "#6366f1",
+                              minWidth: 42,
+                              flexShrink: 0,
+                            }}
+                          >
+                            {p.id}
+                          </span>
+                          <span
+                            style={{
+                              flex: 1,
+                              minWidth: 0,
+                              fontSize: 12.5,
+                              color: "#52525b",
+                              lineHeight: 1.4,
+                            }}
+                          >
+                            {p.text}
+                          </span>
+                          {pMethods.map((mm) => (
+                            <Pill key={mm.key} bg={mm.bg} fg={mm.fg}>
+                              {mm.abbr}
+                            </Pill>
+                          ))}
+                          {/* A sub-point assessed only by examination is never the
+                              learner's to evidence — don't show it as "Not started". */}
+                          {collects ? (
+                            <>
+                              <span
+                                style={{
+                                  fontSize: 12,
+                                  color: "#a1a1aa",
+                                  whiteSpace: "nowrap",
+                                  minWidth: 58,
+                                  textAlign: "right",
+                                }}
+                              >
+                                {pn === 0 ? "—" : `${pn} ${pn === 1 ? "item" : "items"}`}
+                              </span>
+                              <Pill bg={psm.bg} fg={psm.fg}>
+                                {psm.label}
+                              </Pill>
+                            </>
+                          ) : (
+                            <span
+                              style={{
+                                fontSize: 12,
+                                color: "#a1a1aa",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              No evidence needed
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                </div>
               );
             })}
           </div>

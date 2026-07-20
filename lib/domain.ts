@@ -11,6 +11,7 @@ import type {
   Ksb,
   MethodKey,
   Standard,
+  SubPoint,
 } from "./standards";
 
 // ---- Evidence ↔ KSB matching (by root code) -------------------------------
@@ -34,6 +35,30 @@ export function evForPoint(evidence: Evidence[], pid: string): Evidence[] {
  *  else any submitted → submitted; else → in-progress. */
 export function ksbStatusKey(evidence: Evidence[], kid: string): KsbStatusKey {
   const ev = evFor(evidence, kid);
+  if (!ev.length) return "notstarted";
+  if (ev.some((e) => e.status === "Approved")) return "approved";
+  if (ev.some((e) => e.status === "Submitted")) return "submitted";
+  return "inprogress";
+}
+
+/**
+ * Sub-points a learner can actually evidence.
+ *
+ * Coverage ratios must exclude sub-points assessed only by methods that collect
+ * no evidence, or a KSB reads as incomplete forever: K3 has three sub-points but
+ * only K3.3 is professional discussion, so "1/3" would imply two outstanding
+ * when the learner is in fact done.
+ */
+export function collectingPoints(standard: Standard, k: Ksb): SubPoint[] {
+  return (k.points ?? []).filter((p) =>
+    p.methods.some((mk) => standard.methods[mk]?.collectsEvidence),
+  );
+}
+
+/** Derived sub-point status. Same rule as `ksbStatusKey`, but matched exactly:
+ *  a sub-point is only evidenced by items that name it, not by its siblings. */
+export function pointStatusKey(evidence: Evidence[], pid: string): KsbStatusKey {
+  const ev = evForPoint(evidence, pid);
   if (!ev.length) return "notstarted";
   if (ev.some((e) => e.status === "Approved")) return "approved";
   if (ev.some((e) => e.status === "Submitted")) return "submitted";

@@ -1,7 +1,16 @@
 "use client";
 
 import { useApp } from "@/lib/state";
-import { evFor, evForPoint, ksbMethods, ksbStatusKey, statusMeta } from "@/lib/domain";
+import {
+  collectingPoints,
+  evFor,
+  evForPoint,
+  ksbMethods,
+  ksbStatusKey,
+  methodMeta,
+  pointStatusKey,
+  statusMeta,
+} from "@/lib/domain";
 import { InlineCode, Pill, mono } from "../ui";
 import { HoverDiv } from "../Hover";
 
@@ -59,10 +68,12 @@ export function Coverage() {
           const methods = ksbMethods(standard, k);
           const n = evFor(evidence, k.id).length;
           const pts = k.points || [];
-          const cov = pts.filter((p) => evForPoint(evidence, p.id).length).length;
+          // Ratio is over sub-points that need evidence, not all of them.
+          const needed = collectingPoints(standard, k);
+          const cov = needed.filter((p) => evForPoint(evidence, p.id).length).length;
           return (
+            <div key={k.id}>
             <HoverDiv
-              key={k.id}
               onClick={() => actions.openKsb(k.id)}
               ariaLabel={`Open ${k.id}: ${k.short}`}
               style={{
@@ -91,7 +102,7 @@ export function Coverage() {
               </div>
               <div style={{ textAlign: "center", color: "#52525b", fontWeight: 600 }}>{n}</div>
               <div style={{ textAlign: "center", color: "#52525b", fontFamily: mono }}>
-                {pts.length ? `${cov}/${pts.length}` : "—"}
+                {needed.length ? `${cov}/${needed.length}` : "—"}
               </div>
               <div>
                 <Pill bg={m.bg} fg={m.fg}>
@@ -99,6 +110,60 @@ export function Coverage() {
                 </Pill>
               </div>
             </HoverDiv>
+
+            {/* Sub-points are always shown here: this is the audit view, and a
+                parent's "Assessed by" cell can't stand in for them — K3 is
+                professional discussion, but only K3.3 of its three is. */}
+            {pts.map((p) => {
+              const pMethods = p.methods.map((mk) => methodMeta(standard, mk));
+              const collects = pMethods.some((mm) => mm.collectsEvidence);
+              const pn = evForPoint(evidence, p.id).length;
+              const psm = statusMeta(pointStatusKey(evidence, p.id));
+              return (
+                <div
+                  key={p.id}
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: GRID,
+                    alignItems: "center",
+                    padding: "9px 18px",
+                    borderBottom: "1px solid #f4f4f5",
+                    fontSize: 12.5,
+                    background: "#fcfcfc",
+                  }}
+                >
+                  <div style={{ paddingLeft: 12 }}>
+                    <span style={{ fontSize: 11.5, color: "#8b8b93", fontFamily: mono }}>
+                      {p.id}
+                    </span>
+                  </div>
+                  <div style={{ color: "#71717a", paddingRight: 14, lineHeight: 1.4 }}>
+                    {p.text}
+                  </div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                    {pMethods.map((mm) => (
+                      <Pill key={mm.key} bg={mm.bg} fg={mm.fg}>
+                        {mm.abbr}
+                      </Pill>
+                    ))}
+                  </div>
+                  <div style={{ textAlign: "center", color: "#8b8b93" }}>
+                    {collects ? pn : "—"}
+                  </div>
+                  <div style={{ textAlign: "center", color: "#d4d4d8" }}>—</div>
+                  <div>
+                    {collects ? (
+                      <Pill bg={psm.bg} fg={psm.fg}>
+                        {psm.label}
+                      </Pill>
+                    ) : (
+                      <span style={{ fontSize: 12, color: "#a1a1aa" }}>Not required</span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+            </div>
           );
         })}
       </div>

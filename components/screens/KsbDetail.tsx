@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { useApp } from "@/lib/state";
 import { collectsEvidence, ksbIndex } from "@/lib/standards";
 import {
+  collectingPoints,
   evFor,
   evForPoint,
   evMeta,
@@ -343,7 +344,8 @@ export function KsbDetail({ ksbId }: { ksbId: string }) {
   // has nothing for the learner to submit, so don't offer to add any.
   const collectsHere = collectsEvidence(standard, sel);
   const pts = sel.points || [];
-  const coveredN = pts.filter((p) => evForPoint(evidence, p.id).length).length;
+  const neededPts = collectingPoints(standard, sel);
+  const coveredN = neededPts.filter((p) => evForPoint(evidence, p.id).length).length;
   const ev = evFor(evidence, sel.id);
 
   return (
@@ -498,7 +500,9 @@ export function KsbDetail({ ksbId }: { ksbId: string }) {
           <h2 style={{ fontSize: 15, fontWeight: 700, margin: "0 0 12px" }}>
             Sub-points{" "}
             <span style={{ color: "#a1a1aa", fontWeight: 500 }}>
-              — {coveredN}/{pts.length} covered
+              {neededPts.length
+                ? ` — ${coveredN}/${neededPts.length} covered`
+                : " — none require portfolio evidence"}
             </span>
           </h2>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
