@@ -40,6 +40,16 @@ export function ksbStatusKey(evidence: Evidence[], kid: string): KsbStatusKey {
   return "inprogress";
 }
 
+/** Derived sub-point status. Same rule as `ksbStatusKey`, but matched exactly:
+ *  a sub-point is only evidenced by items that name it, not by its siblings. */
+export function pointStatusKey(evidence: Evidence[], pid: string): KsbStatusKey {
+  const ev = evForPoint(evidence, pid);
+  if (!ev.length) return "notstarted";
+  if (ev.some((e) => e.status === "Approved")) return "approved";
+  if (ev.some((e) => e.status === "Submitted")) return "submitted";
+  return "inprogress";
+}
+
 // ---- Presentation metadata -------------------------------------------------
 
 export interface Meta {
