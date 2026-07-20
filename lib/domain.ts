@@ -285,7 +285,10 @@ export function renderIndexMd(
     item.maps = e.ksbIds;
     item.status = e.status.toLowerCase();
     item.date = isoDate(e.date);
-    item.reviewed_by = "coach";
+    // Forward-only: portfolios committed before the rename carry "coach" here.
+    // frontmatter.ts reads reviewed_by as an opaque field and never matches on
+    // it, so old values keep parsing and get rewritten on the next mutation.
+    item.reviewed_by = "reviewer";
     if (e.type === "reflection" && e.note) item.note = e.note;
     item.feedback = e.feedback || "";
     return item;
@@ -313,7 +316,7 @@ export function renderIndexMd(
     }
     if (e.feedback) {
       L.push("");
-      L.push("> Coach: " + e.feedback);
+      L.push("> Reviewer: " + e.feedback);
     }
     L.push("");
   });

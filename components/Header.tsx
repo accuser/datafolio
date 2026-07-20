@@ -28,7 +28,7 @@ function Caret({ open }: { open: boolean }) {
 
 /**
  * The active-portfolio chip. In GitHub mode, when the user can reach more than
- * one portfolio (their own plus any they coach), it becomes a dropdown for
+ * one portfolio (their own plus any they review), it becomes a dropdown for
  * switching between them. Otherwise it's the static "repo · private" chip.
  */
 function PortfolioChip() {
@@ -110,7 +110,7 @@ function PortfolioChip() {
                       : "portfolio-menu__role"
                   }
                 >
-                  {p.role === "learner" ? "You" : "Coach"}
+                  {p.role === "learner" ? "You" : "Reviewer"}
                 </span>
               </button>
             );
@@ -168,7 +168,7 @@ export function Header() {
 
       {/* The role toggle is a demo affordance for mock mode. In GitHub mode the
           role is derived from real repo access (owner = learner, collaborator =
-          coach) and must not be user-switchable — a learner flipping to Coach
+          reviewer) and must not be user-switchable — a learner flipping to Reviewer
           would otherwise see review controls (the server rejects the action, but
           the UI shouldn't offer it). */}
       {BACKEND_MODE === "github" ? (
@@ -185,11 +185,11 @@ export function Header() {
           </button>
           <button
             type="button"
-            aria-pressed={role === "coach"}
+            aria-pressed={role === "reviewer"}
             className="role-tab"
-            onClick={() => actions.setRole("coach")}
+            onClick={() => actions.setRole("reviewer")}
           >
-            Coach
+            Reviewer
           </button>
         </div>
       )}

@@ -19,7 +19,7 @@ export interface SessionData {
   /** The learner repo currently in view (owner = learner login). */
   target?: { owner: string; repo: string };
   /**
-   * Portfolios the user can reach (own + those they coach), enumerated once at
+   * Portfolios the user can reach (own + those they review), enumerated once at
    * sign-in. Cached here rather than re-derived per request so we never hold a
    * long-lived GitHub token — the switcher reads this list directly. This lives
    * in the encrypted cookie (sent every request), so the list is length-capped

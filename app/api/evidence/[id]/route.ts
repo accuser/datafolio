@@ -5,7 +5,7 @@ import { createGitHubStore, resolveStandard } from "@/lib/data/github-store";
 import { storeErrorResponse } from "@/lib/data/error-response";
 import { validateEvidencePatch } from "@/lib/data/validation";
 
-// PATCH /api/evidence/:id  → update an item (coach approve / request-changes,
+// PATCH /api/evidence/:id  → update an item (reviewer approve / request-changes,
 // or learner edit / resubmit). Body: { patch: Partial<Evidence> }. Commits
 // atomically. Only a validated subset of fields may be changed.
 export async function PATCH(
@@ -22,8 +22,8 @@ export async function PATCH(
 
   const { id } = await params;
 
-  // The repo owner is the learner; a collaborator is the coach. Role-specific
-  // write rules (a learner may not set coach feedback; editing content downgrades
+  // The repo owner is the learner; a collaborator is the reviewer. Role-specific
+  // write rules (a learner may not set reviewer feedback; editing content downgrades
   // status) are enforced in validateEvidencePatch given this flag.
   const isOwner = ctx.login.toLowerCase() === ctx.owner.toLowerCase();
   const standard = await resolveStandard(ctx);
@@ -35,12 +35,12 @@ export async function PATCH(
     return NextResponse.json({ error: valid.error }, { status: valid.status ?? 400 });
   }
 
-  // A review verdict (Approve / Request changes) is a coach action. The repo
+  // A review verdict (Approve / Request changes) is a reviewer action. The repo
   // owner is the learner, so reject self-review server-side — the client role
   // toggle must not let a learner approve their own evidence.
   if (isOwner && (valid.patch.status === "Approved" || valid.patch.status === "Changes")) {
     return NextResponse.json(
-      { error: "You can’t review your own evidence — only a coach can approve or request changes." },
+      { error: "You can’t review your own evidence — only a reviewer can approve or request changes." },
       { status: 403 },
     );
   }
@@ -67,9 +67,9 @@ export async function DELETE(
     return NextResponse.json({ error: "You do not have write access to this repo" }, { status: 403 });
   }
 
-  // Deleting evidence is the learner's own action; a coach (collaborator with
+  // Deleting evidence is the learner's own action; a reviewer (collaborator with
   // push access) reviews but must not remove a learner's evidence. The UI hides
-  // delete from coaches — enforce the same boundary server-side.
+  // delete from reviewers — enforce the same boundary server-side.
   const isOwner = ctx.login.toLowerCase() === ctx.owner.toLowerCase();
   if (!isOwner) {
     return NextResponse.json(

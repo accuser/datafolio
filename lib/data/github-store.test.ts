@@ -207,7 +207,7 @@ async function main() {
   assert(captured.commits === 1, "update makes one commit");
   const updK4 = captured.trees[0].tree.find((t) => t.path === "evidence/K4/index.md");
   assert(/id: a1[\s\S]*?status: approved/.test(updK4!.content!), "a1 written as approved (lowercase) in index.md");
-  assert(updK4!.content!.includes("Great work."), "coach feedback written to index.md");
+  assert(updK4!.content!.includes("Great work."), "reviewer feedback written to index.md");
 
   // --- add: upload item with file bytes → blob committed in the same commit ---
   // A fresh name (no clash with the seeded evidence/S4/deck.pdf) so this stays a

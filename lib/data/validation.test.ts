@@ -1,6 +1,6 @@
 /**
  * Network-free unit test for validateEvidencePatch. Exercises the role-specific
- * write rules (learner vs coach) that the write API relies on, without touching
+ * write rules (learner vs reviewer) that the write API relies on, without touching
  * GitHub. Run: `tsx --conditions=react-server lib/data/validation.test.ts`.
  */
 import { validateEvidencePatch } from "./validation";
@@ -14,19 +14,19 @@ function assert(cond: unknown, msg: string): asserts cond {
 
 const patch = (p: Record<string, unknown>) => ({ patch: p });
 
-// --- coach (non-owner) review: status + feedback both accepted ---
+// --- reviewer (non-owner) review: status + feedback both accepted ---
 {
   const v = validateEvidencePatch(patch({ status: "Approved", feedback: "Great work." }), { isOwner: false, standard: STD });
-  assert(v.ok, "coach approve is valid");
-  assert(v.patch.status === "Approved", "coach status Approved kept");
-  assert(v.patch.feedback === "Great work.", "coach feedback kept");
+  assert(v.ok, "reviewer approve is valid");
+  assert(v.patch.status === "Approved", "reviewer status Approved kept");
+  assert(v.patch.feedback === "Great work.", "reviewer feedback kept");
 }
 {
   const v = validateEvidencePatch(patch({ status: "Changes", feedback: "Please revise." }), { isOwner: false, standard: STD });
-  assert(v.ok && v.patch.status === "Changes" && v.patch.feedback === "Please revise.", "coach request-changes valid");
+  assert(v.ok && v.patch.status === "Changes" && v.patch.feedback === "Please revise.", "reviewer request-changes valid");
 }
 
-// --- feedback is a coach-only field: a learner (owner) may not write it ---
+// --- feedback is a reviewer-only field: a learner (owner) may not write it ---
 {
   const v = validateEvidencePatch(patch({ feedback: "self praise" }), { isOwner: true, standard: STD });
   assert(!v.ok, "learner feedback rejected");
@@ -96,10 +96,10 @@ for (const field of [
   assert(v.ok && v.patch.status === "Submitted", "owner resubmit (status only) unchanged");
 }
 
-// --- the downgrade force applies only to the owner, not a coach ---
+// --- the downgrade force applies only to the owner, not a reviewer ---
 {
-  const v = validateEvidencePatch(patch({ title: "Coach fix" }), { isOwner: false, standard: STD });
-  assert(v.ok && v.patch.status === undefined, "coach content edit not force-downgraded");
+  const v = validateEvidencePatch(patch({ title: "Reviewer fix" }), { isOwner: false, standard: STD });
+  assert(v.ok && v.patch.status === undefined, "reviewer content edit not force-downgraded");
 }
 
 // --- unchanged baseline behaviour still holds ---
@@ -116,4 +116,4 @@ for (const field of [
   assert(!v.ok, "unknown ksb id rejected");
 }
 
-console.log("VALIDATION OK — learner/coach write rules enforced");
+console.log("VALIDATION OK — learner/reviewer write rules enforced");

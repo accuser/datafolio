@@ -13,7 +13,7 @@ export async function GET() {
   try {
     const store = createGitHubStore(ctx);
     const { evidence, standardId, manifestWarning } = await store.load();
-    const role = ctx.login.toLowerCase() === ctx.owner.toLowerCase() ? "learner" : "coach";
+    const role = ctx.login.toLowerCase() === ctx.owner.toLowerCase() ? "learner" : "reviewer";
     return NextResponse.json({
       evidence,
       standardId,

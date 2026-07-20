@@ -9,13 +9,16 @@ grants the backend short-lived, single-repo tokens to read and commit
 Two things happen with the App:
 
 1. **User authentication** (user-to-server OAuth) — identifies *who* is signed
-   in (a learner or a coach) via "Sign in with GitHub".
+   in (a learner or a reviewer) via "Sign in with GitHub".
 2. **Installation access** — the App, installed on a learner's repo, lets the
    backend mint an installation token to read/write that one repo's Contents.
 
-Coaches are **collaborators** on the learner's private repo, so the same
+Reviewers are **collaborators** on the learner's private repo, so the same
 installation token authorises their reviews (the backend checks the signed-in
 user is the repo owner or a collaborator with write access before committing).
+"Reviewer" is deliberately just that access — coach, line manager, whoever the
+learner grants collaborator rights to. The app has never modelled anything more
+specific than repo access, so it no longer names the role as though it did.
 
 ---
 
@@ -67,34 +70,34 @@ Restart the dev server after changing env.
 3. They open DataFolio and **Sign in with GitHub** → they land on their own
    `<login>/portfolio-evidence`.
 
-## 4. Onboard a coach
+## 4. Onboard a reviewer
 
-1. The learner adds the coach as a **collaborator** (write access) on their repo.
-2. The coach **Signs in with GitHub**. At sign-in the backend enumerates every
-   portfolio repo the coach can reach — their own (if any) plus every learner
+1. The learner adds the reviewer as a **collaborator** (write access) on their repo.
+2. The reviewer **Signs in with GitHub**. At sign-in the backend enumerates every
+   portfolio repo the reviewer can reach — their own (if any) plus every learner
    repo they're a collaborator on where the App is installed — and caches the
    list in the session.
-3. The coach picks a learner from the **portfolio switcher** in the header (top
+3. The reviewer picks a learner from the **portfolio switcher** in the header (top
    right). No need to hand-type logins. The deep link
    `…/api/auth/login?owner=<learner-login>` still works if you want to jump
    straight to one learner.
 
 The backend still confirms collaborator access (`canRead`/`canWrite`) on every
-request, so the switcher only ever lists — and only ever opens — repos the coach
+request, so the switcher only ever lists — and only ever opens — repos the reviewer
 already has GitHub permission on. Switching is discovery, not new access.
 
-> **Install scope matters.** A learner repo appears in a coach's switcher only if
+> **Install scope matters.** A learner repo appears in a reviewer's switcher only if
 > the App's installation on that account **includes that repo**. If a learner
 > installed the App on *"only select repositories"*, the portfolio repo must be
 > one of them; *"all repositories"* also works. A repo the App isn't installed on
 > is invisible to the switcher (and to the backend), even to a valid collaborator.
 
 > **The roster refreshes on sign-in.** The switcher list is enumerated once at
-> sign-in and cached in the session. If a learner grants or revokes a coach's
-> access afterwards, it isn't reflected until the coach signs in again — and a
+> sign-in and cached in the session. If a learner grants or revokes a reviewer's
+> access afterwards, it isn't reflected until the reviewer signs in again — and a
 > revoked-access switch will appear to succeed but then fail to load the evidence
 > (every request re-checks access server-side, so nothing leaks). The list is
-> also length-capped, so a coach with an unusually large roster (a provider-scale
+> also length-capped, so a reviewer with an unusually large roster (a provider-scale
 > case this model isn't built for) may not see every learner.
 
 ---

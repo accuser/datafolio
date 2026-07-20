@@ -91,7 +91,7 @@ export function validateNewEvidence(
     return { ok: false, error: "Map the evidence to at least one KSB or sub-point" };
   }
 
-  // Only Draft or Submitted may be created; approval is a coach action.
+  // Only Draft or Submitted may be created; approval is a reviewer action.
   const status = r.status === "Submitted" ? "Submitted" : "Draft";
 
   const item: Evidence = {
@@ -135,13 +135,13 @@ export type ValidatedPatch =
 const CONTENT_FIELDS = ["title", "url", "note", "ksbIds"] as const;
 
 /**
- * Validate a PATCH body (learner edit / resubmit, or coach review). Only a
+ * Validate a PATCH body (learner edit / resubmit, or a reviewer's verdict). Only a
  * known, safe subset of fields may be changed; everything else is dropped, and
  * each supplied field is type-/length-checked. id and date are never patchable.
  *
  * `isOwner` (login === repo owner, i.e. the learner) gates the role-specific
  * rules that the UI enforces but a hand-crafted request otherwise wouldn't:
- *   - `feedback` is the coach's field, so a learner may not write it (403).
+ *   - `feedback` is the reviewer's field, so a learner may not write it (403).
  *   - editing content invalidates any prior review, so an owner edit that omits
  *     a status is forced back to Draft rather than silently keeping Approved.
  * (Rejecting a learner's explicit self-approval stays with the route handler.)
@@ -168,11 +168,11 @@ export function validateEvidencePatch(
   if ("url" in r) patch.url = str(r.url).slice(0, URL_MAX);
   if ("note" in r) patch.note = str(r.note).slice(0, NOTE_MAX);
   if ("feedback" in r) {
-    // "Coach feedback" is a review field: only a non-owner (coach) may set it.
+    // "Reviewer feedback" is a review field: only a non-owner (reviewer) may set it.
     if (isOwner) {
       return {
         ok: false,
-        error: "Only a coach can leave feedback on evidence.",
+        error: "Only a reviewer can leave feedback on evidence.",
         status: 403,
       };
     }
