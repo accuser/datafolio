@@ -38,7 +38,10 @@
   --text: light-dark(#18181b, #fafafa);
   --text-secondary: light-dark(#3f3f46, #e4e4e7);
   --text-tertiary: light-dark(#52525b, #c9c9d0);
-  --text-muted: light-dark(#71717a, #a1a1aa);
+  /* Sized against the DARKEST surface it may sit on (--surface-muted), not
+     against white. At #71717a it cleared white at 4.83 but only reached 4.40 on
+     --surface-muted — the pairing that failed review three times. */
+  --text-muted: light-dark(#6a6a73, #a1a1aa);
 
   /* Accent (indigo) */
   --accent: light-dark(#4f46e5, #818cf8);
@@ -72,7 +75,9 @@
   --warn-text: light-dark(#854d0e, #fcd34d);
   --changes-tint: light-dark(#fff7ed, #2a1a10);
   --changes-text: light-dark(#9a3412, #fdba74);
-  --success: light-dark(#16a34a, #4ade80);
+  /* green-700, not green-600: --on-success is white here, and white on #16a34a
+     is only 3.30:1. */
+  --success: light-dark(#15803d, #4ade80);
   --success-tint: light-dark(#f0fdf4, #0f2418);
   --success-text: light-dark(#166534, #86efac);
   --info-tint: light-dark(#eff6ff, #12203a);
