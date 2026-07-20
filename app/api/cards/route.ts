@@ -4,6 +4,7 @@ import { createGitHubCardStore, loadCards } from "@/lib/data/github-card-store";
 import { resolveStandard } from "@/lib/data/github-store";
 import { storeErrorResponse } from "@/lib/data/error-response";
 import { validateNewCards } from "@/lib/data/card-validation";
+import { canWriteCards } from "@/lib/data/authz";
 
 // Revision cards for the signed-in user's target repo.
 //
@@ -13,8 +14,6 @@ import { validateNewCards } from "@/lib/data/card-validation";
 // anyone with repo access, matching the decision that cards are "not surfaced
 // in the reviewer's app" rather than hidden from a collaborator who can already
 // read the repo.
-
-const NOT_YOURS = "Revision cards belong to the learner — only they can change them.";
 
 // GET /api/cards → every revision card in the repo.
 export async function GET() {
@@ -34,7 +33,8 @@ export async function POST(request: Request) {
   const res = await resolveRepoContext();
   if (!res.ok) return NextResponse.json({ error: res.error }, { status: res.status });
   const { ctx } = res;
-  if (!ctx.isOwner) return NextResponse.json({ error: NOT_YOURS }, { status: 403 });
+  const auth = canWriteCards(ctx.isOwner);
+  if (!auth.allow) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
   const standard = await resolveStandard(ctx);
   const valid = validateNewCards(await request.json().catch(() => null), standard);
