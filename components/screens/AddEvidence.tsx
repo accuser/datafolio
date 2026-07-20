@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useApp } from "@/lib/state";
 import { MAX_UPLOAD_MB } from "@/lib/data/uploads";
 import { rootOf, typeInfo } from "@/lib/domain";
@@ -20,6 +21,7 @@ const TYPE_CARDS: { key: EvidenceType; label: string; desc: string }[] = [
 
 export function AddEvidence({ ksbId, editId }: { ksbId: string; editId?: string }) {
   const { state, actions } = useApp();
+  const router = useRouter();
   const form = state.form;
   const standard = state.standard;
   // Title is required. Rather than sit behind a disabled button with no stated
@@ -39,6 +41,26 @@ export function AddEvidence({ ksbId, editId }: { ksbId: string; editId?: string 
     initedRef.current = target;
   }, [ksbId, editId, state.evidence, actions]);
 
+  // An edit id that isn't in the loaded evidence will never initialise a form,
+  // so once the load has settled this is a dead link (a deleted item reached via
+  // history or a bookmark), not a slow one. Saying so beats "Loading…" forever
+  // with no way out but the back button.
+  const missingTarget =
+    !!editId && !state.loading && !state.evidence.some((e) => e.id === editId);
+  if (missingTarget) {
+    return (
+      <div className="form-missing">
+        <h1 className="form-missing__title">That evidence no longer exists</h1>
+        <p className="form-missing__body">
+          It may have been deleted since this link was created.
+        </p>
+        <Link href={`/ksb/${ksbId}`} className="btn btn--primary">
+          Back to {ksbId}
+        </Link>
+      </div>
+    );
+  }
+
   const ready = !!form && (editId ? form.editingId === editId : !form.editingId);
   if (!ready || !form) {
     return (
@@ -48,6 +70,16 @@ export function AddEvidence({ ksbId, editId }: { ksbId: string; editId?: string 
 
   const busy = state.submitting;
   const editing = !!form.editingId;
+  // A new upload needs actual bytes. Without this, submitting before the
+  // FileReader finished sent an upload with no content — the server rejects it,
+  // so nothing is lost, but the user pays a round-trip for an opaque error.
+  const awaitingFile =
+    form.type === "upload" && !editing && (state.fileReading || !form.fileContentBase64);
+  const blockedReason = state.fileReading
+    ? "Reading your file…"
+    : awaitingFile
+      ? "Choose a file to upload first"
+      : undefined;
   const primary = form.ksbIds.length ? rootOf(form.ksbIds[0]) : ksbId || "K1";
 
   // Validate on submit so the reason is stated, then put the cursor where the
@@ -326,7 +358,8 @@ export function AddEvidence({ ksbId, editId }: { ksbId: string; editId?: string 
         <button
           type="button"
           onClick={() => submit("Submitted")}
-          disabled={busy}
+          disabled={busy || awaitingFile}
+          title={blockedReason}
           className="btn btn--primary"
         >
           {busy
@@ -338,15 +371,29 @@ export function AddEvidence({ ksbId, editId }: { ksbId: string; editId?: string 
         <button
           type="button"
           onClick={() => submit("Draft")}
-          disabled={busy}
+          disabled={busy || awaitingFile}
+          title={blockedReason}
           className="btn btn--secondary"
         >
           {editing ? "Save as draft" : "Save draft"}
         </button>
         <div className="row__spacer" />
-        <Link href={`/ksb/${ksbId}`} className="btn--ghost form-actions__cancel">
+        <button
+          type="button"
+          onClick={() => {
+            if (
+              state.formDirty &&
+              !window.confirm("Discard your unsaved changes to this evidence?")
+            ) {
+              return;
+            }
+            actions.discardForm();
+            router.push(`/ksb/${ksbId}`);
+          }}
+          className="btn--ghost form-actions__cancel"
+        >
           Cancel
-        </Link>
+        </button>
       </div>
     </div>
   );

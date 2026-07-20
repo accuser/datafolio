@@ -10,7 +10,7 @@ export function SignIn() {
   const only =
     STANDARD_IDS.length === 1 ? STANDARDS[STANDARD_IDS[0]] : null;
 
-  const { actions } = useApp();
+  const { state, actions } = useApp();
   return (
     <div className="signin-grid signin">
       {/* Left panel — hero; hidden on phones so the form is front-and-centre. */}
@@ -56,6 +56,15 @@ export function SignIn() {
       <div className="signin__form-panel">
         <div className="signin__form">
           <h2 className="signin__title">Sign in</h2>
+          {/* A failed session check is not the same as being signed out. Say
+              which happened, so a user who *is* signed in doesn't conclude their
+              account stopped working and try to create another one. */}
+          {state.sessionError && (
+            <p role="alert" className="signin__notice">
+              We couldn’t check whether you’re already signed in. If you were,
+              reloading may be all that’s needed.
+            </p>
+          )}
           <p className="signin__blurb">
             Use your GitHub account. Your evidence is stored in{" "}
             <strong>your own private repository</strong> — we never hold a copy.

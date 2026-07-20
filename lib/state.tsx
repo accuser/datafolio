@@ -9,7 +9,7 @@ import {
   useRef,
   type ReactNode,
 } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { rootOf, todayLabel } from "./domain";
 import { createMockStore, type EvidenceStore } from "./data/store";
 import { createMockCardStore, type CardStore } from "./data/card-store";
@@ -17,6 +17,7 @@ import { createHttpCardStore } from "./data/http-card-store";
 import { generateStarterCards } from "./cards";
 import { ankiFileName, toAnkiTsv } from "./anki";
 import { createHttpStore, fetchSession, selectPortfolio } from "./data/http-store";
+import { clearDraft, draftKey, loadDraft, saveDraft } from "./data/draft";
 import { MAX_UPLOAD_BYTES, MAX_UPLOAD_MB } from "./data/uploads";
 import { SEED_CARDS, SEED_EVIDENCE, SEED_USER } from "./data/seed";
 import { DEFAULT_STANDARD_ID, getStandard, ksbIndex, type Standard } from "./standards";
@@ -45,6 +46,9 @@ export const BACKEND_MODE =
   process.env.NEXT_PUBLIC_DATAFOLIO_BACKEND === "github" ? "github" : "mock";
 
 
+/** Mock mode's "are we signed in" flag — the demo has no server session. */
+const MOCK_SIGNED_IN_KEY = "datafolio:mock-signed-in";
+
 function initialsOf(name: string): string {
   return name
     .split(" ")
@@ -62,6 +66,36 @@ interface AppState {
   loading: boolean;
   /** Last user-facing error (failed commit, oversized upload, …); null if none. */
   error: string | null;
+  /**
+   * Set when the portfolio itself could not be loaded.
+   *
+   * Distinct from `error` because the consequence is different: `error` annotates
+   * a screen that is still showing real data, whereas this means we have *no*
+   * data and must not render the portfolio at all. An empty Dashboard reading
+   * "0 of 19 KSBs evidenced" is indistinguishable from a wiped repo, so a failed
+   * load has to say so rather than render as an empty portfolio.
+   */
+  loadError: string | null;
+  /**
+   * Set when the session check itself failed (as opposed to returning "not
+   * signed in"). The user stays on the sign-in screen, but is told the check
+   * failed rather than being silently asked to sign in again.
+   */
+  sessionError: boolean;
+  /** True once the initial session check has settled, either way. */
+  sessionChecked: boolean;
+  /** True while a chosen file's bytes are still being read. */
+  fileReading: boolean;
+  /** True once the open form has been edited — gates the unsaved-work warning. */
+  formDirty: boolean;
+  /**
+   * Which form the open draft belongs to, fixed when the form is opened.
+   *
+   * Derived from the *route*, not from the form's current mapping — remapping a
+   * draft to another KSB must not move it to a key the edit screen won't look
+   * under when the user comes back.
+   */
+  formKey: string | null;
   /** True while a mutation (add / review / edit / delete) is in flight. */
   submitting: boolean;
   user: UserProfile;
@@ -92,8 +126,17 @@ interface AppState {
 const initialState: AppState = {
   role: "learner",
   signedIn: false,
-  loading: false,
+  // GitHub mode starts by checking the session, and that check is a real await.
+  // Starting at `false` painted the full sign-in hero on every refresh and deep
+  // link until /api/session resolved, prompting users to sign in unnecessarily.
+  loading: BACKEND_MODE === "github",
   error: null,
+  loadError: null,
+  sessionError: false,
+  sessionChecked: BACKEND_MODE !== "github",
+  fileReading: false,
+  formDirty: false,
+  formKey: null,
   submitting: false,
   user: SEED_USER,
   filter: "all",
@@ -131,14 +174,21 @@ function reducer(state: AppState, action: Action): AppState {
       return { ...state, evidence: action.evidence };
     case "SET_CARDS":
       return { ...state, cards: action.cards };
+    // Every edit marks the form dirty, which is what the unsaved-work warning
+    // and the draft snapshot both key off.
     case "SET_FORM_FIELD":
       return state.form
-        ? { ...state, form: { ...state.form, [action.key]: action.value } }
+        ? {
+            ...state,
+            formDirty: true,
+            form: { ...state.form, [action.key]: action.value },
+          }
         : state;
     case "ADD_TAG":
       return state.form && !state.form.ksbIds.includes(action.id)
         ? {
             ...state,
+            formDirty: true,
             form: { ...state.form, ksbIds: [...state.form.ksbIds, action.id] },
           }
         : state;
@@ -146,6 +196,7 @@ function reducer(state: AppState, action: Action): AppState {
       return state.form
         ? {
             ...state,
+            formDirty: true,
             form: {
               ...state.form,
               ksbIds: state.form.ksbIds.filter((x) => x !== action.id),
@@ -178,6 +229,10 @@ export interface AppActions {
   setFolderOpen(kid: string, open: boolean): void;
   /** Initialise the add/edit form from the route (called by the add screen). */
   startForm(ksbId: string, editId?: string): void;
+  /** Abandon the open form and its saved draft (the Cancel path). */
+  discardForm(): void;
+  /** Re-attempt a portfolio load that failed. */
+  retryLoad(): void;
   setFormField(key: keyof EvidenceForm, value: unknown): void;
   addTag(id: string): void;
   removeTag(id: string): void;
@@ -221,6 +276,7 @@ const AppContext = createContext<AppContextValue | null>(null);
 export function AppProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initialState);
   const router = useRouter();
+  const pathname = usePathname();
 
   // Router snapshot so the stable action handlers can navigate without being
   // re-created; navigation is URL-driven now that views are real routes.
@@ -289,6 +345,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
           // Real GitHub App user OAuth handshake.
           window.location.assign("/api/auth/login");
         } else {
+          try {
+            sessionStorage.setItem(MOCK_SIGNED_IN_KEY, "1");
+          } catch {
+            // Storage disabled — the demo still works, just not across refreshes.
+          }
           patch({ signedIn: true });
           routerRef.current.push("/");
         }
@@ -304,7 +365,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (BACKEND_MODE === "github") {
           window.location.assign("/");
         } else {
-          patch({ signedIn: false, role: "learner", error: null, form: null });
+          try {
+            sessionStorage.removeItem(MOCK_SIGNED_IN_KEY);
+          } catch {
+            // As above.
+          }
+          clearDraft();
+          patch({
+            signedIn: false,
+            role: "learner",
+            error: null,
+            form: null,
+            formDirty: false,
+            formKey: null,
+          });
           routerRef.current.push("/");
         }
       },
@@ -325,11 +399,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
       // Build the add/edit form for the current route; the add screen calls this
       // on mount so the form survives a refresh / deep link.
       startForm: (ksbId, editId) => {
+        const key = draftKey(ksbId, editId);
+        // A draft from this tab wins over a fresh form: the user was mid-sentence
+        // and navigated away, so restoring their words matters more than
+        // restoring the committed values they had already edited past.
+        const draft = loadDraft(key);
         if (editId) {
           const item = stateRef.current.evidence.find((e) => e.id === editId);
           if (!item) return; // evidence not loaded yet — caller retries on load
           patch({
-            form: {
+            formKey: key,
+            formDirty: !!draft,
+            form: draft ?? {
               type: item.type,
               title: item.title,
               url: item.url ?? "",
@@ -341,7 +422,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
           });
         } else {
           patch({
-            form: {
+            formKey: key,
+            formDirty: !!draft,
+            form: draft ?? {
               type: "github",
               title: "",
               url: "",
@@ -351,6 +434,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
             },
           });
         }
+      },
+      discardForm: () => {
+        clearDraft();
+        patch({ form: null, formDirty: false, formKey: null });
+      },
+      retryLoad: () => {
+        // Deliberately a full reload rather than a partial re-fetch: the failed
+        // load may have left role, target and portfolios half-applied, and
+        // re-hydrating everything from the server is the only way to be sure the
+        // set is consistent (same reasoning as switchPortfolio).
+        window.location.reload();
       },
       setFormField: (key, value) =>
         dispatch({ type: "SET_FORM_FIELD", key, value }),
@@ -364,6 +458,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
           return;
         }
         // Read the chosen file's bytes as base64 so an upload can be committed.
+        // `fileReading` gates the submit button: nothing used to track the
+        // pending read, so a fast click submitted an upload with no bytes and
+        // ate a round-trip to get an unhelpful server error back.
+        patch({ fileReading: true });
         const reader = new FileReader();
         reader.onload = () => {
           const result = typeof reader.result === "string" ? reader.result : "";
@@ -372,11 +470,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
             : "";
           dispatch({ type: "SET_FORM_FIELD", key: "fileName", value: file.name });
           dispatch({ type: "SET_FORM_FIELD", key: "fileContentBase64", value: base64 });
+          patch({ fileReading: false });
         };
         // Without this a failed read is silent: the form keeps the old file name
         // (or none) and the user only finds out after committing.
         reader.onerror = () => {
           patch({
+            fileReading: false,
             error: `Couldn’t read “${file.name}”. Please choose the file again.`,
           });
         };
@@ -386,6 +486,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       clearFile: () => {
         dispatch({ type: "SET_FORM_FIELD", key: "fileName", value: "" });
         dispatch({ type: "SET_FORM_FIELD", key: "fileContentBase64", value: undefined });
+        patch({ fileReading: false });
       },
 
       // Adding evidence is a single commit to the KSB folder. Submit → Submitted,
@@ -423,10 +524,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
               fileContentBase64: f.type === "upload" ? f.fileContentBase64 : undefined,
             });
           }
-          const targetKsb = f.ksbIds.length ? rootOf(f.ksbIds[0]) : "K1";
+          // Fall back to the standard's own first KSB, not a hardcoded "K1" —
+          // not every standard defines one, and landing on a route that doesn't
+          // exist in this portfolio would 404 straight after a successful save.
+          const targetKsb = f.ksbIds.length
+            ? rootOf(f.ksbIds[0])
+            : stateRef.current.standard.ksbs[0]?.id;
           dispatch({ type: "SET_EVIDENCE", evidence: next });
-          patch({ form: null });
-          routerRef.current.push(`/ksb/${targetKsb}`);
+          clearDraft();
+          patch({ form: null, formDirty: false, formKey: null });
+          routerRef.current.push(targetKsb ? `/ksb/${targetKsb}` : "/");
         }),
 
       // One-click resubmit after a reviewer requested changes.
@@ -443,6 +550,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }),
 
       // Reviewer actions patch the matching evidence item's status + feedback.
+      // Each verdict clears its own draft comment. Leaving it behind meant a
+      // reviewer who requested changes, saw the learner resubmit, then clicked
+      // Approve without retyping, committed the old "please revise" text as the
+      // approval feedback.
       approve: (id) =>
         runExclusive(async () => {
           const s = stateRef.current;
@@ -452,6 +563,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             feedback: s.reviewComments[id] || existing?.feedback || "",
           });
           dispatch({ type: "SET_EVIDENCE", evidence: next });
+          dispatch({ type: "SET_REVIEW", id, value: "" });
         }),
       requestChanges: (id) =>
         runExclusive(async () => {
@@ -461,6 +573,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             feedback: s.reviewComments[id] || "Please revise and resubmit.",
           });
           dispatch({ type: "SET_EVIDENCE", evidence: next });
+          dispatch({ type: "SET_REVIEW", id, value: "" });
         }),
       setReview: (id, value) => dispatch({ type: "SET_REVIEW", id, value }),
 
@@ -531,8 +644,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const a = document.createElement("a");
         a.href = url;
         a.download = ankiFileName(s.standard);
+        // Firefox and Safari need the anchor in the document for a programmatic
+        // click to count, and revoking synchronously can pull the blob out from
+        // under a download that hasn't started yet — either way the export
+        // silently did nothing. Append, click, then revoke on the next tick.
+        a.style.display = "none";
+        document.body.appendChild(a);
         a.click();
-        URL.revokeObjectURL(url);
+        setTimeout(() => {
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }, 0);
       },
       setFilter: (filter) => patch({ filter }),
       setRouteFilter: (routeFilter) => patch({ routeFilter }),
@@ -544,54 +666,106 @@ export function AppProvider({ children }: { children: ReactNode }) {
     // Handlers are intentionally stable; latest state is read via stateRef.
   }, []);
 
+  // Mock mode: restore the demo's signed-in state. Without this every refresh
+  // dropped back to the sign-in hero and discarded the route the user was on —
+  // which matters because mock mode is how the README invites people to explore
+  // the app without GitHub credentials.
+  useEffect(() => {
+    if (BACKEND_MODE === "github") return;
+    try {
+      if (sessionStorage.getItem(MOCK_SIGNED_IN_KEY) === "1") {
+        dispatch({ type: "PATCH", patch: { signedIn: true } });
+      }
+    } catch {
+      // Storage disabled — the demo just starts signed out, as before.
+    }
+  }, []);
+
   // GitHub mode: restore the session on mount and hydrate evidence from the repo.
+  //
+  // The two failure modes are handled separately on purpose. A failed *session*
+  // check means we don't know who the user is, so the sign-in screen is right.
+  // A failed *portfolio load* means we know exactly who they are and have simply
+  // failed to fetch their evidence — rendering that as an empty portfolio told a
+  // learner their repo was empty when it was a transient 502, which is
+  // indistinguishable from their evidence having been wiped.
   useEffect(() => {
     if (BACKEND_MODE !== "github") return;
     let cancelled = false;
     (async () => {
+      let session: Awaited<ReturnType<typeof fetchSession>>;
       try {
-        const session = await fetchSession();
-        if (cancelled || !session.user) return;
-        const name = session.user.name || session.user.login;
+        session = await fetchSession();
+      } catch {
+        if (!cancelled) {
+          dispatch({
+            type: "PATCH",
+            patch: { loading: false, sessionChecked: true, sessionError: true },
+          });
+        }
+        return;
+      }
+      if (cancelled) return;
+      if (!session.user) {
+        dispatch({
+          type: "PATCH",
+          patch: { loading: false, sessionChecked: true },
+        });
+        return;
+      }
+
+      const name = session.user.name || session.user.login;
+      dispatch({
+        type: "PATCH",
+        patch: {
+          signedIn: true,
+          loading: true,
+          sessionChecked: true,
+          role: session.role === "reviewer" ? "reviewer" : "learner",
+          user: {
+            name,
+            login: session.user.login,
+            initials: initialsOf(name),
+            repo: session.target?.repo || "portfolio-evidence",
+          },
+          portfolios: session.portfolios ?? [],
+          target: session.target ?? null,
+        },
+      });
+
+      try {
+        const { evidence, standardId, manifestWarning } =
+          await storeRef.current.load();
+        if (cancelled) return;
+        dispatch({ type: "SET_EVIDENCE", evidence });
+        // Cards load alongside evidence but must not be able to break the
+        // portfolio: an unreadable revision/ folder should cost the learner
+        // their cards, not their evidence screen.
+        cardStoreRef.current
+          .load()
+          .then((cards) => {
+            if (!cancelled) dispatch({ type: "SET_CARDS", cards });
+          })
+          .catch(() => {});
         dispatch({
           type: "PATCH",
           patch: {
-            signedIn: true,
-            loading: true,
-            role: session.role === "reviewer" ? "reviewer" : "learner",
-            user: {
-              name,
-              login: session.user.login,
-              initials: initialsOf(name),
-              repo: session.target?.repo || "portfolio-evidence",
-            },
-            portfolios: session.portfolios ?? [],
-            target: session.target ?? null,
+            standard: getStandard(standardId),
+            manifestWarning: manifestWarning ?? null,
+            loadError: null,
           },
         });
-        const { evidence, standardId, manifestWarning } =
-          await storeRef.current.load();
+      } catch (e) {
         if (!cancelled) {
-          dispatch({ type: "SET_EVIDENCE", evidence });
-          // Cards load alongside evidence but must not be able to break the
-          // portfolio: an unreadable revision/ folder should cost the learner
-          // their cards, not their evidence screen.
-          cardStoreRef.current
-            .load()
-            .then((cards) => {
-              if (!cancelled) dispatch({ type: "SET_CARDS", cards });
-            })
-            .catch(() => {});
           dispatch({
             type: "PATCH",
             patch: {
-              standard: getStandard(standardId),
-              manifestWarning: manifestWarning ?? null,
+              loadError:
+                (e as Error)?.message ||
+                "Couldn’t load your portfolio from GitHub.",
             },
           });
         }
-      } catch {
-        // Session/load failed — stay on the sign-in screen.
       } finally {
         if (!cancelled) dispatch({ type: "PATCH", patch: { loading: false } });
       }
@@ -600,6 +774,32 @@ export function AppProvider({ children }: { children: ReactNode }) {
       cancelled = true;
     };
   }, []);
+
+  // Keep the open form's draft in step with what's been typed, so a refresh,
+  // a back navigation or a portfolio switch (a hard location.assign, which no
+  // in-app guard can intercept) doesn't take the writing with it.
+  useEffect(() => {
+    if (!state.form || !state.formDirty || !state.formKey) return;
+    saveDraft(state.formKey, state.form);
+  }, [state.form, state.formDirty, state.formKey]);
+
+  // Native warning for the paths the app can't intercept: refresh, tab close,
+  // and the hard reload behind a portfolio switch.
+  useEffect(() => {
+    if (!state.formDirty) return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [state.formDirty]);
+
+  // An error belongs to the screen that raised it. It was only cleared by the
+  // next mutation, so a failed commit could still be sitting on an unrelated
+  // screen several navigations later.
+  // stateRef is synced by an effect declared above this one, so it already holds
+  // the committed state by the time this runs.
+  useEffect(() => {
+    if (stateRef.current.error) dispatch({ type: "PATCH", patch: { error: null } });
+  }, [pathname]);
 
   const value = useMemo(
     () => ({ state, user: state.user, actions }),
