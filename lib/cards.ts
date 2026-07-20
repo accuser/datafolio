@@ -7,7 +7,8 @@
 // standard — a card that quietly reworded the KSB it revises would be worse than
 // no card, and the learner is the one who knows what their answer should say.
 
-import { cardablePoints } from "./domain";
+import { dump } from "js-yaml";
+import { cardablePoints, isoDate, rootOf, todayLabel } from "./domain";
 import { cardable, type Ksb, type MethodKey, type Standard } from "./standards";
 import type { Card } from "./types";
 
@@ -125,4 +126,64 @@ export function generateAllStarterCards(
 /** Cards revising a KSB or any of its sub-points, matched the way evidence is. */
 export function cardsFor(cards: Card[], ksbId: string): Card[] {
   return cards.filter((c) => c.ksbIds.some((t) => t.split(".")[0] === ksbId));
+}
+
+// ---- revision/<KSB>/cards.md ------------------------------------------------
+
+/** The folder a card is stored in — the root KSB of its first mapping. */
+export function cardFolder(card: Card): string {
+  return card.ksbIds.length ? rootOf(card.ksbIds[0]) : "";
+}
+
+/** Cards physically stored in a given KSB's folder. */
+export function cardsInFolder(all: Card[], ksbId: string): Card[] {
+  return all.filter((c) => cardFolder(c) === ksbId);
+}
+
+/**
+ * Render one KSB's `revision/<KSB>/cards.md`.
+ *
+ * Mirrors `renderIndexMd`: everything the app reads lives in the front matter,
+ * and the body is presentation only and never parsed back — so a card's text
+ * can contain anything without corrupting the next load.
+ */
+export function renderCardsMd(ksb: Ksb, cards: Card[]): string {
+  const fm: Record<string, unknown> = {
+    ksb: ksb.id,
+    type: ksb.category,
+    cards: cards.map((c) => {
+      const item: Record<string, unknown> = {
+        id: c.id,
+        maps: c.ksbIds,
+        source: c.source,
+        front: c.front,
+        back: c.back,
+      };
+      if (c.tags?.length) item.tags = c.tags;
+      item.created = isoDate(c.created);
+      item.updated = isoDate(c.updated);
+      return item;
+    }),
+    updated: isoDate(todayLabel()),
+  };
+  // `lineWidth: -1` keeps long prompts on one line rather than folding them,
+  // which would otherwise make the diff of an edited card unreadable.
+  const frontMatter = dump(fm, { lineWidth: -1, noRefs: true });
+
+  const L: string[] = [];
+  L.push(`# ${ksb.id} — ${ksb.short} (revision)`);
+  L.push("");
+  L.push(`> ${ksb.statement}`);
+  L.push("");
+  if (!cards.length) L.push("_No cards yet._");
+  cards.forEach((c) => {
+    L.push(`## ${c.front}`);
+    L.push("");
+    L.push(c.back || "_No answer yet._");
+    L.push("");
+    L.push(`— ${c.ksbIds.join(", ")} · ${c.source === "seed" ? "starter" : "own"}`);
+    L.push("");
+  });
+
+  return `---\n${frontMatter}---\n\n${L.join("\n")}`;
 }

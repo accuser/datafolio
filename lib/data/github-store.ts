@@ -4,6 +4,7 @@ import { renderIndexMd, rootOf } from "../domain";
 import { getStandard, ksbIndex, type Ksb, type Standard } from "../standards";
 import { MANIFEST_PATH, readManifest } from "../standards/manifest";
 import { parseIndexMd } from "../github/frontmatter";
+import { commitTree, withConflictRetry, type TreeEntry } from "../github/commit";
 import { sanitizeFileName } from "./uploads";
 import type { AddOptions, StoreLoad } from "./store";
 import type { Evidence } from "../types";
@@ -75,37 +76,6 @@ function uniqueFileName(
   for (let i = 2; ; i++) {
     const candidate = `${stem}-${i}${ext}`;
     if (!taken(candidate)) return candidate;
-  }
-}
-
-/** Shown when concurrent commits still conflict after all retries. */
-export const CONFLICT_MESSAGE =
-  "The repository changed while saving. Please try again.";
-
-/** A non-fast-forward ref update — someone else committed first (GitHub 422). */
-function isFastForwardConflict(e: unknown): boolean {
-  const status = (e as { status?: number } | null)?.status;
-  const msg = String((e as { message?: string } | null)?.message ?? "");
-  return status === 422 && /fast[ -]?forward/i.test(msg);
-}
-
-/**
- * Run a read-modify-write and retry it from a fresh read if the final ref
- * update lost a race. Each attempt re-loads, so the retry re-applies the
- * mutation on top of the winning commit rather than clobbering it.
- */
-async function withConflictRetry<T>(fn: () => Promise<T>): Promise<T> {
-  const MAX_ATTEMPTS = 3;
-  for (let attempt = 1; ; attempt++) {
-    try {
-      return await fn();
-    } catch (e) {
-      if (isFastForwardConflict(e)) {
-        if (attempt < MAX_ATTEMPTS) continue;
-        throw new Error(CONFLICT_MESSAGE);
-      }
-      throw e;
-    }
   }
 }
 
@@ -216,23 +186,7 @@ export function createGitHubStore(ctx: GitHubStoreContext) {
     // `fromPath`, so the file follows its item instead of being orphaned.
     moves: { fromPath: string; toPath: string; sha: string }[] = [],
   ): Promise<void> {
-    const { data: ref } = await octokit.request(
-      "GET /repos/{owner}/{repo}/git/ref/{ref}",
-      { owner, repo, ref: `heads/${branch}` },
-    );
-    const baseCommitSha = ref.object.sha;
-    const { data: baseCommit } = await octokit.request(
-      "GET /repos/{owner}/{repo}/git/commits/{commit_sha}",
-      { owner, repo, commit_sha: baseCommitSha },
-    );
-
-    const treeEntries: {
-      path: string;
-      mode: "100644";
-      type: "blob";
-      content?: string;
-      sha?: string | null;
-    }[] = (() => {
+    const treeEntries: TreeEntry[] = (() => {
       const byId = ksbIndex(standard);
       return ksbIds
         .filter((id) => byId[id])
@@ -264,20 +218,7 @@ export function createGitHubStore(ctx: GitHubStoreContext) {
       treeEntries.push({ path, mode: "100644", type: "blob", sha: null });
     }
 
-    const { data: newTree } = await octokit.request(
-      "POST /repos/{owner}/{repo}/git/trees",
-      { owner, repo, base_tree: baseCommit.tree.sha, tree: treeEntries },
-    );
-    const { data: newCommit } = await octokit.request(
-      "POST /repos/{owner}/{repo}/git/commits",
-      { owner, repo, message, tree: newTree.sha, parents: [baseCommitSha] },
-    );
-    await octokit.request("PATCH /repos/{owner}/{repo}/git/refs/{ref}", {
-      owner,
-      repo,
-      ref: `heads/${branch}`,
-      sha: newCommit.sha,
-    });
+    await commitTree(octokit, owner, repo, branch, treeEntries, message);
   }
 
   return {

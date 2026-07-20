@@ -2,7 +2,7 @@
 
 import { useState, type CSSProperties } from "react";
 import Link from "next/link";
-import { CARDS_ENABLED, useApp, type RouteFilter, type StatusFilter } from "@/lib/state";
+import { useApp, type RouteFilter, type StatusFilter } from "@/lib/state";
 import {
   categoryMeta,
   evFor,
@@ -23,7 +23,7 @@ export function Dashboard() {
   const isReviewer = role === "reviewer";
   // Export is a whole-portfolio action, so it lives here rather than on any one
   // KSB. Learner-only, and hidden until there is actually a deck to export.
-  const showExport = CARDS_ENABLED && !isReviewer && cards.length > 0;
+  const showExport = !isReviewer && cards.length > 0;
   const KSBS = standard.ksbs;
   // Which KSBs have their sub-points expanded. Sub-points are assessed
   // individually and don't inherit the parent's methods, so a collapsed row's

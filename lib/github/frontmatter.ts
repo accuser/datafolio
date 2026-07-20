@@ -90,7 +90,7 @@ export function isoToDisplayDate(iso: string): string {
  * accept either. `null`/`undefined` (e.g. the template's empty `updated:`)
  * become an empty string.
  */
-function asIsoString(v: unknown): string {
+export function asIsoString(v: unknown): string {
   if (v == null) return "";
   if (v instanceof Date) return v.toISOString().slice(0, 10);
   return String(v);
@@ -104,18 +104,21 @@ function asIsoString(v: unknown): string {
  * whitespace) — NOT by any `---` substring, so titles/notes/feedback that
  * contain `---` no longer split the file in the wrong place.
  */
-function splitFrontMatter(md: string): { frontMatter: string; body: string } {
+export function splitFrontMatter(
+  md: string,
+  label = "parseIndexMd",
+): { frontMatter: string; body: string } {
   const lines = md.split(/\r?\n/);
   // A fence is `---` at column 0 (trailing whitespace tolerated). Crucially it
   // must NOT be indented: an indented `---` is block-scalar content (e.g. a
   // literal `---` line inside a reflection note), not a fence.
   const isFence = (l: string | undefined) => /^---[ \t]*$/.test(l ?? "");
   if (!isFence(lines[0])) {
-    throw new Error("parseIndexMd: no front-matter block found (expected an opening `---` fence).");
+    throw new Error(`${label}: no front-matter block found (expected an opening \`---\` fence).`);
   }
   const end = lines.findIndex((l, i) => i > 0 && isFence(l));
   if (end === -1) {
-    throw new Error("parseIndexMd: unterminated front-matter block (missing closing `---` fence).");
+    throw new Error(`${label}: unterminated front-matter block (missing closing \`---\` fence).`);
   }
   return {
     frontMatter: lines.slice(1, end).join("\n"),

@@ -13,6 +13,7 @@ import { useRouter } from "next/navigation";
 import { rootOf, todayLabel } from "./domain";
 import { createMockStore, type EvidenceStore } from "./data/store";
 import { createMockCardStore, type CardStore } from "./data/card-store";
+import { createHttpCardStore } from "./data/http-card-store";
 import { generateStarterCards } from "./cards";
 import { ankiFileName, toAnkiTsv } from "./anki";
 import { createHttpStore, fetchSession, selectPortfolio } from "./data/http-store";
@@ -43,16 +44,6 @@ export type RouteFilter = string;
 export const BACKEND_MODE =
   process.env.NEXT_PUBLIC_DATAFOLIO_BACKEND === "github" ? "github" : "mock";
 
-/**
- * Revision cards are only offered where they can actually be persisted.
- *
- * There is no GitHub-backed CardStore yet — `revision/<KSB>/cards.md` read/write
- * is a later step — so in GitHub mode the only available implementation is the
- * in-memory mock. Rendering the capture UI on top of that would invite a learner
- * to write cards that vanish on reload, which is worse than not offering them.
- * Delete this flag once the GitHub card store lands.
- */
-export const CARDS_ENABLED = BACKEND_MODE !== "github";
 
 function initialsOf(name: string): string {
   return name
@@ -86,7 +77,7 @@ interface AppState {
   openFolders: Record<string, boolean>;
   mdPreviewKid: string | null;
   evidence: Evidence[];
-  /** Revision cards across the portfolio. Empty unless CARDS_ENABLED. */
+  /** Revision cards across the portfolio. */
   cards: Card[];
   /** Card id currently open in the inline editor; null when none is. */
   editingCardId: string | null;
@@ -115,7 +106,7 @@ const initialState: AppState = {
   mdPreviewKid: null,
   // Mock mode is seeded so the demo renders instantly; GitHub mode loads on sign-in.
   evidence: BACKEND_MODE === "github" ? [] : SEED_EVIDENCE,
-  cards: CARDS_ENABLED ? SEED_CARDS : [],
+  cards: BACKEND_MODE === "github" ? [] : SEED_CARDS,
   editingCardId: null,
   composingFor: null,
   portfolios: [],
@@ -258,9 +249,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
       : createMockStore(SEED_EVIDENCE),
   );
 
-  // Cards ride their own seam (see lib/data/card-store.ts). Only the mock
-  // implementation exists today, which is what CARDS_ENABLED gates on.
-  const cardStoreRef = useRef<CardStore>(createMockCardStore(SEED_CARDS));
+  // Cards ride their own seam (see lib/data/card-store.ts).
+  const cardStoreRef = useRef<CardStore>(
+    BACKEND_MODE === "github"
+      ? createHttpCardStore()
+      : createMockCardStore(SEED_CARDS),
+  );
 
   const actions = useMemo<AppActions>(() => {
     const store = storeRef.current;
@@ -579,6 +573,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
           await storeRef.current.load();
         if (!cancelled) {
           dispatch({ type: "SET_EVIDENCE", evidence });
+          // Cards load alongside evidence but must not be able to break the
+          // portfolio: an unreadable revision/ folder should cost the learner
+          // their cards, not their evidence screen.
+          cardStoreRef.current
+            .load()
+            .then((cards) => {
+              if (!cancelled) dispatch({ type: "SET_CARDS", cards });
+            })
+            .catch(() => {});
           dispatch({
             type: "PATCH",
             patch: {
