@@ -14,6 +14,7 @@ import { rootOf, todayLabel } from "./domain";
 import { createMockStore, type EvidenceStore } from "./data/store";
 import { createMockCardStore, type CardStore } from "./data/card-store";
 import { generateStarterCards } from "./cards";
+import { ankiFileName, toAnkiTsv } from "./anki";
 import { createHttpStore, fetchSession, selectPortfolio } from "./data/http-store";
 import { MAX_UPLOAD_BYTES, MAX_UPLOAD_MB } from "./data/uploads";
 import { SEED_CARDS, SEED_EVIDENCE, SEED_USER } from "./data/seed";
@@ -208,6 +209,8 @@ export interface AppActions {
   editCard(id: string | null): void;
   /** Open/close the new-card composer for a KSB (null closes it). */
   composeCard(ksbId: string | null): void;
+  /** Download every revision card as one Anki-importable TSV. */
+  exportDeck(): void;
   setFilter(filter: StatusFilter): void;
   setRouteFilter(routeFilter: RouteFilter): void;
   openMd(kid: string): void;
@@ -519,6 +522,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       editCard: (id) => patch({ editingCardId: id, composingFor: null }),
       composeCard: (ksbId) => patch({ composingFor: ksbId, editingCardId: null }),
+
+      // Purely local: the deck is built from state already in the browser and
+      // handed to the user as a download. Nothing is uploaded, and no server
+      // round-trip is needed, which is what keeps this working on the edge.
+      exportDeck: () => {
+        const s = stateRef.current;
+        const blob = new Blob([toAnkiTsv(s.standard, s.cards)], {
+          // Anki sniffs the extension, not the type, but text/plain keeps the
+          // browser from offering to "open" it in a viewer.
+          type: "text/plain;charset=utf-8",
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = ankiFileName(s.standard);
+        a.click();
+        URL.revokeObjectURL(url);
+      },
       setFilter: (filter) => patch({ filter }),
       setRouteFilter: (routeFilter) => patch({ routeFilter }),
       openMd: (kid) => patch({ mdPreviewKid: kid }),

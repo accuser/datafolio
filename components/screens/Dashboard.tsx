@@ -2,7 +2,7 @@
 
 import { useState, type CSSProperties } from "react";
 import Link from "next/link";
-import { useApp, type RouteFilter, type StatusFilter } from "@/lib/state";
+import { CARDS_ENABLED, useApp, type RouteFilter, type StatusFilter } from "@/lib/state";
 import {
   categoryMeta,
   evFor,
@@ -19,8 +19,11 @@ import { ChevronRight, CheckBadge } from "../icons";
 
 export function Dashboard() {
   const { state, user, actions } = useApp();
-  const { evidence, filter, routeFilter, role, standard, loading } = state;
+  const { cards, evidence, filter, routeFilter, role, standard, loading } = state;
   const isReviewer = role === "reviewer";
+  // Export is a whole-portfolio action, so it lives here rather than on any one
+  // KSB. Learner-only, and hidden until there is actually a deck to export.
+  const showExport = CARDS_ENABLED && !isReviewer && cards.length > 0;
   const KSBS = standard.ksbs;
   // Which KSBs have their sub-points expanded. Sub-points are assessed
   // individually and don't inherit the parent's methods, so a collapsed row's
@@ -106,6 +109,25 @@ export function Dashboard() {
             <strong>{awaitingReview} evidence item(s)</strong> awaiting your review across the
             portfolio.
           </div>
+        </div>
+      )}
+
+      {showExport && (
+        <div className="revision-callout">
+          <div className="revision-callout__text">
+            <strong>
+              {cards.length} revision card{cards.length === 1 ? "" : "s"}
+            </strong>{" "}
+            across your portfolio. Export them as one Anki deck — in Anki, choose
+            File → Import and pick the downloaded file.
+          </div>
+          <button
+            type="button"
+            onClick={actions.exportDeck}
+            className="btn btn--sm btn--neutral revision-callout__btn"
+          >
+            Export revision deck
+          </button>
         </div>
       )}
 
