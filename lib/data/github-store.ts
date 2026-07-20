@@ -5,6 +5,8 @@ import { getStandard, ksbIndex, type Ksb, type Standard } from "../standards";
 import { MANIFEST_PATH, readManifest } from "../standards/manifest";
 import { parseIndexMd } from "../github/frontmatter";
 import { commitTree, withConflictRetry, type TreeEntry } from "../github/commit";
+import { readFolders, readRepoTree, type RepoTree } from "../github/repo-tree";
+import { standardFromTree } from "./portfolio-standard";
 import { sanitizeFileName } from "./uploads";
 import type { AddOptions, StoreLoad } from "./store";
 import type { Evidence } from "../types";
@@ -45,11 +47,6 @@ function affectedFolders(item: Evidence, byId: Record<string, Ksb>): string[] {
   const primary = primaryRoot(item);
   if (primary) roots.add(primary);
   return [...roots].filter((id) => byId[id]);
-}
-
-function dedupById(items: Evidence[]): Evidence[] {
-  const seen = new Set<string>();
-  return items.filter((e) => (seen.has(e.id) ? false : (seen.add(e.id), true)));
 }
 
 /** Split a filename into [stem, extension-with-dot]; ext is "" when there is none. */
@@ -112,69 +109,39 @@ export async function resolveStandard(
 export function createGitHubStore(ctx: GitHubStoreContext) {
   const { octokit, owner, repo } = ctx;
 
-  async function defaultBranch(): Promise<string> {
-    const { data } = await octokit.request("GET /repos/{owner}/{repo}", { owner, repo });
-    return data.default_branch;
-  }
-
-  async function readBlob(sha: string): Promise<string> {
-    const { data: blob } = await octokit.request(
-      "GET /repos/{owner}/{repo}/git/blobs/{file_sha}",
-      { owner, repo, file_sha: sha },
-    );
-    return Buffer.from(blob.content, "base64").toString("utf8");
-  }
-
+  /**
+   * Snapshot the repo: its head commit, its tree, its standard and all its
+   * evidence, as of one instant.
+   *
+   * Returns the whole `tree` rather than just its blob paths because a write
+   * needs `headSha` as well — the commit it goes on to make must name the head
+   * this read saw as its parent, or a concurrent write can be silently lost.
+   */
   async function loadAll(): Promise<{
     evidence: Evidence[];
-    branch: string;
+    tree: RepoTree;
     /** The standard this portfolio follows, per its datafolio.yml. */
     standard: Standard;
     /** Set when the manifest named a standard that could not be used. */
     manifestWarning?: string;
-    /** Every blob path in the tree → its sha, so a writer can spot a name that
-     *  would collide with an existing file, a remap can move an uploaded file by
-     *  referencing its existing blob (no re-upload), and a delete can skip paths
-     *  that aren't actually there. */
-    blobShas: Map<string, string>;
   }> {
-    const branch = await defaultBranch();
-    const { data: tree } = await octokit.request(
-      "GET /repos/{owner}/{repo}/git/trees/{tree_sha}",
-      { owner, repo, tree_sha: branch, recursive: "true" },
-    );
-    const blobShas = new Map<string, string>();
-    for (const t of tree.tree) {
-      if (t.type === "blob" && t.path && t.sha) blobShas.set(t.path, t.sha);
-    }
-    // The manifest is read from the same tree listing, so resolving the standard
-    // costs one extra blob fetch only when the file is actually present.
-    const manifestSha = blobShas.get(MANIFEST_PATH);
-    const manifest = readManifest(
-      manifestSha ? await readBlob(manifestSha) : null,
-    );
-    const standard = getStandard(manifest.standardId);
-
-    const indexFiles = tree.tree.filter(
-      (t) => t.type === "blob" && t.path && t.sha && INDEX_RE.test(t.path),
-    );
-    const folders = await Promise.all(
-      indexFiles.map(async (f) => parseIndexMd(await readBlob(f.sha!))),
-    );
-    const evidence = dedupById(folders.flatMap((p) => p.evidence));
+    const tree = await readRepoTree(ctx);
+    const { standard, warning } = await standardFromTree(ctx, tree);
+    const evidence = await readFolders(ctx, tree, INDEX_RE, (md) => ({
+      items: parseIndexMd(md).evidence,
+    }));
     return {
       evidence,
-      branch,
+      tree,
       standard,
-      ...(manifest.warning ? { manifestWarning: manifest.warning } : {}),
-      blobShas,
+      ...(warning ? { manifestWarning: warning } : {}),
     };
   }
 
   /** Atomically commit the regenerated index.md of each affected folder (plus any
    *  uploaded file blobs) as a single commit. */
   async function commit(
-    branch: string,
+    tree: RepoTree,
     standard: Standard,
     ksbIds: string[],
     all: Evidence[],
@@ -218,7 +185,15 @@ export function createGitHubStore(ctx: GitHubStoreContext) {
       treeEntries.push({ path, mode: "100644", type: "blob", sha: null });
     }
 
-    await commitTree(octokit, owner, repo, branch, treeEntries, message);
+    await commitTree(
+      octokit,
+      owner,
+      repo,
+      tree.branch,
+      tree.headSha,
+      treeEntries,
+      message,
+    );
   }
 
   return {
@@ -239,7 +214,7 @@ export function createGitHubStore(ctx: GitHubStoreContext) {
         item = { ...item, fileName: sanitizeFileName(item.fileName) };
       }
       return withConflictRetry(async () => {
-        const { evidence: current, branch, standard, blobShas } = await loadAll();
+        const { evidence: current, tree, standard } = await loadAll();
         const byId = ksbIndex(standard);
         const uploads: { path: string; contentBase64: string }[] = [];
         if (item.type === "upload" && item.fileName && opts.fileContentBase64) {
@@ -247,7 +222,7 @@ export function createGitHubStore(ctx: GitHubStoreContext) {
           // can't silently clobber another item's blob. Store the resolved name
           // on the item so index.md and the committed blob path stay in step.
           const folder = primaryRoot(item);
-          const fileName = uniqueFileName(folder, item.fileName, blobShas);
+          const fileName = uniqueFileName(folder, item.fileName, tree.blobShas);
           item = { ...item, fileName };
           uploads.push({
             path: `evidence/${folder}/${fileName}`,
@@ -256,7 +231,7 @@ export function createGitHubStore(ctx: GitHubStoreContext) {
         }
         const all = [item, ...current];
         await commit(
-          branch,
+          tree,
           standard,
           affectedFolders(item, byId),
           all,
@@ -269,7 +244,7 @@ export function createGitHubStore(ctx: GitHubStoreContext) {
 
     async updateEvidence(id: string, patch: Partial<Evidence>): Promise<Evidence[]> {
       return withConflictRetry(async () => {
-        const { evidence: current, branch, standard, blobShas } = await loadAll();
+        const { evidence: current, tree, standard } = await loadAll();
         const byId = ksbIndex(standard);
         const target = current.find((e) => e.id === id);
         if (!target) throw new Error(`Evidence ${id} not found`);
@@ -287,9 +262,9 @@ export function createGitHubStore(ctx: GitHubStoreContext) {
           const newRoot = primaryRoot(updated);
           if (oldRoot !== newRoot) {
             const fromPath = `evidence/${oldRoot}/${target.fileName}`;
-            const sha = blobShas.get(fromPath);
+            const sha = tree.blobShas.get(fromPath);
             if (sha) {
-              const fileName = uniqueFileName(newRoot, target.fileName, blobShas);
+              const fileName = uniqueFileName(newRoot, target.fileName, tree.blobShas);
               updated = { ...updated, fileName };
               moves.push({ fromPath, toPath: `evidence/${newRoot}/${fileName}`, sha });
             }
@@ -306,7 +281,7 @@ export function createGitHubStore(ctx: GitHubStoreContext) {
           ]),
         ];
         await commit(
-          branch,
+          tree,
           standard,
           folders,
           all,
@@ -321,7 +296,7 @@ export function createGitHubStore(ctx: GitHubStoreContext) {
 
     async deleteEvidence(id: string): Promise<Evidence[]> {
       return withConflictRetry(async () => {
-        const { evidence: current, branch, standard, blobShas } = await loadAll();
+        const { evidence: current, tree, standard } = await loadAll();
         const byId = ksbIndex(standard);
         const target = current.find((e) => e.id === id);
         if (!target) throw new Error(`Evidence ${id} not found`);
@@ -333,9 +308,9 @@ export function createGitHubStore(ctx: GitHubStoreContext) {
           target.type === "upload" && target.fileName
             ? `evidence/${primaryRoot(target)}/${target.fileName}`
             : "";
-        const deletions = filePath && blobShas.has(filePath) ? [filePath] : [];
+        const deletions = filePath && tree.blobShas.has(filePath) ? [filePath] : [];
         await commit(
-          branch,
+          tree,
           standard,
           affectedFolders(target, byId),
           all,

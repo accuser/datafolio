@@ -1,21 +1,10 @@
 import type { Card } from "../types";
 import type { CardStore } from "./card-store";
+import { fetchJson as api } from "./fetch-json";
 
 // Client-side CardStore that talks to the backend proxy (/api/cards). Mirrors
 // http-store.ts — the server does the GitHub work, so the UI is identical in
 // mock and GitHub modes.
-
-async function api<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(path, {
-    ...init,
-    headers: { "Content-Type": "application/json", ...(init?.headers || {}) },
-  });
-  if (!res.ok) {
-    const body = (await res.json().catch(() => ({}))) as { error?: string };
-    throw new Error(body.error || `Request failed (${res.status})`);
-  }
-  return res.json() as Promise<T>;
-}
 
 export function createHttpCardStore(): CardStore {
   return {

@@ -1,21 +1,10 @@
 import type { Evidence, Portfolio } from "../types";
 import type { EvidenceStore } from "./store";
+import { fetchJson as api } from "./fetch-json";
 
 // Client-side EvidenceStore that talks to the backend proxy (/api/evidence).
 // The server does the actual GitHub Contents/Git-Data work; the UI stays
 // identical to mock mode.
-
-async function api<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(path, {
-    ...init,
-    headers: { "Content-Type": "application/json", ...(init?.headers || {}) },
-  });
-  if (!res.ok) {
-    const body = (await res.json().catch(() => ({}))) as { error?: string };
-    throw new Error(body.error || `Request failed (${res.status})`);
-  }
-  return res.json() as Promise<T>;
-}
 
 export interface SessionInfo {
   configured: boolean;

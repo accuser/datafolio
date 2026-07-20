@@ -13,6 +13,14 @@ export interface RepoContext {
   repo: string;
   login: string;
   name: string;
+  /**
+   * The signed-in user owns this repo, i.e. is the learner rather than a
+   * reviewer. Resolved once here because it gates most of the write rules —
+   * a learner can't review their own evidence, a reviewer can't delete it or
+   * touch revision cards — and five hand-rolled copies of the same comparison
+   * is five chances for one of them to drift.
+   */
+  isOwner: boolean;
 }
 
 export type ContextResult =
@@ -51,6 +59,7 @@ export async function resolveRepoContext(): Promise<ContextResult> {
         repo: target.repo,
         login: session.user.login,
         name: session.user.name,
+        isOwner: session.user.login.toLowerCase() === target.owner.toLowerCase(),
       },
     };
   } catch {

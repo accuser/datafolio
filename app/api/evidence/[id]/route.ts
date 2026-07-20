@@ -25,10 +25,9 @@ export async function PATCH(
   // The repo owner is the learner; a collaborator is the reviewer. Role-specific
   // write rules (a learner may not set reviewer feedback; editing content downgrades
   // status) are enforced in validateEvidencePatch given this flag.
-  const isOwner = ctx.login.toLowerCase() === ctx.owner.toLowerCase();
   const standard = await resolveStandard(ctx);
   const valid = validateEvidencePatch(await request.json().catch(() => null), {
-    isOwner,
+    isOwner: ctx.isOwner,
     standard,
   });
   if (!valid.ok) {
@@ -38,7 +37,7 @@ export async function PATCH(
   // A review verdict (Approve / Request changes) is a reviewer action. The repo
   // owner is the learner, so reject self-review server-side — the client role
   // toggle must not let a learner approve their own evidence.
-  if (isOwner && (valid.patch.status === "Approved" || valid.patch.status === "Changes")) {
+  if (ctx.isOwner && (valid.patch.status === "Approved" || valid.patch.status === "Changes")) {
     return NextResponse.json(
       { error: "You can’t review your own evidence — only a reviewer can approve or request changes." },
       { status: 403 },
@@ -70,8 +69,7 @@ export async function DELETE(
   // Deleting evidence is the learner's own action; a reviewer (collaborator with
   // push access) reviews but must not remove a learner's evidence. The UI hides
   // delete from reviewers — enforce the same boundary server-side.
-  const isOwner = ctx.login.toLowerCase() === ctx.owner.toLowerCase();
-  if (!isOwner) {
+  if (!ctx.isOwner) {
     return NextResponse.json(
       { error: "Only the learner who owns this portfolio can delete evidence." },
       { status: 403 },
