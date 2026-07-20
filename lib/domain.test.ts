@@ -6,7 +6,15 @@
 // soon as one sibling was.
 
 import assert from "node:assert/strict";
-import { evFor, evForPoint, ksbStatusKey, pointStatusKey, rootOf } from "./domain";
+import {
+  collectingPoints,
+  evFor,
+  evForPoint,
+  ksbStatusKey,
+  pointStatusKey,
+  rootOf,
+} from "./domain";
+import { getStandard, ksbIndex } from "./standards";
 import type { Evidence } from "./types";
 
 const ev = (id: string, ksbIds: string[], status: Evidence["status"]): Evidence => ({
@@ -63,5 +71,28 @@ assert.equal(
   "an unevidenced sub-point stays not-started even when its siblings are done",
 );
 assert.equal(pointStatusKey(evidence, "K5.3"), "submitted");
+
+// --- collectingPoints: ratios must exclude examined-only sub-points ----------
+// K3 has three sub-points but only K3.3 is professional discussion, so a learner
+// who has evidenced K3.3 is done — "1/3" would imply two outstanding forever.
+const std = getStandard("st0585");
+const byId = ksbIndex(std);
+
+assert.deepEqual(
+  collectingPoints(std, byId.K3).map((p) => p.id),
+  ["K3.3"],
+  "only K3.3 needs portfolio evidence",
+);
+assert.deepEqual(
+  collectingPoints(std, byId.K5).map((p) => p.id),
+  ["K5.3"],
+);
+assert.deepEqual(
+  collectingPoints(std, byId.K4).map((p) => p.id),
+  [],
+  "K4 is knowledge-test only, so no sub-point needs evidence",
+);
+// A KSB with no sub-points at all yields an empty list, not a crash.
+assert.deepEqual(collectingPoints(std, byId.S1), []);
 
 console.log("domain.test.ts: ok");
