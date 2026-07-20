@@ -6,6 +6,7 @@ import { commitTree, withConflictRetry, type TreeEntry } from "../github/commit"
 import { readFolders, readRepoTree, type RepoTree } from "../github/repo-tree";
 import type { GitHubStoreContext } from "./github-store";
 import type { CardStore } from "./card-store";
+import { NotFoundError } from "./errors";
 import type { Card } from "../types";
 
 // Server-side revision-card store backed by the learner's repo. Reads every
@@ -119,7 +120,7 @@ export function createGitHubCardStore(
       return withConflictRetry(async () => {
         const { cards: current, tree } = await loadAll();
         const target = current.find((c) => c.id === id);
-        if (!target) throw new Error(`Card ${id} not found`);
+        if (!target) throw new NotFoundError("card", `Card ${id} not found`);
         const updated: Card = { ...target, ...patch };
         const all = current.map((c) => (c.id === id ? updated : c));
         // Re-mapping a card moves its file, so both folders are rewritten —
@@ -141,7 +142,7 @@ export function createGitHubCardStore(
       return withConflictRetry(async () => {
         const { cards: current, tree } = await loadAll();
         const target = current.find((c) => c.id === id);
-        if (!target) throw new Error(`Card ${id} not found`);
+        if (!target) throw new NotFoundError("card", `Card ${id} not found`);
         // An unmapped card has no folder to rewrite, so there is no commit that
         // would remove it. Say so rather than reporting a delete that leaves the
         // card in the repo to reappear on the next load.

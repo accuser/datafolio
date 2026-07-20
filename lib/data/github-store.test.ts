@@ -8,7 +8,7 @@ import type { Octokit } from "@octokit/core";
 import { getStandard, ksbIndex } from "../standards";
 import { genMd } from "../domain";
 import type { Evidence } from "../types";
-import { createGitHubStore } from "./github-store";
+import { createGitHubStore, resolveStandard } from "./github-store";
 
 const KSB_BY_ID = ksbIndex(getStandard("st0585"));
 
@@ -358,6 +358,44 @@ async function main() {
     !delTree2.some((t) => t.path === "evidence/S4/deck.pdf"),
     "an absent file blob is not added as a deletion, so the commit can't 422",
   );
+
+  // --- resolveStandard: a missing manifest uses the default (#53) ---
+  {
+    const octokit = {
+      async request(route: string) {
+        if (route === "GET /repos/{owner}/{repo}/contents/{path}") {
+          throw Object.assign(new Error("Not Found"), { status: 404 });
+        }
+        throw new Error("Unexpected route: " + route);
+      },
+    } as unknown as Octokit;
+    const std = await resolveStandard({ octokit, owner: "o", repo: "r" });
+    assert(std.id === "st0585", `a 404 manifest falls back to the default, got ${std.id}`);
+  }
+
+  // --- REGRESSION (#53): a non-404 must propagate, not fall back silently ---
+  // The default standard drives validation, so masking a rate-limit or an
+  // uninstalled App as "use the default" would reject a non-ST0585 portfolio's
+  // valid KSB ids off the back of one transient failure.
+  {
+    for (const status of [403, 500, 502]) {
+      const octokit = {
+        async request(route: string) {
+          if (route === "GET /repos/{owner}/{repo}/contents/{path}") {
+            throw Object.assign(new Error(`GitHub ${status}`), { status });
+          }
+          throw new Error("Unexpected route: " + route);
+        },
+      } as unknown as Octokit;
+      let threw = false;
+      try {
+        await resolveStandard({ octokit, owner: "o", repo: "r" });
+      } catch {
+        threw = true;
+      }
+      assert(threw, `a ${status} from the manifest read propagates instead of defaulting`);
+    }
+  }
 
   console.log("GITHUB-STORE OK — load/add/update/remap/delete + filename de-dup produce correct atomic commits");
 }

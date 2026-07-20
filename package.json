@@ -9,7 +9,7 @@
     "lint": "eslint",
     "standards:build": "tsx scripts/build-standards.ts",
     "standards:check": "tsx scripts/build-standards.ts --check",
-    "test": "npm run standards:check && npm run test:contrast && npm run test:standards && npm run test:domain && npm run test:cards && npm run test:anki && npm run test:cards-md && npm run test:roundtrip && npm run test:commit && npm run test:store && npm run test:card-store && npm run test:validation && npm run test:portfolios && npm run test:session",
+    "test": "npm run standards:check && npm run test:contrast && npm run test:standards && npm run test:domain && npm run test:cards && npm run test:anki && npm run test:cards-md && npm run test:roundtrip && npm run test:commit && npm run test:error-response && npm run test:store && npm run test:card-store && npm run test:validation && npm run test:portfolios && npm run test:session",
     "test:contrast": "tsx lib/contrast.test.ts",
     "test:standards": "tsx lib/standards/standards.test.ts",
     "test:domain": "tsx lib/domain.test.ts",
@@ -27,7 +27,8 @@
     "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
     "cf:typegen": "wrangler types --env-interface CloudflareEnv",
     "test:session": "tsx --conditions=react-server lib/session.test.ts",
-    "dev:mock": "NEXT_PUBLIC_DATAFOLIO_BACKEND=mock next dev --port 3100"
+    "dev:mock": "NEXT_PUBLIC_DATAFOLIO_BACKEND=mock next dev --port 3100",
+    "test:error-response": "tsx --conditions=react-server lib/data/error-response.test.ts"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.10",

@@ -9,6 +9,7 @@ import { readFolders, readRepoTree, type RepoTree } from "../github/repo-tree";
 import { standardFromTree } from "./portfolio-standard";
 import { sanitizeFileName } from "./uploads";
 import type { AddOptions, StoreLoad } from "./store";
+import { NotFoundError } from "./errors";
 import type { Evidence } from "../types";
 
 // Server-side evidence store backed by a learner's private GitHub repo. Reads
@@ -100,9 +101,16 @@ export async function resolveStandard(
       ? Buffer.from(content, "base64").toString("utf8")
       : null;
     return getStandard(readManifest(text).standardId);
-  } catch {
-    // No manifest (404) or unreadable — an ST0585 portfolio, as before.
-    return getStandard(null);
+  } catch (e) {
+    // Only a genuinely absent manifest means "use the default standard". Every
+    // other failure — App not installed, rate limit, network — must propagate:
+    // the default standard drives validation, so silently falling back to it on
+    // a non-ST0585 portfolio would reject that portfolio's valid KSB ids as
+    // invalid off the back of one transient error.
+    if ((e as { status?: number } | null)?.status === 404) {
+      return getStandard(null);
+    }
+    throw e;
   }
 }
 
@@ -247,7 +255,7 @@ export function createGitHubStore(ctx: GitHubStoreContext) {
         const { evidence: current, tree, standard } = await loadAll();
         const byId = ksbIndex(standard);
         const target = current.find((e) => e.id === id);
-        if (!target) throw new Error(`Evidence ${id} not found`);
+        if (!target) throw new NotFoundError("evidence", `Evidence ${id} not found`);
         let updated: Evidence = { ...target, ...patch };
 
         // If a remap moved an upload's primary folder, relocate its file too, or
@@ -299,7 +307,7 @@ export function createGitHubStore(ctx: GitHubStoreContext) {
         const { evidence: current, tree, standard } = await loadAll();
         const byId = ksbIndex(standard);
         const target = current.find((e) => e.id === id);
-        if (!target) throw new Error(`Evidence ${id} not found`);
+        if (!target) throw new NotFoundError("evidence", `Evidence ${id} not found`);
         const all = current.filter((e) => e.id !== id);
         // Remove the uploaded file blob too, so no orphan is left behind. Only if
         // it's actually there — deleting a path absent from the tree would 422
