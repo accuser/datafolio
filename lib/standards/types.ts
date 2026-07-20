@@ -21,6 +21,11 @@ export interface Colour {
  * marks whether learners gather portfolio evidence against KSBs assessed this
  * way. Knowledge-test KSBs are still modelled in full so the mapping stays
  * faithful, but are surfaced read-only until the method is turned on.
+ *
+ * `supportsCards` is a sibling switch, deliberately orthogonal: "is this KSB
+ * worth making revision cards for?" is a different question from "does it
+ * expect portfolio artefacts?", and the two only happen to overlap. The
+ * knowledge test collects no evidence but is the method cards matter most for.
  */
 export interface AssessmentMethod {
   key: MethodKey;
@@ -28,6 +33,7 @@ export interface AssessmentMethod {
   abbr: string;
   note: string;
   collectsEvidence: boolean;
+  supportsCards: boolean;
   colour: Colour;
 }
 

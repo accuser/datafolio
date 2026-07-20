@@ -10,6 +10,8 @@ import { join, resolve } from "node:path";
 import { parseStandard } from "./parse";
 import { STANDARDS } from "./generated";
 import {
+  cardable,
+  cardableMethods,
   collectingMethods,
   collectsEvidence,
   getStandard,
@@ -103,6 +105,12 @@ assert.equal(st0585.methods[KT].collectsEvidence, false);
 assert.equal(st0585.methods[PD].collectsEvidence, true);
 assert.equal(st0585.methods[R].collectsEvidence, true);
 
+// Cards are orthogonal to evidence, not a rename of it: the knowledge test
+// collects nothing yet supports cards, and the report is the exact inverse.
+assert.equal(st0585.methods[KT].supportsCards, true);
+assert.equal(st0585.methods[PD].supportsCards, true);
+assert.equal(st0585.methods[R].supportsCards, false);
+
 // K4 is knowledge-test only, so it must not be evidence-collectable while KT is
 // off. This is the case that would silently break if KT were dropped entirely.
 const k4 = st0585.ksbs.find((k) => k.id === "K4")!;
@@ -148,6 +156,18 @@ rejects(
   (s) => s.replace("  - id: K2\n", "  - id: K1\n"),
   /duplicates "K1"/,
   "duplicate KSB codes should be rejected",
+);
+
+rejects(
+  (s) => s.replace("    supports_cards: false\n", ""),
+  /supports_cards is required/,
+  "supports_cards must be declared per method, not defaulted",
+);
+
+rejects(
+  (s) => s.replace("    supports_cards: false", "    supports_cards: maybe"),
+  /supports_cards must be true or false/,
+  "supports_cards must be a boolean",
 );
 
 // A well-formed standard round-trips through the parser unchanged.
@@ -200,6 +220,28 @@ assert.equal(
   collectsEvidence(std, std.ksbs.find((k) => k.id === "K3")!),
   true,
   "K3 is also assessed by professional discussion",
+);
+
+assert.deepEqual(
+  cardableMethods(std).map((m) => m.key),
+  [PD, KT],
+  "the report route is the only one cards do not apply to",
+);
+
+// K4 collects no evidence yet is cardable, and S1 is the exact inverse. Between
+// them they pin `cardable` as independent of `collectsEvidence` rather than a
+// second name for it.
+assert.equal(cardable(std, k4), true, "K4 is examined, so it is cardable");
+assert.equal(
+  cardable(std, std.ksbs.find((k) => k.id === "S1")!),
+  false,
+  "S1 is report-only, so there is nothing to drill",
+);
+
+// 12 of the 19 KSBs are cardable: everything but the seven report-only ones.
+assert.deepEqual(
+  std.ksbs.filter((k) => !cardable(std, k)).map((k) => k.id),
+  ["S1", "S2", "S3", "S4", "S5", "S8", "B5"],
 );
 
 console.log("standards.test.ts: ok");

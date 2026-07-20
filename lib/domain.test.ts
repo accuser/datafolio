@@ -7,6 +7,7 @@
 
 import assert from "node:assert/strict";
 import {
+  cardablePoints,
   collectingPoints,
   evFor,
   evForPoint,
@@ -94,5 +95,19 @@ assert.deepEqual(
 );
 // A KSB with no sub-points at all yields an empty list, not a crash.
 assert.deepEqual(collectingPoints(std, byId.S1), []);
+
+// --- cardablePoints: the mirror image, and deliberately not the same set -----
+// Every sub-point in ST0585 is examined or discussed, so all of them are
+// cardable — including the two K3 sub-points that collect no evidence at all.
+assert.deepEqual(
+  cardablePoints(std, byId.K3).map((p) => p.id),
+  ["K3.1", "K3.2", "K3.3"],
+);
+assert.deepEqual(
+  cardablePoints(std, byId.K4).map((p) => p.id),
+  ["K4.1", "K4.2", "K4.3", "K4.4", "K4.5"],
+  "K4 collects nothing but is entirely cardable",
+);
+assert.deepEqual(cardablePoints(std, byId.S1), []);
 
 console.log("domain.test.ts: ok");
