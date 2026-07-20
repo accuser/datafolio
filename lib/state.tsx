@@ -12,11 +12,14 @@ import {
 import { useRouter } from "next/navigation";
 import { rootOf, todayLabel } from "./domain";
 import { createMockStore, type EvidenceStore } from "./data/store";
+import { createMockCardStore, type CardStore } from "./data/card-store";
+import { generateStarterCards } from "./cards";
 import { createHttpStore, fetchSession, selectPortfolio } from "./data/http-store";
 import { MAX_UPLOAD_BYTES, MAX_UPLOAD_MB } from "./data/uploads";
-import { SEED_EVIDENCE, SEED_USER } from "./data/seed";
-import { DEFAULT_STANDARD_ID, getStandard, type Standard } from "./standards";
+import { SEED_CARDS, SEED_EVIDENCE, SEED_USER } from "./data/seed";
+import { DEFAULT_STANDARD_ID, getStandard, ksbIndex, type Standard } from "./standards";
 import type {
+  Card,
   Evidence,
   EvidenceForm,
   EvidenceStatus,
@@ -38,6 +41,17 @@ export type RouteFilter = string;
  *  uses the in-memory mock so the UX demo runs with no configuration. */
 export const BACKEND_MODE =
   process.env.NEXT_PUBLIC_DATAFOLIO_BACKEND === "github" ? "github" : "mock";
+
+/**
+ * Revision cards are only offered where they can actually be persisted.
+ *
+ * There is no GitHub-backed CardStore yet — `revision/<KSB>/cards.md` read/write
+ * is a later step — so in GitHub mode the only available implementation is the
+ * in-memory mock. Rendering the capture UI on top of that would invite a learner
+ * to write cards that vanish on reload, which is worse than not offering them.
+ * Delete this flag once the GitHub card store lands.
+ */
+export const CARDS_ENABLED = BACKEND_MODE !== "github";
 
 function initialsOf(name: string): string {
   return name
@@ -71,6 +85,12 @@ interface AppState {
   openFolders: Record<string, boolean>;
   mdPreviewKid: string | null;
   evidence: Evidence[];
+  /** Revision cards across the portfolio. Empty unless CARDS_ENABLED. */
+  cards: Card[];
+  /** Card id currently open in the inline editor; null when none is. */
+  editingCardId: string | null;
+  /** KSB whose "new card" composer is open; null when none is. */
+  composingFor: string | null;
   /** Portfolios the signed-in user can switch between (own + reviewed). */
   portfolios: Portfolio[];
   /** The portfolio currently in view (owner = whose repo, not necessarily me). */
@@ -94,6 +114,9 @@ const initialState: AppState = {
   mdPreviewKid: null,
   // Mock mode is seeded so the demo renders instantly; GitHub mode loads on sign-in.
   evidence: BACKEND_MODE === "github" ? [] : SEED_EVIDENCE,
+  cards: CARDS_ENABLED ? SEED_CARDS : [],
+  editingCardId: null,
+  composingFor: null,
   portfolios: [],
   target: null,
 };
@@ -101,6 +124,7 @@ const initialState: AppState = {
 type Action =
   | { type: "PATCH"; patch: Partial<AppState> }
   | { type: "SET_EVIDENCE"; evidence: Evidence[] }
+  | { type: "SET_CARDS"; cards: Card[] }
   | { type: "SET_FORM_FIELD"; key: keyof EvidenceForm; value: unknown }
   | { type: "ADD_TAG"; id: string }
   | { type: "REMOVE_TAG"; id: string }
@@ -113,6 +137,8 @@ function reducer(state: AppState, action: Action): AppState {
       return { ...state, ...action.patch };
     case "SET_EVIDENCE":
       return { ...state, evidence: action.evidence };
+    case "SET_CARDS":
+      return { ...state, cards: action.cards };
     case "SET_FORM_FIELD":
       return state.form
         ? { ...state, form: { ...state.form, [action.key]: action.value } }
@@ -172,6 +198,16 @@ export interface AppActions {
   approve(id: string): void;
   requestChanges(id: string): void;
   setReview(id: string, value: string): void;
+  /** Generate starter cards for a KSB from the standard's own text. */
+  generateCards(ksbId: string): void;
+  /** Commit a hand-written card against a KSB or sub-point. */
+  addCard(target: string, front: string, back: string): void;
+  updateCard(id: string, front: string, back: string): void;
+  deleteCard(id: string): void;
+  /** Open/close the inline editor for one card (null closes it). */
+  editCard(id: string | null): void;
+  /** Open/close the new-card composer for a KSB (null closes it). */
+  composeCard(ksbId: string | null): void;
   setFilter(filter: StatusFilter): void;
   setRouteFilter(routeFilter: RouteFilter): void;
   openMd(kid: string): void;
@@ -219,8 +255,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
       : createMockStore(SEED_EVIDENCE),
   );
 
+  // Cards ride their own seam (see lib/data/card-store.ts). Only the mock
+  // implementation exists today, which is what CARDS_ENABLED gates on.
+  const cardStoreRef = useRef<CardStore>(createMockCardStore(SEED_CARDS));
+
   const actions = useMemo<AppActions>(() => {
     const store = storeRef.current;
+    const cardStore = cardStoreRef.current;
     const patch = (p: Partial<AppState>) =>
       dispatch({ type: "PATCH", patch: p });
 
@@ -425,6 +466,59 @@ export function AppProvider({ children }: { children: ReactNode }) {
           dispatch({ type: "SET_EVIDENCE", evidence: next });
         }),
       setReview: (id, value) => dispatch({ type: "SET_REVIEW", id, value }),
+
+      // Seeded ids are derived from what each card revises, so addCards drops
+      // the ones already held — pressing this twice is a no-op, not a duplicate
+      // deck. That is what lets seeding be a button rather than an auto-fill.
+      generateCards: (ksbId) =>
+        runExclusive(async () => {
+          const s = stateRef.current;
+          const ksb = ksbIndex(s.standard)[ksbId];
+          if (!ksb) return;
+          const next = await cardStore.addCards(
+            generateStarterCards(s.standard, ksb, todayLabel()),
+          );
+          dispatch({ type: "SET_CARDS", cards: next });
+        }),
+
+      addCard: (target, front, back) =>
+        runExclusive(async () => {
+          const today = todayLabel();
+          const next = await cardStore.addCards([
+            {
+              id: "c" + Date.now(),
+              ksbIds: [target],
+              front: front.trim(),
+              back: back.trim(),
+              tags: [stateRef.current.standard.id.toUpperCase(), rootOf(target)],
+              source: "learner",
+              created: today,
+              updated: today,
+            },
+          ]);
+          dispatch({ type: "SET_CARDS", cards: next });
+          patch({ composingFor: null });
+        }),
+
+      updateCard: (id, front, back) =>
+        runExclusive(async () => {
+          const next = await cardStore.updateCard(id, {
+            front: front.trim(),
+            back: back.trim(),
+            updated: todayLabel(),
+          });
+          dispatch({ type: "SET_CARDS", cards: next });
+          patch({ editingCardId: null });
+        }),
+
+      deleteCard: (id) =>
+        runExclusive(async () => {
+          const next = await cardStore.deleteCard(id);
+          dispatch({ type: "SET_CARDS", cards: next });
+        }),
+
+      editCard: (id) => patch({ editingCardId: id, composingFor: null }),
+      composeCard: (ksbId) => patch({ composingFor: ksbId, editingCardId: null }),
       setFilter: (filter) => patch({ filter }),
       setRouteFilter: (routeFilter) => patch({ routeFilter }),
       openMd: (kid) => patch({ mdPreviewKid: kid }),

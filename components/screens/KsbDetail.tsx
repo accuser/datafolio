@@ -3,8 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { useApp } from "@/lib/state";
-import { collectsEvidence, ksbIndex } from "@/lib/standards";
+import { CARDS_ENABLED, useApp } from "@/lib/state";
+import { cardable, collectsEvidence, ksbIndex } from "@/lib/standards";
 import {
   collectingPoints,
   evFor,
@@ -17,6 +17,7 @@ import {
 } from "@/lib/domain";
 import type { Evidence } from "@/lib/types";
 import { Pill } from "../ui";
+import { RevisionCards } from "../RevisionCards";
 import { ChevronLeft, Check, FileIcon, FolderIcon, LinkIcon, Plus } from "../icons";
 
 function EvidenceCard({ e, ksbId }: { e: Evidence; ksbId: string }) {
@@ -203,6 +204,16 @@ export function KsbDetail({ ksbId }: { ksbId: string }) {
   // A KSB assessed only by methods that collect no evidence (the knowledge test)
   // has nothing for the learner to submit, so don't offer to add any.
   const collectsHere = collectsEvidence(standard, sel);
+  // Cards are the learner's own revision, and a reviewer never acts on them, so
+  // they are not surfaced in the reviewer's app at all. They still sit in the
+  // learner's repo, which a reviewer can already read — this is "not shown here",
+  // not privacy. Real privacy from a line-manager reviewer would need a separate
+  // location they aren't granted.
+  const showCards = CARDS_ENABLED && isLearner && cardable(standard, sel);
+  // On an examined KSB there is nothing to submit, and the strip above already
+  // says so — so cards take that dead space rather than sitting under an
+  // "Evidence · 0 / nothing to submit" panel that repeats it.
+  const showEvidence = collectsHere || !showCards;
   const pts = sel.points || [];
   const neededPts = collectingPoints(standard, sel);
   const coveredN = neededPts.filter((p) => evForPoint(evidence, p.id).length).length;
@@ -250,6 +261,15 @@ export function KsbDetail({ ksbId }: { ksbId: string }) {
             evidence/{sel.id}/
           </div>
         </Link>
+        {showCards && (
+          <div className="card card--md ksb-strip__card ksb-strip__folder">
+            <div className="eyebrow ksb-strip__label">Revision folder</div>
+            <div className="ksb-strip__path">
+              <FolderIcon size={15} />
+              revision/{sel.id}/
+            </div>
+          </div>
+        )}
       </div>
 
       {/* sub-points */}
@@ -285,6 +305,8 @@ export function KsbDetail({ ksbId }: { ksbId: string }) {
       )}
 
       {/* evidence */}
+      {showEvidence && (
+      <>
       <div className="evidence-head">
         <h2 className="section-title section-title--lg">
           Evidence <span className="section-title__aside">{ev.length ? `· ${ev.length}` : ""}</span>
@@ -324,6 +346,10 @@ export function KsbDetail({ ksbId }: { ksbId: string }) {
           ))}
         </div>
       )}
+      </>
+      )}
+
+      {showCards && <RevisionCards ksb={sel} />}
     </div>
   );
 }
