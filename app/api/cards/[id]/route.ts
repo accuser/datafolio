@@ -5,17 +5,25 @@ import { resolveStandard } from "@/lib/data/github-store";
 import { storeErrorResponse } from "@/lib/data/error-response";
 import { validateCardPatch } from "@/lib/data/card-validation";
 import { canWriteCards } from "@/lib/data/authz";
+import { cardsEnabledServer } from "@/lib/flags";
 
 // PATCH /api/cards/:id → edit a card's text or mapping.
 // DELETE /api/cards/:id → remove it.
 //
 // Both are owner-only for the same reason as POST: a reviewer has push access
 // but revision is the learner's own preparation, not something to be reviewed.
+//
+// Both also answer 404 while the feature is held back — see the note in
+// ../route.ts and lib/flags.ts.
+function heldBack() {
+  return NextResponse.json({ error: "Not found" }, { status: 404 });
+}
 
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  if (!cardsEnabledServer()) return heldBack();
   const res = await resolveRepoContext();
   if (!res.ok) return NextResponse.json({ error: res.error }, { status: res.status });
   const { ctx } = res;
@@ -41,6 +49,7 @@ export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  if (!cardsEnabledServer()) return heldBack();
   const res = await resolveRepoContext();
   if (!res.ok) return NextResponse.json({ error: res.error }, { status: res.status });
   const { ctx } = res;

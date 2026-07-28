@@ -11,6 +11,7 @@ import {
 } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { rootOf, todayLabel } from "./domain";
+import { CARDS_ENABLED } from "./flags";
 import { createMockStore, type EvidenceStore } from "./data/store";
 import { createMockCardStore, type CardStore } from "./data/card-store";
 import { createHttpCardStore } from "./data/http-card-store";
@@ -753,33 +754,40 @@ export function AppProvider({ children }: { children: ReactNode }) {
         // Cards load alongside evidence but must not be able to break the
         // portfolio: an unreadable revision/ folder should cost the learner
         // their cards, not their evidence screen.
-        cardStoreRef.current
-          .load()
-          .then((cards) => {
-            if (!cancelled) {
-              dispatch({ type: "SET_CARDS", cards });
-              dispatch({
-                type: "PATCH",
-                patch: { cardsLoaded: true, cardsError: null },
-              });
-            }
-          })
-          .catch((e) => {
-            // A cards failure must not blank the evidence screen, so it stays a
-            // panel-local error rather than a loadError. But it is no longer
-            // silent: cardsLoaded stays false, so the revision panel shows the
-            // failure instead of an empty deck that invites re-seeding.
-            if (!cancelled) {
-              dispatch({
-                type: "PATCH",
-                patch: {
-                  cardsError:
-                    (e as Error)?.message ||
-                    "Couldn’t load your revision cards.",
-                },
-              });
-            }
-          });
+        //
+        // With cards held back (lib/flags.ts) the load is skipped entirely
+        // rather than merely unrendered — otherwise every portfolio would still
+        // pay a GET /api/cards on open, and a failing one could raise an error
+        // for a feature nobody can see.
+        if (CARDS_ENABLED) {
+          cardStoreRef.current
+            .load()
+            .then((cards) => {
+              if (!cancelled) {
+                dispatch({ type: "SET_CARDS", cards });
+                dispatch({
+                  type: "PATCH",
+                  patch: { cardsLoaded: true, cardsError: null },
+                });
+              }
+            })
+            .catch((e) => {
+              // A cards failure must not blank the evidence screen, so it stays
+              // a panel-local error rather than a loadError. But it is no longer
+              // silent: cardsLoaded stays false, so the revision panel shows the
+              // failure instead of an empty deck that invites re-seeding.
+              if (!cancelled) {
+                dispatch({
+                  type: "PATCH",
+                  patch: {
+                    cardsError:
+                      (e as Error)?.message ||
+                      "Couldn’t load your revision cards.",
+                  },
+                });
+              }
+            });
+        }
         dispatch({
           type: "PATCH",
           patch: {

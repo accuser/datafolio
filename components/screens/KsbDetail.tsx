@@ -18,6 +18,7 @@ import {
 import type { Evidence } from "@/lib/types";
 import { Pill } from "../ui";
 import { RevisionCards } from "../RevisionCards";
+import { CARDS_ENABLED } from "@/lib/flags";
 import { ChevronLeft, Check, FileIcon, FolderIcon, LinkIcon, Plus } from "../icons";
 
 function EvidenceCard({ e, ksbId }: { e: Evidence; ksbId: string }) {
@@ -209,10 +210,13 @@ export function KsbDetail({ ksbId }: { ksbId: string }) {
   // learner's repo, which a reviewer can already read — this is "not shown here",
   // not privacy. Real privacy from a line-manager reviewer would need a separate
   // location they aren't granted.
-  const showCards = isLearner && cardable(standard, sel);
+  const showCards = CARDS_ENABLED && isLearner && cardable(standard, sel);
   // On an examined KSB there is nothing to submit, and the strip above already
   // says so — so cards take that dead space rather than sitting under an
-  // "Evidence · 0 / nothing to submit" panel that repeats it.
+  // "Evidence · 0 / nothing to submit" panel that repeats it. With cards held
+  // back (see lib/flags.ts) that dead space has nothing to fill it, so the
+  // panel comes back and explains why there is nothing to submit — which is the
+  // right thing to say when it is the only thing on the page.
   const showEvidence = collectsHere || !showCards;
   const pts = sel.points || [];
   const neededPts = collectingPoints(standard, sel);
