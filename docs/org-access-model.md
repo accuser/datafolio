@@ -394,19 +394,36 @@ careless reviewer account drops from "total loss of the repository" to
   is the sole input to every rule in `lib/data/authz.ts` and to
   `validateEvidencePatch`.
 
-### 2.2 Two pre-existing gaps this surfaces
+### 2.2 Three pre-existing gaps this surfaced — all now closed
 
-Independent of the org migration, and worth fixing either way:
+Independent of the org migration, and worth fixing either way. All three were
+fixed ahead of the migration; they are kept here because the *shape* of them is
+the point, and the same shape will recur as rules are added.
 
-1. **`POST /api/evidence` has no subject check.** It gates on `canWrite` only,
-   so a reviewer can create evidence in a learner's portfolio. Deleting is
-   blocked (`canDeleteEvidence`) and cards are blocked (`canWriteCards`), but
-   creating is not. Under the looser role gate this model introduces, that gap
-   widens, so it needs `canCreateEvidence(isSubject)`.
-2. **`validateEvidencePatch` is asymmetric.** It stops a learner writing
-   `feedback` (`lib/data/validation.ts:170`) but nothing stops a reviewer
-   patching `title`, `url`, `note` or `ksbIds`. The learner-side rule exists; its
-   mirror does not.
+1. **`POST /api/evidence` had no subject check.** It gated on `canWrite` only,
+   so a reviewer could create evidence in a learner's portfolio. Deleting was
+   blocked (`canDeleteEvidence`) and cards were blocked (`canWriteCards`), but
+   creating was not. Closed by `canCreateEvidence(isOwner)`.
+2. **`validateEvidencePatch` was asymmetric.** It stopped a learner writing
+   `feedback` but nothing stopped a reviewer patching `title`, `url`, `note` or
+   `ksbIds`. The learner-side rule existed; its mirror did not. Closed by
+   stating both halves together at the top of the function.
+3. **The status handshake was enforced in one direction.** `canSubmitVerdict`
+   refused the subject an `Approved`/`Changes` verdict, but nothing refused a
+   reviewer a `Draft` or `Submitted` — so a reviewer could revoke an approval or
+   push a learner's unfinished draft into review. Closed by `canSetStatus`,
+   which is the status half of the §1.7 table in one function.
+
+The three share one failure mode, and it is worth naming because it is not
+"someone forgot a check". Each rule was *half* written. A rule stated as one
+half reads as complete — the half that exists looks like the whole rule, and
+nothing about it advertises the missing mirror. Two of the three additionally
+had **tests asserting the missing half's absence as correct behaviour**, which
+is how they survived a security review: the suite was green, and green meant
+"the rule that exists, works", not "the rule is whole".
+
+The defence is structural rather than diligent: state both halves in one place,
+so an absent half is a visible hole rather than an unwritten line.
 
 Also cosmetic but telling: `canWrite` tests for `"maintain"` in the `permission`
 field, a value that field never returns (§1.5). Dead branch today; a real bug
@@ -427,8 +444,8 @@ owner fast-path still saves a round trip.
 | `lib/github/app.ts` | Replace `canRead`/`canWrite` with one `resolveRole()` returning a `RepoRole` from `role_name`. |
 | `lib/standards/manifest.ts` | Parse `learner:` alongside `standard:`. Return it unresolved-but-present so the caller can fail closed; do **not** give it the standard's forgiving fallback. |
 | `lib/github/request-context.ts` | `isOwner` → `isSubject`, from the manifest. Carry `role` on `RepoContext`. Refuse writes when the subject is unresolvable. |
-| `lib/data/authz.ts` | Rename `isOwner` → `isSubject` throughout. Add `canCreateEvidence`, `canEditEvidenceContent`, `canReview`. One test per cell of §1.7. |
-| `lib/data/validation.ts` | Take `isSubject`; add the reviewer-cannot-edit-content mirror to the existing learner-cannot-write-feedback rule. |
+| `lib/data/authz.ts` | Rename `isOwner` → `isSubject` throughout. `canCreateEvidence` and `canSetStatus` (the whole status partition, not just the verdict half) already exist per §2.2 — what remains is the rename and one test per cell of §1.7. The content rule is **not** here; see the `validation.ts` row. |
+| `lib/data/validation.ts` | Take `isSubject`. The reviewer-cannot-edit-content mirror already exists alongside the learner-cannot-write-feedback rule. Both live here rather than in `authz.ts` because they are functions of *which fields* a patch touches, not of the action alone — the cost being that `authz.ts` is no longer the single place to read the rule set off, so §1.7 stays the index of record. |
 | `app/api/evidence/route.ts`, `app/api/evidence/[id]/route.ts` | Drop the three `canWrite` calls; apply the authz rules instead. |
 | `lib/data/github-store.ts` | `resolveStandard` currently makes its own Contents call for the manifest. Hoist it so the subject and the standard come from one read (§1.6). |
 | `lib/data/portfolio-standard.ts` | The other manifest reader (`standardFromTree`). Same hoist, so the two paths share one fetch rather than growing a third. |
@@ -459,8 +476,9 @@ const isSubject = manifest.subject
   // The owner comparison is only meaningful for a repo still on a personal
   // account. Guarding on the org is what stops it from silently answering
   // "nobody" for an org-hosted repo whose manifest hasn't been written yet —
-  // which would not fail closed: `canSubmitVerdict` only blocks the subject, so
-  // an unresolved subject means the learner may approve their own evidence.
+  // which would not fail closed: `canSetStatus` blocks a verdict only for the
+  // subject, so an unresolved subject makes everyone a reviewer — and the
+  // learner may then approve their own evidence.
   : owner.toLowerCase() !== ORG.toLowerCase() &&
     login.toLowerCase() === owner.toLowerCase();
 ```

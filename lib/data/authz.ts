@@ -11,8 +11,12 @@
 // per request on RepoContext; every rule below is a function of it.
 //
 // Not covered here: the `canWrite` gate (a GitHub push-access check — a network
-// call, tested against the live API, not a pure rule) and the learner-can't-set-
-// feedback rule (which lives in validateEvidencePatch, already tested).
+// call, tested against the live API, not a pure rule) and the two field-role
+// rules on patching, which live in validateEvidencePatch because they are
+// functions of *which fields* the patch touches rather than of the action alone.
+// The status rule is the exception and stays here: it turns on the *value*
+// written, not on which fields are present, and it belongs beside the other
+// pure rules so this file remains the one place to check the set is complete.
 
 export type Decision =
   | { allow: true }
@@ -20,21 +24,73 @@ export type Decision =
 
 const ALLOW: Decision = { allow: true };
 
+// Status is the one field both roles write, which is what makes it look shared.
+// It isn't: it's partitioned, and the handshake runs in one direction. The
+// learner moves an item Draft → Submitted; the reviewer answers Approved or
+// Changes. Neither may play the other's half.
+const VERDICT_STATUSES = ["Approved", "Changes"];
+const LEARNER_STATUSES = ["Draft", "Submitted"];
+
 /**
- * A review verdict — Approve or Request changes — is a reviewer action. The repo
- * owner is the learner, so an owner submitting one is reviewing their own
- * evidence, which the client role toggle must not be able to do.
+ * Who may move an item to a given status.
+ *
+ * This began as `canSubmitVerdict`, which held only the owner half — an owner
+ * may not approve their own evidence. The reviewer half was missing, and the
+ * shared-field framing is what hid it: because both roles legitimately write
+ * `status`, it read as nobody's exclusive field rather than as two exclusive
+ * halves. So nothing stopped a reviewer PATCHing `{status:"Draft"}` to quietly
+ * revoke an approval, or `{status:"Submitted"}` to put a learner's unfinished
+ * draft into review under their name. docs/org-access-model.md §1.7 already
+ * splits the handshake into two rows with opposite ownership; this is that
+ * table.
+ *
+ * Stated as one function over both halves so an absent half is obvious — the
+ * same reason the content and feedback rules sit together in validation.ts.
+ *
+ * An absent status is allowed: a patch that doesn't move the item (a reviewer
+ * leaving feedback alone) has no status to authorise.
  */
-export function canSubmitVerdict(
+export function canSetStatus(
   isOwner: boolean,
   status: string | undefined,
 ): Decision {
-  if (isOwner && (status === "Approved" || status === "Changes")) {
+  if (status === undefined) return ALLOW;
+
+  if (isOwner && VERDICT_STATUSES.includes(status)) {
     return {
       allow: false,
       status: 403,
       error:
         "You can’t review your own evidence — only a reviewer can approve or request changes.",
+    };
+  }
+  if (!isOwner && LEARNER_STATUSES.includes(status)) {
+    return {
+      allow: false,
+      status: 403,
+      error:
+        "Only the learner who owns this portfolio can submit or withdraw their evidence.",
+    };
+  }
+  return ALLOW;
+}
+
+/**
+ * Adding evidence is the learner's own action, for the same reason deleting it
+ * is: a reviewer reviews the portfolio, they don't contribute to it.
+ *
+ * This was the gap in the set. Delete had a rule, cards had a rule, and create
+ * had nothing but the `canWrite` push-access check — which a reviewer passes by
+ * definition, since push access is exactly what makes them a reviewer. So a
+ * reviewer could POST evidence into a learner's portfolio and the App token
+ * would commit it under the learner's name.
+ */
+export function canCreateEvidence(isOwner: boolean): Decision {
+  if (!isOwner) {
+    return {
+      allow: false,
+      status: 403,
+      error: "Only the learner who owns this portfolio can add evidence.",
     };
   }
   return ALLOW;

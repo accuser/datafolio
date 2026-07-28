@@ -7,8 +7,9 @@
  * Run: `npx tsx --conditions=react-server lib/data/authz.test.ts`.
  */
 import {
+  canCreateEvidence,
   canDeleteEvidence,
-  canSubmitVerdict,
+  canSetStatus,
   canWriteCards,
 } from "./authz";
 
@@ -19,10 +20,17 @@ function assert(cond: unknown, msg: string): asserts cond {
 const OWNER = true;
 const REVIEWER = false;
 
-// --- self-review: an owner can't submit a verdict on their own evidence ------
+// --- status: the handshake is partitioned, one cell per role ------------------
+//
+// Every cell of the status half of docs/org-access-model.md §1.7. The reviewer
+// half of this used to assert the opposite — "a reviewer may set a non-verdict
+// status" — which pinned the missing rule in place as expected behaviour, the
+// same way validation.test.ts pinned the missing content rule. Replaced rather
+// than extended: the premise was wrong, not incomplete.
 {
+  // An owner may not review their own evidence.
   for (const status of ["Approved", "Changes"]) {
-    const d = canSubmitVerdict(OWNER, status);
+    const d = canSetStatus(OWNER, status);
     assert(!d.allow, `an owner is refused a ${status} verdict`);
     assert(!d.allow && d.status === 403, `self-review is a 403 (${status})`);
     assert(
@@ -33,21 +41,47 @@ const REVIEWER = false;
 
   // A reviewer submitting a verdict is the normal case.
   for (const status of ["Approved", "Changes"]) {
-    assert(canSubmitVerdict(REVIEWER, status).allow, `a reviewer may submit ${status}`);
+    assert(canSetStatus(REVIEWER, status).allow, `a reviewer may submit ${status}`);
   }
 
-  // A learner editing/resubmitting their own item is not a verdict — the status
-  // is Draft/Submitted/undefined — so it must be allowed for an owner.
-  for (const status of ["Draft", "Submitted", undefined]) {
+  // A learner drafting or submitting their own item is the normal case.
+  for (const status of ["Draft", "Submitted"]) {
+    assert(canSetStatus(OWNER, status).allow, `an owner may set ${status}`);
+  }
+
+  // The half that was missing. `Submitted` puts a learner's unfinished draft
+  // into review under their name; `Draft` silently revokes an approval. Both are
+  // a reviewer writing learner-owned state.
+  for (const status of ["Draft", "Submitted"]) {
+    const d = canSetStatus(REVIEWER, status);
+    assert(!d.allow, `a reviewer may not set ${status}`);
+    assert(!d.allow && d.status === 403, `a reviewer status move is a 403 (${status})`);
     assert(
-      canSubmitVerdict(OWNER, status).allow,
-      `an owner may set a non-verdict status (${status})`,
-    );
-    assert(
-      canSubmitVerdict(REVIEWER, status).allow,
-      `a reviewer may set a non-verdict status (${status})`,
+      !d.allow && /Only the learner/.test(d.error),
+      `the status error names the boundary (${status})`,
     );
   }
+
+  // A patch that doesn't move the item has no status to authorise — a reviewer
+  // amending feedback alone, say. Allowed for both roles.
+  assert(canSetStatus(OWNER, undefined).allow, "an owner may patch without a status");
+  assert(canSetStatus(REVIEWER, undefined).allow, "a reviewer may patch without a status");
+}
+
+// --- create: only the learner who owns the portfolio may add evidence --------
+//
+// The gap in the set: delete and cards had rules, create had only the push-access
+// check, which a reviewer passes by definition.
+{
+  assert(canCreateEvidence(OWNER).allow, "an owner may add their own evidence");
+
+  const create = canCreateEvidence(REVIEWER);
+  assert(!create.allow, "a reviewer may not add evidence");
+  assert(!create.allow && create.status === 403, "a reviewer create is a 403");
+  assert(
+    !create.allow && /Only the learner/.test(create.error),
+    "the create error names the boundary",
+  );
 }
 
 // --- delete: only the learner who owns the portfolio may delete evidence -----
@@ -76,4 +110,6 @@ const REVIEWER = false;
   );
 }
 
-console.log("AUTHZ OK — self-review, reviewer-delete and owner-only-card rules enforced");
+console.log(
+  "AUTHZ OK — status partition, reviewer-create, reviewer-delete and owner-only-card rules enforced",
+);
