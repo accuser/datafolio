@@ -14,6 +14,7 @@ import {
   statusMeta,
 } from "@/lib/domain";
 import type { Category } from "@/lib/types";
+import { CARDS_ENABLED } from "@/lib/flags";
 import { LoadingState, Pill } from "../ui";
 import { ChevronRight, CheckBadge } from "../icons";
 
@@ -23,7 +24,7 @@ export function Dashboard() {
   const isReviewer = role === "reviewer";
   // Export is a whole-portfolio action, so it lives here rather than on any one
   // KSB. Learner-only, and hidden until there is actually a deck to export.
-  const showExport = !isReviewer && cards.length > 0;
+  const showExport = CARDS_ENABLED && !isReviewer && cards.length > 0;
   const KSBS = standard.ksbs;
   // Which KSBs have their sub-points expanded. Sub-points are assessed
   // individually and don't inherit the parent's methods, so a collapsed row's
