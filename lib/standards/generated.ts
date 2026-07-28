@@ -34,7 +34,7 @@ export const STANDARDS: Record<string, Standard> = {
     "report": {
       "key": "report",
       "label": "Report",
-      "abbr": "Report",
+      "abbr": "R",
       "note": "Evidenced through the report on your work-based Data Science project.",
       "collectsEvidence": true,
       "supportsCards": false,

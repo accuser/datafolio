@@ -31,7 +31,7 @@ assessment_methods:
 
   report:
     label: Report
-    abbr: Report
+    abbr: R
     note: >-
       Evidenced through the report on your work-based Data Science project.
     collects_evidence: true

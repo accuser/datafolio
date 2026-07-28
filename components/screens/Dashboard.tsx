@@ -160,7 +160,7 @@ export function Dashboard() {
       </div>
 
       {/* Route split */}
-      <div className="grid-2 method-cards">
+      <div className="method-cards">
         {Object.values(standard.methods).map((mm) => (
           <div key={mm.key} className="card method-card">
             {/* Method colours come from the standard's own config, so they're

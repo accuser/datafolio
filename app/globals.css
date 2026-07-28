@@ -211,7 +211,7 @@ a:hover {
   padding: 0 32px;
 }
 
-/* Two-column card grids (dashboard route split, coverage schema/code) stack. */
+/* Two-column card grid (coverage schema/code) that stacks when cramped. */
 .grid-2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1002,7 +1002,13 @@ a:hover {
   display: inline-block;
 }
 
+/* One card per assessment method, all on a single row. The column count is
+   driven by the standard's method list rather than a fixed number, so it holds
+   for a standard with more or fewer than three methods; the cards drop to two
+   columns, then one, as the row runs out of room. */
 .method-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
   gap: 14px;
   margin-bottom: 28px;
 }

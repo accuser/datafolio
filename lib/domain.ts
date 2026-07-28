@@ -159,7 +159,7 @@ export function ksbMethods(standard: Standard, k: Ksb): MethodMeta[] {
   return k.methods.map((key) => methodMeta(standard, key));
 }
 
-/** Combined label for a KSB assessed by several methods, e.g. "PD + Report". */
+/** Combined label for a KSB assessed by several methods, e.g. "PD + R". */
 export function methodsLabel(standard: Standard, k: Ksb): string {
   return ksbMethods(standard, k)
     .map((m) => m.abbr)
