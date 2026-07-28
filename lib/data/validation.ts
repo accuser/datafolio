@@ -142,6 +142,9 @@ const CONTENT_FIELDS = ["title", "url", "note", "ksbIds"] as const;
  * `isOwner` (login === repo owner, i.e. the learner) gates the role-specific
  * rules that the UI enforces but a hand-crafted request otherwise wouldn't:
  *   - `feedback` is the reviewer's field, so a learner may not write it (403).
+ *   - the content fields are the learner's, so a reviewer may not write them
+ *     (403). Status is neither — both roles set it, which is the whole review
+ *     handshake.
  *   - editing content invalidates any prior review, so an owner edit that omits
  *     a status is forced back to Draft rather than silently keeping Approved.
  * (Rejecting a learner's explicit self-approval stays with the route handler.)
@@ -155,6 +158,35 @@ export function validateEvidencePatch(
     return { ok: false, error: "Missing patch" };
   }
   const r = raw as Record<string, unknown>;
+
+  // The two role rules, checked together and before any field validation.
+  //
+  // Together, because they are mirrors — content belongs to the learner,
+  // feedback belongs to the reviewer — and only the learner-side half used to
+  // exist, sitting inline in the field loop where its missing twin wasn't
+  // visible. Nothing stopped a reviewer rewriting the title, url, note or KSB
+  // mapping of the evidence they were reviewing, and the App token would have
+  // committed it. Stating both here makes an absent half obvious.
+  //
+  // Before validation, because authorisation precedes validation: a caller with
+  // no business touching a field shouldn't learn whether their value for it
+  // would have been accepted.
+  const editsContent = CONTENT_FIELDS.some((f) => f in r);
+  if (editsContent && !isOwner) {
+    return {
+      ok: false,
+      error: "Only the learner who owns this portfolio can edit evidence.",
+      status: 403,
+    };
+  }
+  if ("feedback" in r && isOwner) {
+    return {
+      ok: false,
+      error: "Only a reviewer can leave feedback on evidence.",
+      status: 403,
+    };
+  }
+
   const patch: Partial<Evidence> = {};
 
   if ("title" in r) {
@@ -167,17 +199,8 @@ export function validateEvidencePatch(
   }
   if ("url" in r) patch.url = str(r.url).slice(0, URL_MAX);
   if ("note" in r) patch.note = str(r.note).slice(0, NOTE_MAX);
-  if ("feedback" in r) {
-    // "Reviewer feedback" is a review field: only a non-owner (reviewer) may set it.
-    if (isOwner) {
-      return {
-        ok: false,
-        error: "Only a reviewer can leave feedback on evidence.",
-        status: 403,
-      };
-    }
-    patch.feedback = str(r.feedback).slice(0, FEEDBACK_MAX);
-  }
+  // Reachable only for a reviewer — the owner case returned 403 above.
+  if ("feedback" in r) patch.feedback = str(r.feedback).slice(0, FEEDBACK_MAX);
   if ("ksbIds" in r) {
     const ksbIds = acceptableIds(standard, r.ksbIds);
     if (!ksbIds.length) {
@@ -195,7 +218,10 @@ export function validateEvidencePatch(
   // A learner editing content must not leave the item Approved/Changes. The UI
   // always downgrades on edit; enforce it here for requests that don't. An
   // explicit Approved/Changes is left for the route's self-approval rejection.
-  const editsContent = CONTENT_FIELDS.some((f) => f in r);
+  //
+  // `isOwner` is redundant now that a non-owner editing content is refused
+  // outright, and is kept deliberately: it is the condition the rule is actually
+  // about, so it stays true if the content rule is ever relaxed.
   if (isOwner && editsContent && patch.status === undefined) {
     patch.status = "Draft";
   }

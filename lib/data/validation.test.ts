@@ -98,10 +98,59 @@ for (const field of [
   assert(v.ok && v.patch.status === "Submitted", "owner resubmit (status only) unchanged");
 }
 
-// --- the downgrade force applies only to the owner, not a reviewer ---
+// --- content is the learner's field: a reviewer may not rewrite it ---
+//
+// This block used to assert the opposite — that a reviewer's content edit was
+// accepted and merely not force-downgraded. It was written to cover the
+// downgrade rule and took a reviewer content edit as its vehicle, which quietly
+// pinned the missing-mirror bug in place as expected behaviour. A reviewer can
+// no longer edit content at all, so the premise is gone with it.
 {
-  const v = validateEvidencePatch(patch({ title: "Reviewer fix" }), { isOwner: false, standard: STD });
-  assert(v.ok && v.patch.status === undefined, "reviewer content edit not force-downgraded");
+  for (const field of [
+    { title: "Reviewer rewrite" },
+    { url: "https://example.com/not-mine" },
+    { note: "reviewer's words in the learner's mouth" },
+    { ksbIds: ["K4"] },
+  ]) {
+    const name = Object.keys(field)[0];
+    const v = validateEvidencePatch(patch(field), { isOwner: false, standard: STD });
+    assert(!v.ok, `reviewer edit of ${name} rejected`);
+    assert(!v.ok && v.status === 403, `reviewer edit of ${name} is a 403`);
+    assert(
+      !v.ok && /Only the learner/.test(v.error),
+      `the ${name} error names the boundary`,
+    );
+  }
+}
+
+// --- the mirror still lets each role write its own field ---
+{
+  const v = validateEvidencePatch(patch({ title: "Learner's own edit" }), { isOwner: true, standard: STD });
+  assert(v.ok, "owner may still edit content");
+}
+{
+  const v = validateEvidencePatch(patch({ feedback: "Reviewer's own field" }), { isOwner: false, standard: STD });
+  assert(v.ok && v.patch.feedback === "Reviewer's own field", "reviewer may still leave feedback");
+}
+
+// --- status is neither role's exclusive field: the review handshake needs both -
+{
+  const v = validateEvidencePatch(patch({ status: "Submitted" }), { isOwner: true, standard: STD });
+  assert(v.ok && v.patch.status === "Submitted", "learner may still submit");
+}
+{
+  const v = validateEvidencePatch(patch({ status: "Approved" }), { isOwner: false, standard: STD });
+  assert(v.ok && v.patch.status === "Approved", "reviewer may still approve");
+}
+
+// --- a reviewer sending both is refused on the content half ---
+{
+  const v = validateEvidencePatch(
+    patch({ title: "sneaking an edit in", feedback: "looks good" }),
+    { isOwner: false, standard: STD },
+  );
+  assert(!v.ok && v.status === 403, "reviewer content+feedback rejected as 403");
+  assert(!v.ok && /Only the learner/.test(v.error), "refused on the content rule, not the feedback one");
 }
 
 // --- unchanged baseline behaviour still holds ---

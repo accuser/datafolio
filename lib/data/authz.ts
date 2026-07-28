@@ -11,8 +11,9 @@
 // per request on RepoContext; every rule below is a function of it.
 //
 // Not covered here: the `canWrite` gate (a GitHub push-access check — a network
-// call, tested against the live API, not a pure rule) and the learner-can't-set-
-// feedback rule (which lives in validateEvidencePatch, already tested).
+// call, tested against the live API, not a pure rule) and the two role rules on
+// patching, which live in validateEvidencePatch because they are functions of
+// *which fields* the patch touches rather than of the action alone.
 
 export type Decision =
   | { allow: true }
@@ -35,6 +36,27 @@ export function canSubmitVerdict(
       status: 403,
       error:
         "You can’t review your own evidence — only a reviewer can approve or request changes.",
+    };
+  }
+  return ALLOW;
+}
+
+/**
+ * Adding evidence is the learner's own action, for the same reason deleting it
+ * is: a reviewer reviews the portfolio, they don't contribute to it.
+ *
+ * This was the gap in the set. Delete had a rule, cards had a rule, and create
+ * had nothing but the `canWrite` push-access check — which a reviewer passes by
+ * definition, since push access is exactly what makes them a reviewer. So a
+ * reviewer could POST evidence into a learner's portfolio and the App token
+ * would commit it under the learner's name.
+ */
+export function canCreateEvidence(isOwner: boolean): Decision {
+  if (!isOwner) {
+    return {
+      allow: false,
+      status: 403,
+      error: "Only the learner who owns this portfolio can add evidence.",
     };
   }
   return ALLOW;

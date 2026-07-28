@@ -4,6 +4,7 @@ import { resolveRepoContext } from "@/lib/github/request-context";
 import { createGitHubStore, resolveStandard } from "@/lib/data/github-store";
 import { storeErrorResponse } from "@/lib/data/error-response";
 import { validateNewEvidence } from "@/lib/data/validation";
+import { canCreateEvidence } from "@/lib/data/authz";
 
 // GET  /api/evidence  → all evidence for the signed-in user's target repo.
 export async function GET() {
@@ -36,6 +37,13 @@ export async function POST(request: Request) {
 
   if (!(await canWrite(ctx.octokit, ctx.owner, ctx.repo, ctx.login))) {
     return NextResponse.json({ error: "You do not have write access to this repo" }, { status: 403 });
+  }
+
+  // Adding evidence is the learner's own action. Push access alone doesn't grant
+  // it — a reviewer has push access by definition. See lib/data/authz.ts.
+  const create = canCreateEvidence(ctx.isOwner);
+  if (!create.allow) {
+    return NextResponse.json({ error: create.error }, { status: create.status });
   }
 
   const standard = await resolveStandard(ctx);

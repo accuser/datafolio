@@ -7,6 +7,7 @@
  * Run: `npx tsx --conditions=react-server lib/data/authz.test.ts`.
  */
 import {
+  canCreateEvidence,
   canDeleteEvidence,
   canSubmitVerdict,
   canWriteCards,
@@ -50,6 +51,22 @@ const REVIEWER = false;
   }
 }
 
+// --- create: only the learner who owns the portfolio may add evidence --------
+//
+// The gap in the set: delete and cards had rules, create had only the push-access
+// check, which a reviewer passes by definition.
+{
+  assert(canCreateEvidence(OWNER).allow, "an owner may add their own evidence");
+
+  const d = canCreateEvidence(REVIEWER);
+  assert(!d.allow, "a reviewer may not add evidence");
+  assert(!d.allow && d.status === 403, "a reviewer create is a 403");
+  assert(
+    !d.allow && /Only the learner/.test(d.error),
+    "the create error names the boundary",
+  );
+}
+
 // --- delete: only the learner who owns the portfolio may delete evidence -----
 {
   assert(canDeleteEvidence(OWNER).allow, "an owner may delete their own evidence");
@@ -76,4 +93,6 @@ const REVIEWER = false;
   );
 }
 
-console.log("AUTHZ OK — self-review, reviewer-delete and owner-only-card rules enforced");
+console.log(
+  "AUTHZ OK — self-review, reviewer-create, reviewer-delete and owner-only-card rules enforced",
+);
