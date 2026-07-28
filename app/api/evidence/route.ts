@@ -35,15 +35,18 @@ export async function POST(request: Request) {
   if (!res.ok) return NextResponse.json({ error: res.error }, { status: res.status });
   const { ctx } = res;
 
-  if (!(await canWrite(ctx.octokit, ctx.owner, ctx.repo, ctx.login))) {
-    return NextResponse.json({ error: "You do not have write access to this repo" }, { status: 403 });
-  }
-
   // Adding evidence is the learner's own action. Push access alone doesn't grant
   // it — a reviewer has push access by definition. See lib/data/authz.ts.
+  //
+  // Ahead of `canWrite`, which is a round-trip to GitHub: this rule is pure and
+  // strictly narrower, so a reviewer's POST is refused without an API call.
   const create = canCreateEvidence(ctx.isOwner);
   if (!create.allow) {
     return NextResponse.json({ error: create.error }, { status: create.status });
+  }
+
+  if (!(await canWrite(ctx.octokit, ctx.owner, ctx.repo, ctx.login))) {
+    return NextResponse.json({ error: "You do not have write access to this repo" }, { status: 403 });
   }
 
   const standard = await resolveStandard(ctx);
