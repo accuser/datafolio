@@ -38,12 +38,19 @@ export interface ParsedFolder {
  * welded together — so it maps to professional discussion alone. Nothing reads
  * these values to make decisions (the standard is the authority on how a KSB is
  * assessed); they exist so an un-migrated file still round-trips.
+ *
+ * Null prototype: the route is typed by hand in a learner's repo, and on a
+ * default object `route: constructor` resolves the inherited function instead
+ * of falling through to `?? []`.
  */
-const LEGACY_ROUTES: Record<string, string[]> = {
-  portfolio: ["professional_discussion"],
-  project: ["report"],
-  both: ["professional_discussion", "report"],
-};
+const LEGACY_ROUTES: Record<string, string[]> = Object.assign(
+  Object.create(null) as Record<string, string[]>,
+  {
+    portfolio: ["professional_discussion"],
+    project: ["report"],
+    both: ["professional_discussion", "report"],
+  },
+);
 
 function methodsFromFrontMatter(fm: {
   methods?: unknown;
@@ -61,16 +68,22 @@ const MONTHS = [
   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ];
 
-/** Lowercase repo status → Capitalized domain `EvidenceStatus`. */
-export function repoStatusToDomain(status: string): EvidenceStatus {
-  const map: Record<string, EvidenceStatus> = {
+// Null prototype: the status is typed by hand in a learner's index.md, and on
+// a default object `status: constructor` resolves the inherited function — the
+// `??` fallback never fires and a Function flows into Evidence.status.
+const STATUS_TO_DOMAIN: Record<string, EvidenceStatus> = Object.assign(
+  Object.create(null) as Record<string, EvidenceStatus>,
+  {
     draft: "Draft",
     submitted: "Submitted",
     approved: "Approved",
     changes: "Changes",
-  };
-  const key = String(status).toLowerCase();
-  return map[key] ?? "Draft";
+  },
+);
+
+/** Lowercase repo status → Capitalized domain `EvidenceStatus`. */
+export function repoStatusToDomain(status: string): EvidenceStatus {
+  return STATUS_TO_DOMAIN[String(status).toLowerCase()] ?? "Draft";
 }
 
 /** ISO `2026-06-12` → display `"12 Jun 2026"` (day without leading zero). */
