@@ -28,10 +28,15 @@ export function SignIn() {
 
   const { state, actions } = useApp();
 
-  // The OAuth callback redirects every failure back as `?auth=<reason>`.
+  // The OAuth callback redirects every failure back as `?auth=<reason>`, but
+  // anyone can type the param — an own-property check, because a bare lookup
+  // resolves inherited keys (`?auth=__proto__`, `?auth=constructor`) to
+  // non-strings that crash the render.
   const authReason = useConsumedSearchParam("auth");
   const authFailure = authReason
-    ? (AUTH_FAILURE_MESSAGES[authReason] ?? AUTH_FAILURE_FALLBACK)
+    ? Object.hasOwn(AUTH_FAILURE_MESSAGES, authReason)
+      ? AUTH_FAILURE_MESSAGES[authReason]
+      : AUTH_FAILURE_FALLBACK
     : null;
 
   return (
