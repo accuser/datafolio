@@ -15,6 +15,8 @@ import {
   collectingMethods,
   collectsEvidence,
   getStandard,
+  isStandardId,
+  ksbIndex,
   validKsbIds,
 } from "./index";
 import { readManifest } from "./manifest";
@@ -243,5 +245,25 @@ assert.deepEqual(
   std.ksbs.filter((k) => !cardable(std, k)).map((k) => k.id),
   ["S1", "S2", "S3", "S4", "S5", "S8", "B5"],
 );
+
+// -------------------------------------------------------- inherited keys
+
+// ksbIndex is looked up with URL segments (`/ksb/<id>`) and codes from repo
+// files, so a key Object.prototype happens to have must miss like any other
+// unknown id — not resolve to a function that passes `if (!ksb)` guards.
+const byId = ksbIndex(std);
+assert.equal(byId["K4"], k4, "real codes still resolve");
+assert.equal(byId["constructor"], undefined);
+assert.equal(byId["__proto__"], undefined);
+assert.equal(byId["hasOwnProperty"], undefined);
+
+// The same class of key arrives via a hand-edited datafolio.yml: `standard:
+// constructor` must be an unknown standard, not Object.prototype.constructor.
+assert.equal(isStandardId("constructor"), false);
+assert.equal(isStandardId("__proto__"), false);
+assert.equal(getStandard("constructor").id, "st0585", "falls back like any typo");
+const inherited = readManifest("standard: constructor\n");
+assert.equal(inherited.standardId, "st0585");
+assert.ok(inherited.warning, "an inherited-key standard should warn like any typo");
 
 console.log("standards.test.ts: ok");

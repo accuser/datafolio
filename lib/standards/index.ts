@@ -25,7 +25,11 @@ export { STANDARDS, STANDARD_IDS, type StandardId };
 export const DEFAULT_STANDARD_ID = "st0585";
 
 export function isStandardId(id: string): id is StandardId {
-  return id in STANDARDS;
+  // Own-property check, because `id` can come from a learner-edited
+  // datafolio.yml and `in` also sees inherited keys: `"constructor" in
+  // STANDARDS` is true, which would let getStandard hand back
+  // Object.prototype.constructor as a Standard.
+  return Object.hasOwn(STANDARDS, id);
 }
 
 /** Resolve a standard by id, falling back to the default for unknown ids. */
@@ -36,7 +40,14 @@ export function getStandard(id: string | null | undefined): Standard {
 
 /** KSBs and sub-points indexed by code, e.g. "K3" and "K3.1". */
 export function ksbIndex(standard: Standard): Record<string, Ksb> {
-  return Object.fromEntries(standard.ksbs.map((k) => [k.id, k]));
+  // Null prototype: callers index this with URL segments (`/ksb/<id>`) and
+  // codes from repo files, and on a default object an inherited key
+  // ("constructor", "__proto__") resolves to a function — truthy enough to
+  // pass every `if (!ksb)` guard and crash further in.
+  return Object.assign(
+    Object.create(null) as Record<string, Ksb>,
+    Object.fromEntries(standard.ksbs.map((k) => [k.id, k])),
+  );
 }
 
 /** Every valid evidence target in a standard — KSB codes plus sub-point codes. */
