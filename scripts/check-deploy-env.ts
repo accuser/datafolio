@@ -36,7 +36,8 @@ for (const file of BAKED_FILES) {
   const text = fs.readFileSync(p, "utf8");
   for (const key of SECRET_KEYS) {
     // A key with any non-empty value counts; commented-out lines don't.
-    const re = new RegExp(`^\\s*${key}\\s*=\\s*\\S`, "m");
+    // dotenv also accepts an `export KEY=…` prefix, so the guard must too.
+    const re = new RegExp(`^\\s*(?:export\\s+)?${key}\\s*=\\s*\\S`, "m");
     if (re.test(text)) problems.push(`${file} sets ${key}`);
   }
 }
