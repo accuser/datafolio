@@ -27,8 +27,13 @@ export function AddEvidence({ ksbId, editId }: { ksbId: string; editId?: string 
   // Title is required. Rather than sit behind a disabled button with no stated
   // reason (and no way to tab onto it), the submit stays live and explains.
   const [titleError, setTitleError] = useState(false);
+  // At least one KSB mapping is required too: the server rejects an unmapped
+  // item, and the mock store used to accept one — which then matched no screen
+  // anywhere and read as the work having vanished.
+  const [mapError, setMapError] = useState(false);
   const [dragging, setDragging] = useState(false);
   const titleRef = useRef<HTMLInputElement>(null);
+  const mapRef = useRef<HTMLSelectElement>(null);
 
   // Build the form from the route once (per add/edit target). For an edit we
   // wait until the target item has loaded, so a deep link / refresh still works.
@@ -40,6 +45,38 @@ export function AddEvidence({ ksbId, editId }: { ksbId: string; editId?: string 
     actions.startForm(ksbId, editId);
     initedRef.current = target;
   }, [ksbId, editId, state.evidence, actions]);
+
+  // Close the form when this screen unmounts by any exit other than Cancel —
+  // the back link, header nav, browser back. The draft survives in
+  // sessionStorage; what must not survive is the unsaved-work warning, which
+  // otherwise stayed armed for the whole session and raised "changes may not
+  // be saved" on every later refresh anywhere in the app. Resetting initedRef
+  // lets the next visit (including StrictMode's dev remount) re-initialise.
+  useEffect(() => {
+    return () => {
+      initedRef.current = null;
+      actions.leaveForm();
+    };
+  }, [actions]);
+
+  // Reviewers review; they don't contribute. The in-app entry points are
+  // already role-gated, so only a typed URL or a stale bookmark lands here —
+  // refuse before the form is filled in, not after (the server would 403 the
+  // save, but only once the writing was done).
+  if (state.role === "reviewer") {
+    return (
+      <div className="form-missing">
+        <h1 className="form-missing__title">This portfolio isn’t yours to add to</h1>
+        <p className="form-missing__body">
+          Only the learner who owns this portfolio can add or edit evidence —
+          reviewers approve or request changes from the KSB page.
+        </p>
+        <Link href={`/ksb/${ksbId}`} className="btn btn--primary">
+          Back to {ksbId}
+        </Link>
+      </div>
+    );
+  }
 
   // An edit id that isn't in the loaded evidence will never initialise a form,
   // so once the load has settled this is a dead link (a deleted item reached via
@@ -91,6 +128,12 @@ export function AddEvidence({ ksbId, editId }: { ksbId: string; editId?: string 
       return;
     }
     setTitleError(false);
+    if (!form.ksbIds.length) {
+      setMapError(true);
+      mapRef.current?.focus();
+      return;
+    }
+    setMapError(false);
     actions.save(status);
   };
   const commitPath =
@@ -339,10 +382,16 @@ export function AddEvidence({ ksbId, editId }: { ksbId: string; editId?: string 
         </div>
         <select
           id="ev-map"
+          ref={mapRef}
           value=""
           onChange={(e) => {
-            if (e.target.value) actions.addTag(e.target.value);
+            if (e.target.value) {
+              actions.addTag(e.target.value);
+              if (mapError) setMapError(false);
+            }
           }}
+          aria-invalid={mapError || undefined}
+          aria-describedby={mapError ? "ev-map-error" : undefined}
           className="input input--select"
         >
           <option value="">＋ Also map to another KSB or sub-point…</option>
@@ -352,6 +401,11 @@ export function AddEvidence({ ksbId, editId }: { ksbId: string; editId?: string 
             </option>
           ))}
         </select>
+        {mapError && (
+          <div id="ev-map-error" role="alert" className="field-error">
+            Map this evidence to at least one KSB or sub-point before saving it.
+          </div>
+        )}
       </div>
 
       {/* commit preview */}

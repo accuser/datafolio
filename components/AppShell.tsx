@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { BACKEND_MODE, useApp } from "@/lib/state";
+import { useConsumedSearchParam } from "@/lib/use-consumed-search-param";
 import { Header } from "./Header";
 import { MdPreview } from "./MdPreview";
 import { PortfolioBar } from "./PortfolioBar";
@@ -9,14 +10,58 @@ import { SignIn } from "./screens/SignIn";
 
 function ErrorBanner() {
   const { state, actions } = useApp();
+  const ref = useRef<HTMLDivElement>(null);
+  // Bring the banner into view when an error lands. On the add-evidence form
+  // the submit button sits well below the fold: without this, a failed save's
+  // only visible effect down there was the button un-busying, and people
+  // resubmitted into the same error. (role="alert" already covers screen
+  // readers; this is for sighted users.)
+  useEffect(() => {
+    if (state.error) {
+      ref.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }
+  }, [state.error]);
   if (!state.error) return null;
   return (
-    <div role="alert" className="banner banner--error">
+    <div ref={ref} role="alert" className="banner banner--error">
       <span className="banner__text">{state.error}</span>
       <button
         type="button"
         onClick={actions.dismissError}
         aria-label="Dismiss error"
+        className="icon-btn"
+      >
+        ×
+      </button>
+    </div>
+  );
+}
+
+/**
+ * Shown when sign-in had to drop portfolios to fit the session cookie
+ * (`?portfolios=truncated-N` from the OAuth callback). Without it a reviewer
+ * with a large roster silently saw a short switcher list, indistinguishable
+ * from those learners not being onboarded at all.
+ */
+function TruncatedRosterNotice() {
+  const raw = useConsumedSearchParam("portfolios");
+  const [dismissed, setDismissed] = useState(false);
+  const m = /^truncated-(\d+)$/.exec(raw ?? "");
+  const count = m ? parseInt(m[1], 10) : 0;
+  if (!count || dismissed) return null;
+  return (
+    <div role="status" className="banner banner--warn">
+      <span className="banner__text">
+        <strong>Your portfolio list is incomplete —</strong> your roster is
+        larger than a session can hold, so {count}{" "}
+        {count === 1 ? "portfolio isn’t" : "portfolios aren’t"} in the switcher.
+        To open a missing one, sign in via its direct link:{" "}
+        <code>/api/auth/login?owner=&lt;learner-login&gt;</code>.
+      </span>
+      <button
+        type="button"
+        onClick={() => setDismissed(true)}
+        aria-label="Dismiss notice"
         className="icon-btn"
       >
         ×
@@ -121,6 +166,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <Header />
         <PortfolioBar />
         <ErrorBanner />
+        <TruncatedRosterNotice />
         <ManifestWarning />
         <main id="main" ref={mainRef} tabIndex={-1}>
           {state.loadError ? <LoadFailed /> : children}

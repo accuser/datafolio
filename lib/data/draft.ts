@@ -14,9 +14,15 @@ const KEY = "datafolio:draft";
 /**
  * Which form a draft belongs to, so a stale draft can't be restored into a
  * different item's edit screen.
+ *
+ * `scope` is who was typing and where — `<login>@<owner>/<repo>` in GitHub
+ * mode, `"mock"` in the demo. Without it, one person's draft restored into
+ * another portfolio's form: a reviewer switching learners saw learner A's
+ * draft under learner B's KSB, and on a shared machine (a training-room PC)
+ * the next signed-in user could read the previous learner's reflection text.
  */
-export function draftKey(ksbId: string, editId?: string): string {
-  return editId ? `edit:${editId}` : `add:${ksbId}`;
+export function draftKey(scope: string, ksbId: string, editId?: string): string {
+  return `${scope}:${editId ? `edit:${editId}` : `add:${ksbId}`}`;
 }
 
 interface StoredDraft {
