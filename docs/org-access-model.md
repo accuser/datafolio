@@ -386,8 +386,9 @@ careless reviewer account drops from "total loss of the repository" to
   (`lib/github/app.ts:28`). The mechanism is already correct; only the signal
   and policy need work.
 - `canWrite` (`lib/github/app.ts:45`) gates three routes:
-  `app/api/evidence/route.ts:37`, `app/api/evidence/[id]/route.ts:20` and `:63`.
-  It is a pure signal read — its result never reaches GitHub.
+  `app/api/evidence/route.ts:48`, `app/api/evidence/[id]/route.ts:20` (PATCH)
+  and `:75` (DELETE). It is a pure signal read — its result never reaches
+  GitHub.
 - `canRead` (`lib/github/app.ts:69`) gates reads in
   `lib/github/request-context.ts:47`.
 - `isOwner` (`lib/github/request-context.ts:62`) is `login === target.owner` and

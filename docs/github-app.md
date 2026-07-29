@@ -27,8 +27,11 @@ specific than repo access, so it no longer names the role as though it did.
 GitHub → **Settings → Developer settings → GitHub Apps → New GitHub App**.
 
 - **Name / Homepage URL**: anything (e.g. your programme name).
-- **Callback URL**: `http://localhost:3000/api/auth/callback`
-  (use your deployed origin in production).
+- **Callback URLs** (a GitHub App can carry several — add each origin you'll
+  sign in from):
+  - `http://localhost:3000/api/auth/callback` (dev, `npm run dev`)
+  - `http://localhost:8787/api/auth/callback` (Worker preview, `npm run preview`)
+  - `<deployed origin>/api/auth/callback` (production — add after first deploy)
 - **Request user authorization (OAuth) during installation**: optional.
 - **Expire user authorization tokens**: fine either way — the app doesn't
   persist user tokens.
@@ -59,13 +62,25 @@ Copy `.env.example` → `.env.local` and fill in:
 | `APP_BASE_URL` | this app's origin (`http://localhost:3000` in dev) |
 | `DATAFOLIO_REPO_NAME` | the template-derived repo name (`portfolio-evidence`) |
 | `NEXT_PUBLIC_DATAFOLIO_BACKEND` | `github` to switch off mock mode |
+| `NEXT_PUBLIC_DATAFOLIO_CARDS` / `DATAFOLIO_CARDS` | optional — revision cards are **held back for the pilot**; both must be `on` to enable (see `lib/flags.ts`) |
 
 Restart the dev server after changing env.
 
+> `.env.local` is for **local dev only**. In production, secrets go on the
+> Worker (`wrangler secret put`) — the deploy build refuses to run while
+> `.env.local` holds secrets, because the bundler would bake them into the
+> deployed artifact. See [cloudflare.md](cloudflare.md).
+
 ## 3. Onboard a learner
 
-1. The learner creates their repo from the **template repository** (the
-   `template-repo/` in the design bundle) — named per `DATAFOLIO_REPO_NAME`.
+1. The learner creates their repo from the **template repository**,
+   [`accuser/datafolio-template`](https://github.com/accuser/datafolio-template)
+   ("Use this template" → a **private** repo named per `DATAFOLIO_REPO_NAME`,
+   default `portfolio-evidence`).
+
+   > The template repo is currently **private**, and a learner can only use a
+   > template they can see — make it public (it holds no learner data) or grant
+   > each learner read access before onboarding starts.
 2. They **install the GitHub App** on that one repo (Contents: R/W).
 3. They open DataFolio and **Sign in with GitHub** → they land on their own
    `<login>/portfolio-evidence`.
