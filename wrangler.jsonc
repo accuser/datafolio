@@ -12,9 +12,18 @@
   },
   "observability": {
     "enabled": true
+  },
+  // Non-secret runtime config lives here so it can be read back and diagnosed
+  // (secrets are write-only in Cloudflare). Fill in APP_BASE_URL after the
+  // first deploy — a wrong value breaks the OAuth redirect_uri.
+  "vars": {
+    "DATAFOLIO_REPO_NAME": "portfolio-evidence"
+    // "APP_BASE_URL": "https://datafolio.<your-subdomain>.workers.dev"
   }
-  // Runtime secrets (GITHUB_APP_ID, GITHUB_APP_PRIVATE_KEY, GITHUB_APP_CLIENT_ID,
-  // GITHUB_APP_CLIENT_SECRET, SESSION_SECRET, APP_BASE_URL, DATAFOLIO_REPO_NAME)
-  // are set with `wrangler secret put <NAME>` or in the dashboard — never here.
-  // NEXT_PUBLIC_DATAFOLIO_BACKEND is build-time; set it when running the build.
+  // Actual secrets (GITHUB_APP_ID, GITHUB_APP_PRIVATE_KEY, GITHUB_APP_CLIENT_ID,
+  // GITHUB_APP_CLIENT_SECRET, SESSION_SECRET) are set with
+  // `wrangler secret put <NAME>` or in the dashboard — never here, and never in
+  // .env files: the OpenNext build bakes .env/.env.local/.env.production into
+  // the Worker bundle (scripts/check-deploy-env.ts refuses to build if it
+  // would). NEXT_PUBLIC_DATAFOLIO_BACKEND is build-time; set it when building.
 }

@@ -16,7 +16,7 @@ import {
   typeInfo,
 } from "@/lib/domain";
 import type { Evidence } from "@/lib/types";
-import { Pill } from "../ui";
+import { LoadingState, Pill } from "../ui";
 import { RevisionCards } from "../RevisionCards";
 import { CARDS_ENABLED } from "@/lib/flags";
 import { ChevronLeft, Check, FileIcon, FolderIcon, LinkIcon, Plus } from "../icons";
@@ -192,12 +192,17 @@ export function KsbDetail({ ksbId }: { ksbId: string }) {
   const sel = ksbIndex(standard)[ksbId];
   const isLearner = role === "learner";
 
-  // Wait for the standard to arrive before deciding: on first paint state holds
-  // the default standard, so a valid code from another standard would 404.
-  if (!sel) {
-    if (state.loading) return null;
-    notFound();
-  }
+  // Same rule as every other screen (see LoadingState in ui.tsx): while the
+  // portfolio is loading, initial state is the default standard with no
+  // evidence and role "learner" — rendering from it painted "Not started /
+  // 0 covered / No evidence yet" over a populated KSB on every refresh, and
+  // briefly showed learner-only controls to reviewers.
+  if (state.loading) return <LoadingState label="Loading this KSB…" />;
+
+  // The standard has arrived; an id it doesn't define is a 404, not K1.
+  // Falling back to the first KSB would silently mask a bad link or a
+  // mis-mapped standard.
+  if (!sel) notFound();
 
   const sk = ksbStatusKey(evidence, sel.id);
   const m = statusMeta(sk);

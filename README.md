@@ -5,18 +5,23 @@ portfolio evidence against every KSB (Knowledge, Skill, Behaviour) — down to
 sub-points — and commit it to their own **private GitHub repo**. A reviewer —
 a coach, line manager, or anyone else granted access — approves it or requests
 changes. Learners can also build **revision cards** per KSB and export them as an
-Anki deck. Built with **Next.js** on the apprenticeship's repository contract
-(`evidence/<KSB>/index.md`, `revision/<KSB>/cards.md`).
+Anki deck (currently **held back behind a feature flag** for the pilot — see
+`lib/flags.ts`). Built with **Next.js** on the apprenticeship's repository
+contract (`evidence/<KSB>/index.md`, `revision/<KSB>/cards.md`).
 
 ## Run it
+
+Requires **Node 22+** (`npm test` relies on `node --test` glob support).
 
 ```bash
 npm install
 npm run dev        # http://localhost:3000
 ```
 
-Out of the box `.env.local` selects **GitHub mode**. To click through the app
-with no GitHub App and no auth, run **mock mode**:
+A fresh clone starts in **mock mode** (no `.env.local`). For **GitHub mode** —
+real sign-in against real repos — copy `.env.example` to `.env.local` and fill
+it in per [docs/github-app.md](docs/github-app.md). To click through the app
+with no GitHub App and no auth, run **mock mode** explicitly:
 
 ```bash
 npm run dev:mock   # http://localhost:3100, in-memory sample data
@@ -40,9 +45,18 @@ and `CardStore` seams (`lib/data/store.ts`, `lib/data/card-store.ts`).
 ## Deploy
 
 Runs on **Cloudflare Workers** via the OpenNext adapter (`nodejs_compat` for the
-Node backend). See **[docs/cloudflare.md](docs/cloudflare.md)** — build with
-`npm run cf:build`, preview on `workerd` with `npm run preview`, ship with
-`npm run deploy`.
+Node backend). See **[docs/cloudflare.md](docs/cloudflare.md)** — preview on
+`workerd` with `npm run preview`, ship with:
+
+```bash
+NEXT_PUBLIC_DATAFOLIO_BACKEND=github npm run deploy
+```
+
+The backend mode is baked in at **build time**, so the variable matters:
+without it the deploy ships the mock demo, which is why `npm run deploy` and
+`npm run cf:build` run a pre-deploy check that refuses a mock build (and any
+build that would bake secrets from `.env.local` into the Worker — see
+[docs/cloudflare.md](docs/cloudflare.md)).
 
 ## Layout
 
@@ -61,6 +75,7 @@ components/
 lib/
   domain.ts                # status derivation, genMd/renderIndexMd, meta helpers
   cards.ts  anki.ts        # revision-card generation + Anki TSV export
+  flags.ts                 # feature flags (revision cards are held back for the pilot)
   types.ts                 # domain types
   standards/               # occupational standards: standards/*.yaml → generated.ts (see below)
   data/                    # store seams: mock, http (client), github (server), validation, authz
@@ -68,7 +83,9 @@ lib/
   session.ts               # iron-session cookie
   state.tsx                # the client app state machine
 standards/st0585.yaml      # the KSB source of truth (edit here, not generated.ts)
-docs/github-app.md         # GitHub App registration + onboarding
+docs/github-app.md         # GitHub App registration + learner/reviewer onboarding
+docs/cloudflare.md         # Workers deployment, secrets handling, smoke tests
+docs/org-access-model.md   # the access model: who may read/write/review what
 ```
 
 ## Standards are generated

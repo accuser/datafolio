@@ -85,6 +85,13 @@ interface AppState {
   sessionError: boolean;
   /** True once the initial session check has settled, either way. */
   sessionChecked: boolean;
+  /**
+   * Set when this is a GitHub-mode build but the server reports it has no
+   * GitHub configuration (`configured: false` from /api/session). Without it
+   * the sign-in screen looks normal and the button lands on a raw JSON 501 —
+   * a deployment mistake presented as the user's problem.
+   */
+  backendMisconfigured: boolean;
   /** True while a chosen file's bytes are still being read. */
   fileReading: boolean;
   /** True once the open form has been edited — gates the unsaved-work warning. */
@@ -144,6 +151,7 @@ const initialState: AppState = {
   loadError: null,
   sessionError: false,
   sessionChecked: BACKEND_MODE !== "github",
+  backendMisconfigured: false,
   fileReading: false,
   formDirty: false,
   formKey: null,
@@ -244,6 +252,8 @@ export interface AppActions {
   startForm(ksbId: string, editId?: string): void;
   /** Abandon the open form and its saved draft (the Cancel path). */
   discardForm(): void;
+  /** Close the form on leaving the screen, keeping the draft (non-Cancel exits). */
+  leaveForm(): void;
   /** Re-attempt a portfolio load that failed. */
   retryLoad(): void;
   setFormField(key: keyof EvidenceForm, value: unknown): void;
@@ -311,6 +321,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // `submitting` state flag mirrors it for the UI (disabled buttons/spinners).
   const submittingRef = useRef(false);
 
+  // Set just before a deliberate hard navigation (portfolio switch, sign-out)
+  // so the unsaved-work beforeunload prompt doesn't fire for it. A ref, not
+  // state: the navigation happens in the same tick, before React could
+  // re-render and detach the listener. Without this, cancelling the prompt
+  // left the client rendering the old portfolio while the server session
+  // already pointed at the new one — and every subsequent write went to
+  // whichever repo the *server* had.
+  const unloadBypassRef = useRef(false);
+
   // The data-layer seam: GitHub-backed HTTP store, or the in-memory mock.
   const storeRef = useRef<EvidenceStore>(
     BACKEND_MODE === "github"
@@ -376,6 +395,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
           // Even if the request fails, still clear the local signed-in state.
         }
         if (BACKEND_MODE === "github") {
+          // Same as the mock branch: a draft must not outlive the session that
+          // wrote it — on a shared machine the next signed-in user could read
+          // the previous learner's reflection text.
+          clearDraft();
+          // Deliberate exit — suppress the unsaved-work prompt. Cancelling it
+          // here left a fully rendered app whose session was already destroyed,
+          // so every action 401ed.
+          unloadBypassRef.current = true;
           window.location.assign("/");
         } else {
           try {
@@ -404,6 +431,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (cur && cur.owner === owner && cur.repo === repo) return;
         runExclusive(async () => {
           await selectPortfolio(owner, repo);
+          // The server session now points at the new portfolio, so the reload
+          // must not be cancellable: suppress the unsaved-work prompt (drafts
+          // are keyed per portfolio and survive) rather than risk the client
+          // rendering the old repo while writes go to the new one.
+          unloadBypassRef.current = true;
           window.location.assign("/");
         });
       },
@@ -412,7 +444,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
       // Build the add/edit form for the current route; the add screen calls this
       // on mount so the form survives a refresh / deep link.
       startForm: (ksbId, editId) => {
-        const key = draftKey(ksbId, editId);
+        // Drafts are scoped to who is typing and which portfolio they're in,
+        // so a portfolio switch or a change of user can't restore someone
+        // else's words into this form. See draftKey.
+        const s = stateRef.current;
+        const scope =
+          BACKEND_MODE === "github"
+            ? `${s.user.login}@${s.target?.owner ?? ""}/${s.target?.repo ?? ""}`
+            : "mock";
+        const key = draftKey(scope, ksbId, editId);
         // A draft from this tab wins over a fresh form: the user was mid-sentence
         // and navigated away, so restoring their words matters more than
         // restoring the committed values they had already edited past.
@@ -450,6 +490,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
       },
       discardForm: () => {
         clearDraft();
+        patch({ form: null, formDirty: false, formKey: null });
+      },
+      // Leaving the add/edit screen without cancelling (back link, header nav,
+      // browser back). The draft is already in sessionStorage, so this is not
+      // an abandonment: it closes the form and, crucially, stands down the
+      // unsaved-work warning — which otherwise stayed armed for the rest of
+      // the session, raising "changes may not be saved" on every later
+      // refresh anywhere in the app until users learnt to click through it.
+      leaveForm: () => {
         patch({ form: null, formDirty: false, formKey: null });
       },
       retryLoad: () => {
@@ -563,17 +612,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }),
 
       // Reviewer actions patch the matching evidence item's status + feedback.
-      // Each verdict clears its own draft comment. Leaving it behind meant a
-      // reviewer who requested changes, saw the learner resubmit, then clicked
-      // Approve without retyping, committed the old "please revise" text as the
-      // approval feedback.
+      // The feedback committed with a verdict is exactly what the reviewer
+      // typed for *this* verdict — never the stored text from a previous one.
+      // Falling back to the item's existing feedback meant a reviewer who
+      // requested changes, saw the learner resubmit, then clicked Approve
+      // without retyping, committed the old "please revise" text as the
+      // approval feedback — into the index.md the EPA reads.
       approve: (id) =>
         runExclusive(async () => {
           const s = stateRef.current;
-          const existing = s.evidence.find((e) => e.id === id);
           const next = await store.updateEvidence(id, {
             status: "Approved",
-            feedback: s.reviewComments[id] || existing?.feedback || "",
+            feedback: s.reviewComments[id] || "",
           });
           dispatch({ type: "SET_EVIDENCE", evidence: next });
           dispatch({ type: "SET_REVIEW", id, value: "" });
@@ -719,6 +769,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return;
       }
       if (cancelled) return;
+      // A github-mode build against a server with no GitHub config is a
+      // deployment mistake, not a signed-out user — say so instead of showing
+      // a sign-in button that lands on a JSON 501.
+      if (!session.configured) {
+        dispatch({
+          type: "PATCH",
+          patch: {
+            loading: false,
+            sessionChecked: true,
+            backendMisconfigured: true,
+          },
+        });
+        return;
+      }
       if (!session.user) {
         dispatch({
           type: "PATCH",
@@ -824,11 +888,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
     saveDraft(state.formKey, state.form);
   }, [state.form, state.formDirty, state.formKey]);
 
-  // Native warning for the paths the app can't intercept: refresh, tab close,
-  // and the hard reload behind a portfolio switch.
+  // Native warning for the paths the app can't intercept: refresh and tab
+  // close. Deliberate hard navigations (portfolio switch, sign-out) set
+  // unloadBypassRef in the same tick as their location.assign, before React
+  // could re-render — the prompt must not be able to cancel a navigation
+  // whose server-side half has already happened.
   useEffect(() => {
     if (!state.formDirty) return;
-    const onBeforeUnload = (e: BeforeUnloadEvent) => e.preventDefault();
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (unloadBypassRef.current) return;
+      e.preventDefault();
+    };
     window.addEventListener("beforeunload", onBeforeUnload);
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }, [state.formDirty]);

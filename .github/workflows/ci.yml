@@ -24,3 +24,8 @@ jobs:
       # The build catches App-Router / RSC boundary mistakes that lint, tsc and
       # the unit tests all pass straight over.
       - run: npm run build
+      # The Worker bundle is the artifact that actually ships: a different
+      # bundler, different module conditions, and the env-baking path. Built in
+      # github mode, so the real client tree (http stores) is build-verified
+      # too — plain `npm run build` above only ever compiles the mock tree.
+      - run: NEXT_PUBLIC_DATAFOLIO_BACKEND=github npm run cf:build

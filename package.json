@@ -2,6 +2,9 @@
   "name": "datafolio",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -12,9 +15,9 @@
     "standards:check": "tsx scripts/build-standards.ts --check",
     "test": "npm run standards:check && npm run test:unit",
     "test:unit": "tsx --test --conditions=react-server \"lib/**/*.test.ts\" \"lib/**/*.roundtrip.ts\"",
-    "cf:build": "opennextjs-cloudflare build",
+    "cf:build": "tsx scripts/check-deploy-env.ts && opennextjs-cloudflare build",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
-    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "deploy": "tsx scripts/check-deploy-env.ts && opennextjs-cloudflare build && opennextjs-cloudflare deploy",
     "cf:typegen": "wrangler types --env-interface CloudflareEnv"
   },
   "dependencies": {
